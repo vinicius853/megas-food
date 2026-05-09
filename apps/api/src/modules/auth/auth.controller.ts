@@ -16,6 +16,7 @@ import { JwtAuthGuard } from './guards/jwt-auth.guard'
 import { RolesGuard } from './guards/roles.guard'
 
 import { CurrentUser } from './decorators/current-user.decorator'
+import { CurrentTenant } from './decorators/current-tenant.decorator'
 import { Roles } from './decorators/roles.decorator'
 
 @Controller('auth')
@@ -36,6 +37,14 @@ export class AuthController {
   @Get('me')
   async me(@CurrentUser() user: any) {
     return user
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Get('tenant-test')
+  async tenantTest(@CurrentTenant() tenantId: string) {
+    return {
+      tenantId,
+    }
   }
 
   @UseGuards(JwtAuthGuard, RolesGuard)
