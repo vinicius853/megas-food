@@ -5,6 +5,7 @@ import {
   Post,
   UseGuards,
 } from '@nestjs/common'
+import { UserRole } from '@prisma/client'
 
 import { AuthService } from './auth.service'
 
@@ -12,7 +13,10 @@ import { RegisterDto } from './dto/register.dto'
 import { LoginDto } from './dto/login.dto'
 
 import { JwtAuthGuard } from './guards/jwt-auth.guard'
+import { RolesGuard } from './guards/roles.guard'
+
 import { CurrentUser } from './decorators/current-user.decorator'
+import { Roles } from './decorators/roles.decorator'
 
 @Controller('auth')
 export class AuthController {
@@ -32,5 +36,15 @@ export class AuthController {
   @Get('me')
   async me(@CurrentUser() user: any) {
     return user
+  }
+
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.CLIENT_OWNER)
+  @Get('owner-test')
+  async ownerTest(@CurrentUser() user: any) {
+    return {
+      message: 'Acesso permitido para dono da pizzaria',
+      user,
+    }
   }
 }
