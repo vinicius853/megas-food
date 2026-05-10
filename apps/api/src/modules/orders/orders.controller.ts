@@ -1,0 +1,54 @@
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Param,
+  Patch,
+  Post,
+  Req,
+  UseGuards,
+} from '@nestjs/common'
+
+import { OrdersService } from './orders.service'
+
+import { CreateOrderDto } from './dto/create-order.dto'
+import { UpdateOrderDto } from './dto/update-order.dto'
+
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard'
+import { RolesGuard } from '../auth/guards/roles.guard'
+
+@Controller('orders')
+@UseGuards(JwtAuthGuard, RolesGuard)
+export class OrdersController {
+  constructor(private readonly ordersService: OrdersService) {}
+
+  @Post()
+  create(@Req() req: any, @Body() dto: CreateOrderDto) {
+    return this.ordersService.create(req.user.tenantId, req.user.id, dto)
+  }
+
+  @Get()
+  findAll(@Req() req: any) {
+    return this.ordersService.findAll(req.user.tenantId)
+  }
+
+  @Get(':id')
+  findOne(@Req() req: any, @Param('id') id: string) {
+    return this.ordersService.findOne(req.user.tenantId, id)
+  }
+
+  @Patch(':id')
+  update(
+    @Req() req: any,
+    @Param('id') id: string,
+    @Body() dto: UpdateOrderDto,
+  ) {
+    return this.ordersService.update(req.user.tenantId, id, dto)
+  }
+
+  @Delete(':id')
+  remove(@Req() req: any, @Param('id') id: string) {
+    return this.ordersService.remove(req.user.tenantId, id)
+  }
+}
