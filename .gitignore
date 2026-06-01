@@ -1,7 +1,44 @@
 # Dependencies
-node_modules
+node_modules/
+**/node_modules/
 
-# Local environment variables
+# Environment
 .env
 **/.env
-*.env.local
+.env.*
+**/.env.*
+!.env.example
+
+# Next.js
+.next/
+**/.next/
+out/
+
+# Turbo
+.turbo/
+**/.turbo/
+
+# Build
+dist/
+build/
+coverage/
+
+# Cache
+.cache/
+**/.cache/
+.parcel-cache/
+.eslintcache
+*.tsbuildinfo
+
+# Logs
+*.log
+logs/
+**/logs/
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
