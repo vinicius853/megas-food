@@ -2,8 +2,6 @@
 
 import {
   ArrowLeft,
-  Check,
-  CupSoda,
   Plus,
   X,
 } from 'lucide-react'
@@ -14,164 +12,24 @@ import {
 } from 'react'
 
 import { useCart } from './cart-context'
-
-type Product = {
-  id: string
-  name: string
-  description?: string | null
-  type?: 'PIZZA_ROUND' | 'PIZZA_SQUARE' | 'DRINK' | 'OTHER'
-}
-
-type PizzaSize = {
-  id: string
-  productId: string
-  name: string
-  maxFlavors: number
-  allowBorder: boolean
-}
-
-type PizzaFlavor = {
-  id: string
-  name: string
-  description?: string | null
-  imageUrl?: string | null
-}
-
-type FlavorPrice = {
-  productId: string
-  sizeId: string
-  flavorId: string
-  price: string | number
-}
-
-type PizzaBorder = {
-  id: string
-  name: string
-}
-
-type BorderPrice = {
-  productId: string
-  sizeId: string
-  borderId: string
-  price: string | number
-}
-
-type AdditionalProduct = {
-  id: string
-  name: string
-  description?: string | null
-  imageUrl?: string | null
-  price: string | number
-}
-
-type Step =
-  | 'size'
-  | 'mode'
-  | 'secondFlavor'
-  | 'borderQuestion'
-  | 'borderSelect'
-  | 'additionalQuestion'
-  | 'additionalSelect'
-  | 'summary'
-  | 'drinkSuggestion'
-
-type SelectionMode = 'whole' | 'multi'
-
-type PizzaConfiguratorFlowProps = {
-  open: boolean
-  product: Product | null
-  initialFlavorId: string | null
-  sizes: PizzaSize[]
-  flavors: PizzaFlavor[]
-  flavorPrices: FlavorPrice[]
-  borders: PizzaBorder[]
-  borderPrices: BorderPrice[]
-  additionalProducts?: AdditionalProduct[]
-  onClose: () => void
-  shouldOfferDrinkSuggestion?: boolean
-  onDrinkSuggestionShown?: () => void
-  onViewDrinks: () => void
-  onOpenCart: () => void
-  onItemAdded?: (item: { name: string; imageUrl: string }) => void
-}
-
-function toNumber(value: unknown) {
-  const normalized =
-    typeof value === 'string'
-      ? value.replace(/\./g, '').replace(',', '.')
-      : value
-
-  const parsed = Number(normalized)
-
-  return Number.isFinite(parsed) ? parsed : 0
-}
-
-function getFlavorLimitLabel(maxFlavors: number) {
-  if (maxFlavors <= 1) return 'Inteira'
-  if (maxFlavors === 2) return 'Meio a meio'
-
-  return `Ate ${maxFlavors} sabores`
-}
-
-function getSizeFlavorDescription(maxFlavors: number) {
-  if (maxFlavors <= 1) return '1 sabor'
-
-  return `Ate ${maxFlavors} sabores`
-}
-
-function normalizeMaxFlavors(value: number) {
-  return Math.min(Math.max(Number(value) || 1, 1), 4)
-}
-
-function formatMoney(value: number) {
-  return value.toLocaleString('pt-BR', {
-    style: 'currency',
-    currency: 'BRL',
-  })
-}
-
-function OptionCard({
-  title,
-  description,
-  price,
-  selected,
-  onClick,
-}: {
-  title: string
-  description?: string
-  price?: number
-  selected?: boolean
-  onClick: () => void
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={`flex w-full items-center justify-between gap-4 rounded-2xl border p-4 text-left transition ${
-        selected
-          ? 'border-red-600 bg-red-50'
-          : 'border-slate-200 bg-white hover:border-red-200'
-      }`}
-    >
-      <div>
-        <p className="text-sm font-black text-slate-950">{title}</p>
-        {description && (
-          <p className="mt-1 text-xs font-semibold text-slate-500">
-            {description}
-          </p>
-        )}
-      </div>
-
-      {typeof price === 'number' && (
-        <span className="text-sm font-black text-red-700">
-          {formatMoney(price)}
-        </span>
-      )}
-
-      {selected && <Check className="h-5 w-5 text-red-700" />}
-    </button>
-  )
-}
+import {
+  PizzaConfiguratorDrinkSuggestion,
+  PizzaConfiguratorDrinkSuggestionFooter,
+} from './pizza-configurator-drink-suggestion'
+import {
+  getFlavorLimitLabel,
+  getSizeFlavorDescription,
+  normalizeMaxFlavors,
+  toNumber,
+} from './pizza-configurator-helpers'
+import { OptionCard } from './pizza-configurator-option-card'
+import { PizzaConfiguratorSummary } from './pizza-configurator-summary'
+import type {
+  PizzaConfiguratorFlowProps,
+  PizzaFlavor,
+  SelectionMode,
+  Step,
+} from './pizza-configurator.types'
 
 export function PizzaConfiguratorFlow({
   open,
@@ -703,73 +561,26 @@ export function PizzaConfiguratorFlow({
           )}
 
           {step === 'summary' && (
-            <section>
-              <h3 className="mb-4 text-lg font-black text-slate-950">
-                Revise seu pedido
-              </h3>
-
-              <div className="space-y-3 rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm font-bold text-slate-700">
-                <p>Produto: <span className="text-slate-950">{product.name}</span></p>
-                <p>Tamanho: <span className="text-slate-950">{selectedSize?.name}</span></p>
-                <p>
-                  Sabores:{' '}
-                  <span className="text-slate-950">
-                    {[firstFlavor?.name, ...extraFlavors.map((flavor) => flavor.name)]
-                      .filter(Boolean)
-                      .join(' / ')}
-                  </span>
-                </p>
-                {selectedBorder && (
-                  <p>Borda: <span className="text-slate-950">{selectedBorder.name}</span></p>
-                )}
-                {selectedAdditionalItems.length > 0 && (
-                  <p>
-                    Adicionais:{' '}
-                    <span className="text-slate-950">
-                      {selectedAdditionalItems
-                        .map((additional) => additional.name)
-                        .join(', ')}
-                    </span>
-                  </p>
-                )}
-                {mode === 'multi' && (
-                  <p className="text-xs text-slate-500">
-                    Pizzas com multiplos sabores cobram o maior preco entre os sabores.
-                  </p>
-                )}
-                <textarea
-                  value={notes}
-                  onChange={(event) => setNotes(event.target.value)}
-                  placeholder="Observacao do item"
-                  rows={3}
-                  className="w-full resize-none rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-medium outline-none"
-                />
-                <div className="flex items-center justify-between border-t border-slate-200 pt-3">
-                  <span>Total</span>
-                  <strong className="text-xl text-red-700">
-                    {formatMoney(totalPrice)}
-                  </strong>
-                </div>
-              </div>
-            </section>
+            <PizzaConfiguratorSummary
+              productName={product.name}
+              sizeName={selectedSize?.name}
+              flavorNames={[
+                firstFlavor?.name ?? '',
+                ...extraFlavors.map((flavor) => flavor.name),
+              ]}
+              borderName={selectedBorder?.name}
+              additionalNames={selectedAdditionalItems.map(
+                (additional) => additional.name,
+              )}
+              isMulti={mode === 'multi'}
+              notes={notes}
+              onNotesChange={setNotes}
+              totalPrice={totalPrice}
+            />
           )}
 
           {step === 'drinkSuggestion' && (
-            <section>
-              <div className="rounded-3xl border border-red-100 bg-red-50 p-5 text-center">
-                <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-3xl bg-white text-red-700 shadow-sm">
-                  <CupSoda className="h-8 w-8" />
-                </div>
-
-                <h3 className="mt-4 text-xl font-black uppercase leading-tight text-slate-950">
-                  Deseja adicionar uma bebida?
-                </h3>
-
-                <p className="mt-2 text-sm font-bold leading-relaxed text-slate-600">
-                  Sua pizza ja foi adicionada ao carrinho. Voce pode completar o pedido com uma bebida agora.
-                </p>
-              </div>
-            </section>
+            <PizzaConfiguratorDrinkSuggestion />
           )}
         </div>
 
@@ -787,30 +598,18 @@ export function PizzaConfiguratorFlow({
         )}
 
         {step === 'drinkSuggestion' && (
-          <footer className="space-y-3 border-t border-slate-200 bg-white p-4">
-            <button
-              type="button"
-              onClick={() => {
-                onClose()
-                onViewDrinks()
-              }}
-              className="flex h-14 w-full items-center justify-center rounded-2xl bg-red-700 text-base font-black uppercase text-white shadow-lg"
-            >
-              Sim, ver bebidas
-            </button>
-
-            <button
-              type="button"
-              onClick={() => {
-                onClose()
-                onOpenCart()
-              }}
-              className="flex h-14 w-full items-center justify-center rounded-2xl bg-slate-100 text-base font-black text-slate-700"
-            >
-              Nao, ir para o carrinho
-            </button>
-          </footer>
+          <PizzaConfiguratorDrinkSuggestionFooter
+            onViewDrinks={() => {
+              onClose()
+              onViewDrinks()
+            }}
+            onOpenCart={() => {
+              onClose()
+              onOpenCart()
+            }}
+          />
         )}
+
       </div>
     </div>
   )
