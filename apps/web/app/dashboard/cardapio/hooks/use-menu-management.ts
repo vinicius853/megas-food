@@ -23,50 +23,17 @@ import {
   parseMoney,
   parsePositiveInteger,
 } from '../types/menu-management'
+import {
+  fixedProductSectionSlugs,
+  pizzaModes,
+} from './menu-management-constants'
+import {
+  generateSlug,
+  getErrorMessage,
+  temporaryId,
+} from './menu-management-utils'
 
-export const pizzaModes: {
-  id: PizzaMode
-  label: string
-}[] = [
-  {
-    id: 'round',
-    label: 'Pizza redonda',
-  },
-  {
-    id: 'square',
-    label: 'Pizza quadrada',
-  },
-  {
-    id: 'mixed',
-    label: 'Redonda + quadrada',
-  },
-]
-
-const fixedProductSectionSlugs = [
-  'pizzas',
-  'bebidas',
-  'adicionais',
-]
-
-function temporaryId(prefix: string) {
-  return `${prefix}-${crypto.randomUUID()}`
-}
-
-function generateSlug(value: string) {
-  return value
-    .toLowerCase()
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/(^-|-$)+/g, '')
-}
-
-function getErrorMessage(
-  error: unknown,
-  fallback: string,
-) {
-  return error instanceof Error ? error.message : fallback
-}
+export { pizzaModes }
 
 function normalizeCategory(
   category: Category,
