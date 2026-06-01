@@ -4,111 +4,19 @@ import { useMemo, useState } from 'react'
 import { Banknote, CreditCard, MapPin, QrCode, Search, X } from 'lucide-react'
 
 import { apiFetch } from '@/lib/api'
-import { CartItem } from './cart-context'
-
-type CheckoutModalProps = {
-  open: boolean
-  onClose: () => void
-  items: CartItem[]
-  totalPrice: number
-  couponCode?: string
-  discountAmount?: number
-  whatsapp?: string | null
-  tenantName: string
-  tenantSlug: string
-  palette?: MenuPalette
-  delivery?: DeliverySettings
-  ordersEnabled?: boolean
-  closedMessage?: string
-}
-
-type DeliveryType = 'DELIVERY' | 'PICKUP'
-type PaymentMethod = 'MONEY' | 'CARD' | 'PIX'
-
-type MenuPalette = {
-  primary: string
-  secondary: string
-  accent: string
-  soft: string
-  textOnPrimary: string
-}
-
-type DeliveryZone = {
-  id: string
-  name: string
-  fee: number
-  eta: string
-  isActive: boolean
-}
-
-type DeliverySettings = {
-  isDeliveryOpen?: boolean
-  city?: string
-  state?: string
-  storeCep?: string
-  storeAddress?: string
-  whatsapp?: string
-  zones?: DeliveryZone[]
-}
-
-type CepResponse = {
-  cep?: string
-  logradouro?: string
-  bairro?: string
-  localidade?: string
-  uf?: string
-  erro?: boolean
-}
-
-function formatMoney(value: number) {
-  return value.toLocaleString('pt-BR', {
-    style: 'currency',
-    currency: 'BRL',
-  })
-}
-
-function onlyNumbers(value: string) {
-  return value.replace(/\D/g, '')
-}
-
-function parseMoneyInput(value: string) {
-  const normalized = value
-    .replace(/[^\d,.-]/g, '')
-    .replace(/\./g, '')
-    .replace(',', '.')
-
-  const parsed = Number(normalized)
-
-  return Number.isFinite(parsed) ? parsed : 0
-}
-
-function normalizeText(value: string) {
-  return value
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .trim()
-    .toLowerCase()
-}
-
-function getErrorMessage(error: unknown) {
-  if (!(error instanceof Error)) {
-    return 'Erro ao finalizar pedido.'
-  }
-
-  try {
-    const parsed = JSON.parse(error.message) as {
-      message?: string | string[]
-    }
-
-    if (Array.isArray(parsed.message)) {
-      return parsed.message.join('\n')
-    }
-
-    return parsed.message || error.message
-  } catch {
-    return error.message || 'Erro ao finalizar pedido.'
-  }
-}
+import {
+  formatMoney,
+  getErrorMessage,
+  normalizeText,
+  onlyNumbers,
+  parseMoneyInput,
+} from './checkout-formatters'
+import type {
+  CepResponse,
+  CheckoutModalProps,
+  DeliveryType,
+  PaymentMethod,
+} from './checkout.types'
 
 export function CheckoutModal({
   open,
