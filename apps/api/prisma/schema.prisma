@@ -9,10 +9,17 @@ datasource db {
 model Tenant {
   id        String   @id @default(uuid())
   slug      String   @unique
+  internalCode String? @unique
   name      String
+  responsibleName String?
   document  String?
   phone     String?
   whatsapp  String?
+  city      String?
+  state     String?
+  address   String?
+  zipCode   String?
+  internalNotes String?
   logoUrl   String?
   isActive  Boolean  @default(true)
   settings  Json?
@@ -23,9 +30,20 @@ model Tenant {
   categories Category[]
   products   Product[]
   orders     Order[]
-  tables     RestaurantTable[]
+  coupons    Coupon[]
+  billingInvoices BillingInvoice[]
+  subscriptions   Subscription[]
 
   @@map("tenants")
+}
+
+model TenantInternalCodeSequence {
+  id        String   @id @default(uuid())
+  prefix    String   @unique
+  nextValue Int      @default(1)
+  updatedAt DateTime @updatedAt
+
+  @@map("tenant_internal_code_sequences")
 }
 
 model User {
@@ -35,29 +53,157 @@ model User {
   email     String
   password  String
   role      UserRole
+  permissions String[] @default([])
   isActive  Boolean  @default(true)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  tenant Tenant  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   orders Order[]
+  auditLogs AuditLog[]
 
   @@unique([tenantId, email])
   @@map("users")
 }
 
+model AuditLog {
+  id         String        @id @default(uuid())
+  actorId    String?
+  actorEmail String?
+  action     String
+  target     String
+  level      AuditLogLevel @default(INFO)
+  metadata   Json?
+  createdAt  DateTime      @default(now())
+
+  actor User? @relation(fields: [actorId], references: [id], onDelete: SetNull)
+
+  @@index([createdAt])
+  @@index([actorId])
+  @@map("audit_logs")
+}
+
+model BillingInvoice {
+  id                         String                @id @default(uuid())
+  tenantId                   String
+  planId                     String?
+  subscriptionId             String?
+  amount                     Decimal               @db.Decimal(10, 2)
+  dueDate                    DateTime
+  status                     BillingInvoiceStatus  @default(OPEN)
+  paymentMethod              BillingPaymentMethod?
+  mercadoPagoPreferenceId    String?
+  mercadoPagoPaymentId       String?
+  mercadoPagoPaymentStatus   String?
+  paymentUrl                 String?
+  sandboxPaymentUrl          String?
+  notes                      String?
+  paidAt                     DateTime?
+  createdAt                  DateTime              @default(now())
+  updatedAt                  DateTime              @updatedAt
+
+  tenant       Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  plan         Plan?         @relation(fields: [planId], references: [id], onDelete: SetNull)
+  subscription Subscription? @relation(fields: [subscriptionId], references: [id], onDelete: SetNull)
+
+  @@index([tenantId])
+  @@index([planId])
+  @@index([subscriptionId])
+  @@index([status])
+  @@index([dueDate])
+  @@unique([mercadoPagoPreferenceId])
+  @@unique([mercadoPagoPaymentId])
+  @@map("billing_invoices")
+}
+
+model Plan {
+  id           String   @id @default(uuid())
+  name         String
+  slug         String   @unique
+  description  String?
+  monthlyPrice Decimal  @db.Decimal(10, 2)
+  annualPrice  Decimal? @db.Decimal(10, 2)
+  setupFee     Decimal? @db.Decimal(10, 2)
+  isActive     Boolean  @default(true)
+  isFeatured   Boolean  @default(false)
+  sortOrder    Int      @default(0)
+  features     String[] @default([])
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  subscriptions   Subscription[]
+  billingInvoices BillingInvoice[]
+
+  @@map("plans")
+}
+
+model Subscription {
+  id                         String             @id @default(uuid())
+  tenantId                   String
+  planId                     String
+  mercadoPagoSubscriptionId  String?
+  mercadoPagoSubscriptionUrl String?
+  mercadoPagoSubscriptionStatus String?
+  status                     SubscriptionStatus @default(PENDING)
+  contractedMonthlyPrice     Decimal            @db.Decimal(10, 2)
+  contractedAnnualPrice      Decimal?           @db.Decimal(10, 2)
+  contractedSetupFee         Decimal?           @db.Decimal(10, 2)
+  contractedAt               DateTime           @default(now())
+  internalNotes              String?
+  startedAt                  DateTime?
+  nextBillingDate            DateTime?
+  canceledAt                 DateTime?
+  accessUntil                DateTime?
+  gracePeriodDays            Int                @default(5)
+  blockedAt                  DateTime?
+  createdAt                  DateTime           @default(now())
+  updatedAt                  DateTime           @updatedAt
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  plan   Plan   @relation(fields: [planId], references: [id], onDelete: Restrict)
+
+  billingInvoices BillingInvoice[]
+
+  @@index([tenantId])
+  @@index([planId])
+  @@index([status])
+  @@index([nextBillingDate])
+  @@unique([mercadoPagoSubscriptionId])
+  @@map("subscriptions")
+}
+
+model PaymentWebhookLog {
+  id          String   @id @default(uuid())
+  provider    String
+  eventId     String?
+  eventType   String?
+  resourceId  String?
+  payload     Json?
+  processed   Boolean  @default(false)
+  error       String?
+  createdAt   DateTime @default(now())
+  processedAt DateTime?
+
+  @@index([provider])
+  @@index([resourceId])
+  @@unique([provider, eventId])
+  @@map("payment_webhook_logs")
+}
+
 model Category {
-  id        String   @id @default(uuid())
+  id        String       @id @default(uuid())
   tenantId  String
   name      String
   slug      String
-  sortOrder Int      @default(0)
-  isActive  Boolean  @default(true)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  type      CategoryType @default(PRODUCT_SECTION)
+  sortOrder Int          @default(0)
+  isActive  Boolean      @default(true)
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
 
-  tenant   Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  products Product[]
+  tenant       Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  products     Product[]
+  pizzaFlavors PizzaFlavor[]
 
   @@unique([tenantId, slug])
   @@map("categories")
@@ -71,6 +217,7 @@ model Product {
   description String?
   imageUrl    String?
   type        ProductType
+  price       Decimal?    @db.Decimal(10, 2)
   isActive    Boolean     @default(true)
   sortOrder   Int         @default(0)
   createdAt   DateTime    @default(now())
@@ -92,6 +239,7 @@ model PizzaSize {
   tenantId    String
   productId   String
   name        String
+  subtitle    String?
   type        PizzaSizeType
   value       Int?
   maxFlavors  Int           @default(1)
@@ -112,11 +260,16 @@ model PizzaSize {
 model PizzaFlavor {
   id          String   @id @default(uuid())
   tenantId    String
+  categoryId  String?
   name        String
   description String?
+  imageUrl    String?
+  sortOrder   Int      @default(0)
   isActive    Boolean  @default(true)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+
+  category Category? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
 
   prices     PizzaFlavorPrice[]
   orderItems OrderItemFlavor[]
@@ -171,51 +324,57 @@ model PizzaBorderPrice {
   @@map("pizza_border_prices")
 }
 
-model RestaurantTable {
-  id        String      @id @default(uuid())
-  tenantId  String
-  number    Int
-  name      String?
-  status    TableStatus @default(AVAILABLE)
-  isActive  Boolean     @default(true)
-  createdAt DateTime    @default(now())
-  updatedAt DateTime    @updatedAt
-
-  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  orders Order[]
-
-  @@unique([tenantId, number])
-  @@map("restaurant_tables")
-}
-
 model Order {
-  id            String      @id @default(uuid())
+  id            String       @id @default(uuid())
   tenantId      String
   userId        String?
-  tableId       String?
+  number        Int          @default(autoincrement())
   customerName  String?
   customerPhone String?
   type          OrderType
-  status        OrderStatus @default(PENDING)
+  status        OrderStatus  @default(PENDING)
   paymentType   PaymentType?
-  subtotal      Decimal     @db.Decimal(10, 2)
-  deliveryFee   Decimal     @default(0) @db.Decimal(10, 2)
-  total         Decimal     @db.Decimal(10, 2)
+  subtotal      Decimal      @db.Decimal(10, 2)
+  deliveryFee   Decimal      @default(0) @db.Decimal(10, 2)
+  discountAmount Decimal      @default(0) @db.Decimal(10, 2)
+  couponCode    String?
+  totalBeforeDiscount Decimal? @db.Decimal(10, 2)
+  total         Decimal      @db.Decimal(10, 2)
   notes         String?
-  createdAt     DateTime    @default(now())
-  updatedAt     DateTime    @updatedAt
+  paidAt        DateTime?
+  closedAt      DateTime?
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
 
   tenant Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   user   User?            @relation(fields: [userId], references: [id], onDelete: SetNull)
-  table  RestaurantTable? @relation(fields: [tableId], references: [id], onDelete: SetNull)
 
   items OrderItem[]
 
   @@map("orders")
 }
 
+model Coupon {
+  id                String       @id @default(uuid())
+  tenantId          String
+  code              String
+  type              CouponType
+  value             Decimal      @db.Decimal(10, 2)
+  minimumOrderValue Decimal?     @db.Decimal(10, 2)
+  startsAt          DateTime?
+  expiresAt         DateTime?
+  isActive          Boolean      @default(true)
+  createdAt         DateTime     @default(now())
+  updatedAt         DateTime     @updatedAt
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, code])
+  @@map("coupons")
+}
+
 model OrderItem {
-  id         String   @id @default(uuid())
+  id         String  @id @default(uuid())
   orderId    String
   productId  String?
   sizeId     String?
@@ -223,9 +382,9 @@ model OrderItem {
   name       String
   sizeName   String?
   borderName String?
-  quantity   Int      @default(1)
-  unitPrice  Decimal  @db.Decimal(10, 2)
-  total      Decimal  @db.Decimal(10, 2)
+  quantity   Int     @default(1)
+  unitPrice  Decimal @db.Decimal(10, 2)
+  total      Decimal @db.Decimal(10, 2)
   notes      String?
 
   order   Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
@@ -249,13 +408,18 @@ model OrderItemFlavor {
   @@map("order_item_flavors")
 }
 
+enum CategoryType {
+  PRODUCT_SECTION
+  PIZZA_FLAVOR_GROUP
+}
+
 enum UserRole {
   MASTER_OWNER
   MASTER_ADMIN
+  FINANCE_ADMIN
+  SUPPORT
   CLIENT_OWNER
   CLIENT_ADMIN
-  WAITER
-  KITCHEN
   CASHIER
 }
 
@@ -272,15 +436,8 @@ enum PizzaSizeType {
   CUSTOM
 }
 
-enum TableStatus {
-  AVAILABLE
-  OCCUPIED
-  CLOSED
-}
-
 enum OrderType {
   ONLINE
-  TABLE
   TAKEAWAY
   DELIVERY
 }
@@ -288,7 +445,6 @@ enum OrderType {
 enum OrderStatus {
   PENDING
   CONFIRMED
-  IN_KITCHEN
   READY
   OUT_FOR_DELIVERY
   DELIVERED
@@ -300,4 +456,36 @@ enum PaymentType {
   PIX
   CREDIT_CARD
   DEBIT_CARD
+}
+
+enum CouponType {
+  PERCENTAGE
+  FIXED_AMOUNT
+}
+
+enum AuditLogLevel {
+  INFO
+  WARNING
+  CRITICAL
+}
+
+enum BillingInvoiceStatus {
+  OPEN
+  PAID
+  OVERDUE
+  CANCELLED
+}
+
+enum BillingPaymentMethod {
+  MERCADO_PAGO
+  MANUAL
+}
+
+enum SubscriptionStatus {
+  PENDING
+  ACTIVE
+  PAST_DUE
+  CANCEL_SCHEDULED
+  CANCELED
+  BLOCKED
 }

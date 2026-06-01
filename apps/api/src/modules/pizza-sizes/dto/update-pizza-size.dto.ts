@@ -4,6 +4,7 @@ import {
   IsInt,
   IsOptional,
   IsString,
+  Max,
   Min,
 } from 'class-validator'
 import { PizzaSizeType } from '@prisma/client'
@@ -12,6 +13,10 @@ export class UpdatePizzaSizeDto {
   @IsOptional()
   @IsString()
   name?: string
+
+  @IsOptional()
+  @IsString()
+  subtitle?: string
 
   @IsOptional()
   @IsEnum(PizzaSizeType)
@@ -25,6 +30,7 @@ export class UpdatePizzaSizeDto {
   @IsOptional()
   @IsInt()
   @Min(1)
+  @Max(4)
   maxFlavors?: number
 
   @IsOptional()

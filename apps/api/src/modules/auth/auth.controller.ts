@@ -34,6 +34,15 @@ export class AuthController {
   }
 
   @UseGuards(JwtAuthGuard)
+  @Post('verify-password')
+  async verifyPassword(
+    @CurrentUser() user: { userId: string },
+    @Body() dto: { password?: string },
+  ) {
+    return this.authService.verifyPassword(user.userId, dto.password || '')
+  }
+
+  @UseGuards(JwtAuthGuard)
   @Get('me')
   async me(@CurrentUser() user: any) {
     return user

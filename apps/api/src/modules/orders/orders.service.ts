@@ -3,6 +3,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common'
+import { randomUUID } from 'crypto'
 
 import { PrismaService } from '../../prisma/prisma.service'
 
@@ -10,12 +11,14 @@ import { CreateOrderDto } from './dto/create-order.dto'
 import { UpdateOrderDto } from './dto/update-order.dto'
 
 import { OrdersGateway } from './gateways/orders.gateway'
+import { CouponsService } from '../coupons/coupons.service'
 
 @Injectable()
 export class OrdersService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly ordersGateway: OrdersGateway,
+    private readonly couponsService: CouponsService,
   ) {}
 
   async create(
@@ -45,6 +48,41 @@ export class OrdersService {
         throw new NotFoundException('Produto não encontrado.')
       }
 
+      if (
+        product.type !== 'PIZZA_ROUND' &&
+        product.type !== 'PIZZA_SQUARE'
+      ) {
+        const unitPrice = Number(product.price ?? 0)
+
+        if (unitPrice <= 0) {
+          throw new BadRequestException(
+            'Produto sem preÃ§o configurado.',
+          )
+        }
+
+        const itemTotal = unitPrice * item.quantity
+
+        subtotal += itemTotal
+
+        itemsData.push({
+          id: randomUUID(),
+          productId: product.id,
+          name: product.name,
+          quantity: item.quantity,
+          unitPrice,
+          total: itemTotal,
+          notes: item.notes,
+        })
+
+        continue
+      }
+
+      if (!item.sizeId) {
+        throw new BadRequestException(
+          'Selecione um tamanho para a pizza.',
+        )
+      }
+
       const size = await this.prisma.pizzaSize.findFirst({
         where: {
           id: item.sizeId,
@@ -56,7 +94,15 @@ export class OrdersService {
         throw new NotFoundException('Tamanho não encontrado.')
       }
 
-      if (item.flavors.length > size.maxFlavors) {
+      const flavors = item.flavors ?? []
+
+      if (flavors.length === 0) {
+        throw new BadRequestException(
+          'Selecione pelo menos 1 sabor.',
+        )
+      }
+
+      if (flavors.length > size.maxFlavors) {
         throw new BadRequestException(
           `Máximo permitido: ${size.maxFlavors} sabores.`,
         )
@@ -66,7 +112,7 @@ export class OrdersService {
 
       const flavorSnapshots: any[] = []
 
-      for (const flavorItem of item.flavors) {
+      for (const flavorItem of flavors) {
         const flavorPrice =
           await this.prisma.pizzaFlavorPrice.findFirst({
             where: {
@@ -126,12 +172,60 @@ export class OrdersService {
         borderName = borderPrice.border.name
       }
 
-      const finalUnitPrice = itemPrice + borderPriceValue
+      let additionsPriceValue = 0
+      const additionNames: string[] = []
+
+      for (const addition of item.additions ?? []) {
+        const additionalProduct = await this.prisma.product.findFirst({
+          where: {
+            id: addition.productId,
+            tenantId,
+            isActive: true,
+            type: 'OTHER',
+          },
+          include: {
+            category: true,
+          },
+        })
+
+        const additionalCategoryName =
+          additionalProduct?.category.name
+            .normalize('NFD')
+            .replace(/[\u0300-\u036f]/g, '')
+            .toLowerCase() ?? ''
+
+        if (!additionalProduct || !additionalCategoryName.includes('adicion')) {
+          throw new NotFoundException('Adicional nÃ£o encontrado.')
+        }
+
+        const additionalPrice = Number(additionalProduct.price ?? 0)
+
+        if (additionalPrice <= 0) {
+          throw new BadRequestException(
+            'Adicional sem preÃ§o configurado.',
+          )
+        }
+
+        additionsPriceValue += additionalPrice
+        additionNames.push(additionalProduct.name)
+      }
+
+      const itemNotes = [
+        item.notes,
+        additionNames.length > 0
+          ? `Adicionais: ${additionNames.join(', ')}`
+          : '',
+      ]
+        .filter(Boolean)
+        .join('\n')
+
+      const finalUnitPrice = itemPrice + borderPriceValue + additionsPriceValue
       const itemTotal = finalUnitPrice * item.quantity
 
       subtotal += itemTotal
 
       itemsData.push({
+        id: randomUUID(),
         productId: product.id,
         sizeId: size.id,
         borderId: item.borderId,
@@ -145,23 +239,34 @@ export class OrdersService {
         unitPrice: finalUnitPrice,
         total: itemTotal,
 
-        notes: item.notes,
+        notes: itemNotes || undefined,
 
         flavors: {
-          create: flavorSnapshots,
+          create: flavorSnapshots.map((flavor) => ({
+            id: randomUUID(),
+            ...flavor,
+          })),
         },
       })
     }
 
     const deliveryFee = Number(dto.deliveryFee ?? 0)
-    const total = subtotal + deliveryFee
+    const totalBeforeDiscount = subtotal + deliveryFee
+    const couponCode = dto.couponCode?.trim()
+    const coupon = couponCode
+      ? await this.couponsService.validateCoupon(
+          tenantId,
+          couponCode,
+          subtotal,
+        )
+      : null
+    const discountAmount = coupon?.discountAmount ?? 0
+    const total = Math.max(totalBeforeDiscount - discountAmount, 0)
 
-    const order = await this.prisma.order.create({
-      data: {
+    const orderData: any = {
+        id: randomUUID(),
         tenantId,
         userId,
-
-        tableId: dto.tableId,
 
         customerName: dto.customerName,
         customerPhone: dto.customerPhone,
@@ -178,7 +283,10 @@ export class OrdersService {
         items: {
           create: itemsData,
         },
-      },
+      }
+
+    const order = await this.prisma.order.create({
+      data: orderData,
 
       include: {
         items: {
@@ -188,6 +296,17 @@ export class OrdersService {
         },
       },
     })
+
+    if (coupon) {
+      await this.prisma.$executeRaw`
+        UPDATE "orders"
+        SET
+          "discountAmount" = ${discountAmount},
+          "couponCode" = ${coupon.code},
+          "totalBeforeDiscount" = ${totalBeforeDiscount}
+        WHERE "id" = ${order.id}
+      `
+    }
 
     this.ordersGateway.emitOrderCreated(
       tenantId,
@@ -209,9 +328,7 @@ export class OrdersService {
             flavors: true,
           },
         },
-
-        table: true,
-      },
+      } as any,
 
       orderBy: {
         createdAt: 'desc',
@@ -232,8 +349,6 @@ export class OrdersService {
             flavors: true,
           },
         },
-
-        table: true,
       },
     })
 
@@ -270,8 +385,6 @@ export class OrdersService {
             flavors: true,
           },
         },
-
-        table: true,
       },
     })
 

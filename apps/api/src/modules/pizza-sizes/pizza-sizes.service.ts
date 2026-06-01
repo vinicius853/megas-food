@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException } from '@nestjs/common'
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common'
 
 import { PrismaService } from '../../prisma/prisma.service'
 
@@ -21,14 +25,29 @@ export class PizzaSizesService {
       throw new NotFoundException('Produto não encontrado')
     }
 
+    const activeSizeCount = await this.prisma.pizzaSize.count({
+      where: {
+        tenantId,
+        productId: dto.productId,
+        isActive: true,
+      },
+    })
+
+    if (activeSizeCount >= 4) {
+      throw new BadRequestException(
+        'Cada pizza pode ter no maximo 4 tamanhos.',
+      )
+    }
+
     return this.prisma.pizzaSize.create({
       data: {
         tenantId,
         productId: dto.productId,
         name: dto.name,
+        subtitle: dto.subtitle?.trim() || null,
         type: dto.type,
         value: dto.value,
-        maxFlavors: dto.maxFlavors ?? 1,
+        maxFlavors: Math.min(dto.maxFlavors ?? 1, 4),
         allowBorder: dto.allowBorder ?? true,
       },
     })
@@ -71,11 +90,35 @@ export class PizzaSizesService {
       throw new NotFoundException('Tamanho não encontrado')
     }
 
+    if (dto.isActive === true && !size.isActive) {
+      const activeSizeCount = await this.prisma.pizzaSize.count({
+        where: {
+          tenantId,
+          productId: size.productId,
+          isActive: true,
+        },
+      })
+
+      if (activeSizeCount >= 4) {
+        throw new BadRequestException(
+          'Cada pizza pode ter no maximo 4 tamanhos.',
+        )
+      }
+    }
+
     return this.prisma.pizzaSize.update({
       where: {
         id,
       },
-      data: dto,
+      data: {
+        ...dto,
+        ...(dto.subtitle !== undefined && {
+          subtitle: dto.subtitle.trim() || null,
+        }),
+        ...(dto.maxFlavors !== undefined && {
+          maxFlavors: Math.min(dto.maxFlavors, 4),
+        }),
+      },
     })
   }
 

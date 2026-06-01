@@ -3,6 +3,7 @@ import { JwtService } from '@nestjs/jwt'
 import * as bcrypt from 'bcrypt'
 
 import { PrismaService } from '../../prisma/prisma.service'
+import { SubscriptionAccessService } from '../billing/subscription-access.service'
 import { LoginDto } from './dto/login.dto'
 import { RegisterDto } from './dto/register.dto'
 
@@ -11,6 +12,7 @@ export class AuthService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly jwtService: JwtService,
+    private readonly subscriptionAccessService: SubscriptionAccessService,
   ) {}
 
   async register(dto: RegisterDto) {
@@ -45,7 +47,7 @@ export class AuthService {
 
     const user = tenant.users[0]
 
-    const token = this.generateToken(user.id, tenant.id, user.role)
+    const token = this.generateToken(user.id, tenant.id, user.role, user.permissions)
 
     return {
       accessToken: token,
@@ -54,6 +56,7 @@ export class AuthService {
         name: user.name,
         email: user.email,
         role: user.role,
+        permissions: user.permissions,
       },
       tenant: {
         id: tenant.id,
@@ -64,24 +67,23 @@ export class AuthService {
   }
 
   async login(dto: LoginDto) {
-    const tenant = await this.prisma.tenant.findUnique({
-      where: { slug: dto.slug },
-    })
-
-    if (!tenant) {
-      throw new UnauthorizedException('Credenciais inválidas')
-    }
-
-    const user = await this.prisma.user.findUnique({
+    const users = await this.prisma.user.findMany({
       where: {
-        tenantId_email: {
-          tenantId: tenant.id,
-          email: dto.email,
-        },
+        email: dto.email,
+        isActive: true,
+      },
+      include: {
+        tenant: true,
       },
     })
 
-    if (!user || !user.isActive) {
+    if (users.length !== 1) {
+      throw new UnauthorizedException('Credenciais inválidas')
+    }
+
+    const user = users[0]
+
+    if (!user.tenant) {
       throw new UnauthorizedException('Credenciais inválidas')
     }
 
@@ -91,7 +93,12 @@ export class AuthService {
       throw new UnauthorizedException('Credenciais inválidas')
     }
 
-    const token = this.generateToken(user.id, tenant.id, user.role)
+    await this.subscriptionAccessService.assertClientDashboardAccess(
+      user.tenant.id,
+      user.role,
+    )
+
+    const token = this.generateToken(user.id, user.tenant.id, user.role, user.permissions)
 
     return {
       accessToken: token,
@@ -100,20 +107,41 @@ export class AuthService {
         name: user.name,
         email: user.email,
         role: user.role,
+        permissions: user.permissions,
       },
       tenant: {
-        id: tenant.id,
-        name: tenant.name,
-        slug: tenant.slug,
+        id: user.tenant.id,
+        name: user.tenant.name,
+        slug: user.tenant.slug,
       },
     }
   }
 
-  private generateToken(userId: string, tenantId: string, role: string) {
+  async verifyPassword(userId: string, password: string) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { password: true },
+    })
+
+    if (!user) {
+      throw new UnauthorizedException('Credenciais invalidas')
+    }
+
+    const passwordMatches = await bcrypt.compare(password, user.password)
+
+    if (!passwordMatches) {
+      throw new UnauthorizedException('Senha de confirmacao invalida')
+    }
+
+    return { ok: true }
+  }
+
+  private generateToken(userId: string, tenantId: string, role: string, permissions: string[] = []) {
     return this.jwtService.sign({
       sub: userId,
       tenantId,
       role,
+      permissions,
     })
   }
 }

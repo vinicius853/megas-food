@@ -21,6 +21,20 @@
   <!--[![Backers on Open Collective](https://opencollective.com/nest/backers/badge.svg)](https://opencollective.com/nest#backer)
   [![Sponsors on Open Collective](https://opencollective.com/nest/sponsors/badge.svg)](https://opencollective.com/nest#sponsor)-->
 
+## Megas Food API
+
+Backend NestJS do SaaS Megas Food.
+
+### Billing e Mercado Pago
+
+O checklist de teste da assinatura recorrente com Mercado Pago fica em:
+
+```text
+../../docs/billing-mercado-pago-checklist.md
+```
+
+Use esse documento antes de validar cobranca recorrente em sandbox ou producao controlada.
+
 ## Description
 
 [Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.

@@ -1,11 +1,24 @@
-import { IsEnum, IsOptional, IsString } from 'class-validator'
+import { IsEnum, IsIn, IsOptional, IsString } from 'class-validator'
 
-import { OrderStatus, PaymentType } from '@prisma/client'
+import { PaymentType } from '@prisma/client'
 
 export class UpdateOrderDto {
   @IsOptional()
-  @IsEnum(OrderStatus)
-  status?: OrderStatus
+  @IsIn([
+    'PENDING',
+    'CONFIRMED',
+    'READY',
+    'OUT_FOR_DELIVERY',
+    'DELIVERED',
+    'CANCELLED',
+  ])
+  status?:
+    | 'PENDING'
+    | 'CONFIRMED'
+    | 'READY'
+    | 'OUT_FOR_DELIVERY'
+    | 'DELIVERED'
+    | 'CANCELLED'
 
   @IsOptional()
   @IsEnum(PaymentType)

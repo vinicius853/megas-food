@@ -1,20 +1,20 @@
 import {
   IsArray,
   IsEnum,
+  IsIn,
   IsInt,
   IsNumber,
   IsOptional,
   IsString,
-  IsUUID,
   Min,
   ValidateNested,
 } from 'class-validator'
 
 import { Type } from 'class-transformer'
-import { OrderType, PaymentType } from '@prisma/client'
+import { PaymentType } from '@prisma/client'
 
 class CreateOrderItemFlavorDto {
-  @IsUUID()
+  @IsString()
   flavorId: string
 
   @IsNumber()
@@ -22,15 +22,21 @@ class CreateOrderItemFlavorDto {
   fraction: number
 }
 
+class CreateOrderItemAdditionDto {
+  @IsString()
+  productId: string
+}
+
 class CreateOrderItemDto {
-  @IsUUID()
+  @IsString()
   productId: string
 
-  @IsUUID()
-  sizeId: string
+  @IsOptional()
+  @IsString()
+  sizeId?: string
 
   @IsOptional()
-  @IsUUID()
+  @IsString()
   borderId?: string
 
   @IsInt()
@@ -41,10 +47,17 @@ class CreateOrderItemDto {
   @IsString()
   notes?: string
 
+  @IsOptional()
   @IsArray()
   @ValidateNested({ each: true })
   @Type(() => CreateOrderItemFlavorDto)
-  flavors: CreateOrderItemFlavorDto[]
+  flavors?: CreateOrderItemFlavorDto[]
+
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => CreateOrderItemAdditionDto)
+  additions?: CreateOrderItemAdditionDto[]
 }
 
 export class CreateOrderDto {
@@ -56,21 +69,21 @@ export class CreateOrderDto {
   @IsString()
   customerPhone?: string
 
-  @IsEnum(OrderType)
-  type: OrderType
+  @IsIn(['ONLINE', 'TAKEAWAY', 'DELIVERY'])
+  type: 'ONLINE' | 'TAKEAWAY' | 'DELIVERY'
 
   @IsOptional()
   @IsEnum(PaymentType)
   paymentType?: PaymentType
 
   @IsOptional()
-  @IsUUID()
-  tableId?: string
-
-  @IsOptional()
   @IsNumber()
   @Min(0)
   deliveryFee?: number
+
+  @IsOptional()
+  @IsString()
+  couponCode?: string
 
   @IsOptional()
   @IsString()
