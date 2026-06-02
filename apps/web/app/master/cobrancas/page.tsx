@@ -3,19 +3,12 @@
 import * as React from 'react'
 import {
   CalendarClock,
-  Ban,
   CheckCircle2,
-  Copy,
   CreditCard,
-  Eye,
-  ExternalLink,
   History,
   Plus,
-  Power,
   RefreshCw,
   RotateCcw,
-  Send,
-  ShieldX,
 } from 'lucide-react'
 
 import { PageContainer, PageHeader } from '@/components/layout/page-container'
@@ -58,6 +51,7 @@ import { DetailBox } from './cobrancas-detail-box'
 import { CobrancasDiagnosticsPanel } from './cobrancas-diagnostics-panel'
 import { CobrancasFilters } from './cobrancas-filters'
 import { CobrancasInvoicesTable } from './cobrancas-invoices-table'
+import { CobrancasSubscriptionsTable } from './cobrancas-subscriptions-table'
 import {
   formatDate,
   formatDateTime,
@@ -578,191 +572,23 @@ export default function CobrancasPage() {
         statusVariant={statusVariant}
       />
 
-      <Card className="mt-5">
-        <CardHeader className="flex-row items-start justify-between gap-4">
-          <div>
-            <CardTitle>Assinaturas dos clientes</CardTitle>
-            <p className="mt-1 text-sm leading-relaxed text-slate-500">
-              Controle acesso, cancelamento agendado e bloqueio da mensalidade.
-            </p>
-          </div>
-
-          {tenantsWithoutSubscription.length ? (
-            <select
-              className="h-11 min-w-56 rounded-2xl border border-slate-200 bg-white px-4 text-sm font-bold text-slate-700 shadow-sm outline-none focus:border-orange-500"
-              defaultValue=""
-              disabled={isSaving}
-              onChange={(event) => {
-                const tenantId = event.target.value
-                if (!tenantId) return
-                void activateSubscription(tenantId)
-                event.target.value = ''
-              }}
-            >
-              <option value="">Ativar assinatura...</option>
-              {tenantsWithoutSubscription.map((tenant) => (
-                <option key={tenant.id} value={tenant.id}>
-                  {tenant.name}
-                </option>
-              ))}
-            </select>
-          ) : null}
-        </CardHeader>
-
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Cliente</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead>Plano</TableHead>
-              <TableHead>Proximo vencimento</TableHead>
-              <TableHead>Acesso ate</TableHead>
-              <TableHead className="text-right">Acoes</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {isLoading ? (
-              <TableRow>
-                <TableCell colSpan={6} className="py-8 text-center text-slate-500">
-                  Carregando assinaturas...
-                </TableCell>
-              </TableRow>
-            ) : filteredSubscriptions.length ? (
-              filteredSubscriptions.map((subscription) => (
-                <TableRow key={subscription.id}>
-                  <TableCell>
-                    <p className="font-black text-slate-900">
-                      {subscription.tenant.name}
-                    </p>
-                    <p className="text-xs text-slate-500">
-                      {subscription.tenant.users?.[0]?.email || subscription.tenant.slug}
-                    </p>
-                  </TableCell>
-                  <TableCell>
-                    <Badge variant={subscriptionStatusVariant[subscription.status]}>
-                      {subscriptionStatusLabels[subscription.status]}
-                    </Badge>
-                  </TableCell>
-                  <TableCell>
-                    <p className="font-semibold text-slate-700">
-                      {subscription.plan.name}
-                    </p>
-                    <p className="text-xs font-semibold text-slate-500">
-                      {formatMoney(parseMoney(subscription.plan.monthlyPrice))} / mes
-                    </p>
-                  </TableCell>
-                  <TableCell>{formatDate(subscription.nextBillingDate)}</TableCell>
-                  <TableCell>{formatDate(subscription.accessUntil)}</TableCell>
-                  <TableCell>
-                    <div className="flex flex-wrap justify-end gap-2">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => setSelectedSubscription(subscription)}
-                      >
-                        <Eye className="h-4 w-4" />
-                        Detalhes
-                      </Button>
-
-                      {subscription.mercadoPagoSubscriptionUrl ? (
-                        <>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => copySubscriptionLink(subscription)}
-                          >
-                            <Copy className="h-4 w-4" />
-                            Copiar
-                          </Button>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => resendSubscriptionLink(subscription)}
-                          >
-                            <Send className="h-4 w-4" />
-                            Reenviar
-                          </Button>
-                          <Button asChild variant="outline" size="sm">
-                            <a
-                              href={subscription.mercadoPagoSubscriptionUrl}
-                              target="_blank"
-                              rel="noreferrer"
-                            >
-                              <ExternalLink className="h-4 w-4" />
-                              Assinar
-                            </a>
-                          </Button>
-                        </>
-                      ) : (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => createMercadoPagoSubscriptionLink(subscription)}
-                          disabled={isSaving || subscription.status === 'CANCELED'}
-                        >
-                          <CreditCard className="h-4 w-4" />
-                          Link recorrente
-                        </Button>
-                      )}
-
-                      {subscription.status === 'BLOCKED' ? (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => openSubscriptionAction('unblock', subscription)}
-                        >
-                          <RotateCcw className="h-4 w-4" />
-                          Desbloquear
-                        </Button>
-                      ) : (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => openSubscriptionAction('block', subscription)}
-                          disabled={subscription.status === 'CANCELED'}
-                        >
-                          <Ban className="h-4 w-4" />
-                          Bloquear
-                        </Button>
-                      )}
-
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => openSubscriptionAction('cancel-scheduled', subscription)}
-                        disabled={
-                          subscription.status === 'CANCEL_SCHEDULED' ||
-                          subscription.status === 'CANCELED'
-                        }
-                      >
-                        <ShieldX className="h-4 w-4" />
-                        Cancelar
-                      </Button>
-
-                      {subscription.status === 'CANCELED' ? (
-                        <Button
-                          variant="primary"
-                          size="sm"
-                          onClick={() => activateSubscription(subscription.tenantId)}
-                        >
-                          <Power className="h-4 w-4" />
-                          Reativar
-                        </Button>
-                      ) : null}
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))
-            ) : (
-              <TableRow>
-                <TableCell colSpan={6} className="py-8 text-center text-slate-500">
-                  Nenhuma assinatura encontrada.
-                </TableCell>
-              </TableRow>
-            )}
-          </TableBody>
-        </Table>
-      </Card>
+      <CobrancasSubscriptionsTable
+        filteredSubscriptions={filteredSubscriptions}
+        isLoading={isLoading}
+        isSaving={isSaving}
+        tenantsWithoutSubscription={tenantsWithoutSubscription}
+        onActivateSubscription={activateSubscription}
+        onOpenDetails={setSelectedSubscription}
+        onCopySubscriptionLink={copySubscriptionLink}
+        onResendSubscriptionLink={resendSubscriptionLink}
+        onCreateMercadoPagoSubscriptionLink={createMercadoPagoSubscriptionLink}
+        onOpenSubscriptionAction={openSubscriptionAction}
+        formatMoney={formatMoney}
+        formatDate={formatDate}
+        parseMoney={parseMoney}
+        subscriptionStatusLabels={subscriptionStatusLabels}
+        subscriptionStatusVariant={subscriptionStatusVariant}
+      />
 
       <Card className="mt-5">
         <CardHeader className="flex-row items-start justify-between gap-4">
