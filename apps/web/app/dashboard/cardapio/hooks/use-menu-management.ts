@@ -1,11 +1,6 @@
 'use client'
 
-import {
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 
 import { apiFetch } from '@/lib/api'
 
@@ -18,57 +13,39 @@ import {
   type Product,
   type Tab,
   getProductSectionIdFromTab,
-  isRoundSize,
-  isSquareSize,
   parseMoney,
   parsePositiveInteger,
 } from '../types/menu-management'
-import {
-  fixedProductSectionSlugs,
-  pizzaModes,
-} from './menu-management-constants'
+import { pizzaModes } from './menu-management-constants'
 import {
   ensureBaseData,
   normalizeCategory,
 } from './menu-management-normalizers'
-import {
-  generateSlug,
-  getErrorMessage,
-  temporaryId,
-} from './menu-management-utils'
+import { getBorderSizes, getCustomProductSections, getDrinks, getExtras, getFilteredFlavors, getPizzaFlavorGroups, getPizzaProduct, getProductSections, getRoundSizes, getSelectedProductSection, getSelectedProductSectionProducts, getSquareSizes, getVisibleSizes } from './menu-management-selectors'
+import { generateSlug, getErrorMessage, temporaryId } from './menu-management-utils'
 
 export { pizzaModes }
 
 export function useMenuManagement() {
-  const [activeTab, setActiveTab] =
-    useState<Tab>('pizzas')
+  const [activeTab, setActiveTab] = useState<Tab>('pizzas')
 
-  const [pizzaMode, setPizzaMode] =
-    useState<PizzaMode>('mixed')
+  const [pizzaMode, setPizzaMode] = useState<PizzaMode>('mixed')
 
-  const [search, setSearch] =
-    useState('')
+  const [search, setSearch] = useState('')
 
-  const [categories, setCategories] =
-    useState<Category[]>([])
+  const [categories, setCategories] = useState<Category[]>([])
 
-  const [products, setProducts] =
-    useState<Product[]>([])
+  const [products, setProducts] = useState<Product[]>([])
 
-  const [sizes, setSizes] =
-    useState<PizzaSizeConfig[]>([])
+  const [sizes, setSizes] = useState<PizzaSizeConfig[]>([])
 
-  const [flavors, setFlavors] =
-    useState<MenuManagementResponse['pizzaFlavors']>([])
+  const [flavors, setFlavors] = useState<MenuManagementResponse['pizzaFlavors']>([])
 
-  const [flavorPrices, setFlavorPrices] =
-    useState<MenuManagementResponse['flavorPrices']>([])
+  const [flavorPrices, setFlavorPrices] = useState<MenuManagementResponse['flavorPrices']>([])
 
-  const [borders, setBorders] =
-    useState<MenuManagementResponse['pizzaBorders']>([])
+  const [borders, setBorders] = useState<MenuManagementResponse['pizzaBorders']>([])
 
-  const [borderPrices, setBorderPrices] =
-    useState<MenuManagementResponse['borderPrices']>([])
+  const [borderPrices, setBorderPrices] = useState<MenuManagementResponse['borderPrices']>([])
 
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -81,111 +58,52 @@ export function useMenuManagement() {
   const hasLoadedMenuRef = useRef(false)
   const skipNextAutoSaveRef = useRef(false)
 
-  const roundProduct = products.find(
-    (product) => product.type === 'PIZZA_ROUND',
-  )
+  const roundProduct = getPizzaProduct(products, 'PIZZA_ROUND')
 
-  const squareProduct = products.find(
-    (product) => product.type === 'PIZZA_SQUARE',
-  )
+  const squareProduct = getPizzaProduct(products, 'PIZZA_SQUARE')
 
-  const productSections = useMemo(() => {
-    return categories.filter(
-      (category) =>
-        category.isActive &&
-        category.type === 'PRODUCT_SECTION',
-    )
-  }, [categories])
+  const productSections = useMemo(() => getProductSections(categories), [categories])
 
-  const customProductSections = useMemo(() => {
-    return productSections.filter(
-      (category) =>
-        !fixedProductSectionSlugs.includes(
-          category.slug ?? '',
-        ),
-    )
-  }, [productSections])
+  const customProductSections = useMemo(() => getCustomProductSections(productSections), [productSections])
 
   const selectedProductSectionId =
     getProductSectionIdFromTab(activeTab)
 
   const selectedProductSection = useMemo(() => {
-    if (!selectedProductSectionId) return null
-
-    return (
-      customProductSections.find(
-        (category) =>
-          category.id === selectedProductSectionId,
-      ) ?? null
+    return getSelectedProductSection(
+      customProductSections,
+      selectedProductSectionId,
     )
   }, [customProductSections, selectedProductSectionId])
 
   const selectedProductSectionProducts = useMemo(() => {
-    if (!selectedProductSection) return []
-
-    return products.filter(
-      (product) =>
-        product.categoryId === selectedProductSection.id &&
-        product.type === 'OTHER',
+    return getSelectedProductSectionProducts(
+      products,
+      selectedProductSection,
     )
   }, [products, selectedProductSection])
 
-  const pizzaFlavorGroups = useMemo(() => {
-    return categories.filter(
-      (category) =>
-        category.isActive &&
-        category.type === 'PIZZA_FLAVOR_GROUP',
-    )
-  }, [categories])
+  const pizzaFlavorGroups = useMemo(() => getPizzaFlavorGroups(categories), [categories])
 
-  const drinks = products.filter(
-    (product) => product.type === 'DRINK',
-  )
+  const drinks = getDrinks(products)
 
-  const extras = products.filter(
-    (product) =>
-      product.type === 'OTHER' &&
-      product.categoryId ===
-        productSections.find(
-          (category) => category.slug === 'adicionais',
-        )?.id,
-  )
+  const extras = getExtras(products, productSections)
 
-  const visibleSizes = useMemo(() => {
-    return sizes.filter((size) => {
-      if (!size.isActive) return false
+  const visibleSizes = useMemo(() => getVisibleSizes(sizes, pizzaMode), [sizes, pizzaMode])
 
-      if (pizzaMode === 'mixed') return true
-
-      if (pizzaMode === 'round') return isRoundSize(size)
-
-      return isSquareSize(size)
-    })
-  }, [sizes, pizzaMode])
-
-  const borderSizes = useMemo(() => {
-    return sizes.filter(
-      (size) => size.isActive && size.allowBorder,
-    )
-  }, [sizes])
+  const borderSizes = useMemo(() => getBorderSizes(sizes), [sizes])
 
   const roundSizes = useMemo(
-    () => sizes.filter(isRoundSize),
+    () => getRoundSizes(sizes),
     [sizes],
   )
 
   const squareSizes = useMemo(
-    () => sizes.filter(isSquareSize),
+    () => getSquareSizes(sizes),
     [sizes],
   )
 
-  const filteredFlavors = useMemo(() => {
-    return flavors.filter((flavor) =>
-      flavor.name
-        .toLowerCase()
-        .includes(search.toLowerCase()),
-    )
-  }, [flavors, search])
+  const filteredFlavors = useMemo(() => getFilteredFlavors(flavors, search), [flavors, search])
 
   function applyMenuData(data: MenuManagementResponse) {
     skipNextAutoSaveRef.current = true
