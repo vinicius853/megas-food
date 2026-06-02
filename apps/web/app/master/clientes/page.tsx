@@ -27,293 +27,34 @@ import {
 } from '@/components/ui/table'
 import { apiFetch } from '@/lib/api'
 import { canViewFinancialData, getStoredPermissions, hasPermission } from '../components/master-permissions'
-
-type TenantUser = {
-  id: string
-  name: string
-  email: string
-  role: string
-  isActive?: boolean
-  createdAt?: string
-}
-
-type Tenant = {
-  id: string
-  internalCode?: string | null
-  name: string
-  slug: string
-  responsibleName?: string | null
-  document?: string | null
-  phone?: string | null
-  whatsapp?: string | null
-  city?: string | null
-  state?: string | null
-  address?: string | null
-  zipCode?: string | null
-  internalNotes?: string | null
-  logoUrl?: string | null
-  isActive: boolean
-  createdAt: string
-  users?: TenantUser[]
-  subscriptions?: Array<{
-    id: string
-    planId: string
-    status: string
-    contractedMonthlyPrice: string | number
-    contractedAnnualPrice?: string | number | null
-    contractedSetupFee?: string | number | null
-    contractedAt?: string | null
-    internalNotes?: string | null
-    startedAt?: string | null
-    nextBillingDate?: string | null
-    accessUntil?: string | null
-    plan?: {
-      id: string
-      name: string
-      monthlyPrice: string | number
-      annualPrice?: string | number | null
-      setupFee?: string | number | null
-    } | null
-  }>
-}
-
-type Plan = {
-  id: string
-  name: string
-  slug: string
-  monthlyPrice: string | number
-  annualPrice?: string | number | null
-  setupFee?: string | number | null
-  isActive: boolean
-}
-
-type TenantForm = {
-  name: string
-  slug: string
-  ownerName: string
-  ownerEmail: string
-  ownerPassword: string
-  document: string
-  phone: string
-  whatsapp: string
-  city: string
-  state: string
-  address: string
-  zipCode: string
-  internalNotes: string
-}
-
-type TenantEditForm = {
-  name: string
-  slug: string
-  responsibleName: string
-  document: string
-  phone: string
-  whatsapp: string
-  city: string
-  state: string
-  address: string
-  zipCode: string
-  internalNotes: string
-}
-
-type ResetPasswordForm = {
-  newPassword: string
-  confirmationPassword: string
-}
-
-type ChangePlanForm = {
-  planId: string
-  contractedMonthlyPrice: string
-  contractedAnnualPrice: string
-  contractedSetupFee: string
-  internalNotes: string
-}
-
-const initialForm: TenantForm = {
-  name: '',
-  slug: '',
-  ownerName: '',
-  ownerEmail: '',
-  ownerPassword: '123456',
-  document: '',
-  phone: '',
-  whatsapp: '',
-  city: '',
-  state: '',
-  address: '',
-  zipCode: '',
-  internalNotes: '',
-}
-
-const initialEditForm: TenantEditForm = {
-  name: '',
-  slug: '',
-  responsibleName: '',
-  document: '',
-  phone: '',
-  whatsapp: '',
-  city: '',
-  state: '',
-  address: '',
-  zipCode: '',
-  internalNotes: '',
-}
-
-const initialResetPasswordForm: ResetPasswordForm = {
-  newPassword: '123456',
-  confirmationPassword: '',
-}
-
-const initialChangePlanForm: ChangePlanForm = {
-  planId: '',
-  contractedMonthlyPrice: '',
-  contractedAnnualPrice: '',
-  contractedSetupFee: '',
-  internalNotes: '',
-}
-
-function slugify(value: string) {
-  return value
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .toLowerCase()
-    .trim()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '')
-}
-
-function formatDate(value: string) {
-  return new Intl.DateTimeFormat('pt-BR', {
-    month: '2-digit',
-    year: 'numeric',
-  }).format(new Date(value))
-}
-
-function formatFullDate(value?: string | null) {
-  if (!value) return '-'
-
-  return new Intl.DateTimeFormat('pt-BR').format(new Date(value))
-}
-
-function formatMoney(value?: string | number | null) {
-  const amount = Number(value || 0)
-
-  return new Intl.NumberFormat('pt-BR', {
-    style: 'currency',
-    currency: 'BRL',
-  }).format(Number.isFinite(amount) ? amount : 0)
-}
-
-function parseMoneyInput(value: string) {
-  const normalized = value.replace(',', '.').trim()
-
-  if (!normalized) return undefined
-
-  const amount = Number(normalized)
-
-  return Number.isFinite(amount) ? amount : undefined
-}
-
-function onlyDigits(value: string) {
-  return value.replace(/\D/g, '')
-}
-
-function formatCpfCnpj(value?: string | null) {
-  const digits = onlyDigits(value || '')
-
-  if (digits.length === 11) {
-    return digits.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4')
-  }
-
-  if (digits.length === 14) {
-    return digits.replace(/(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})/, '$1.$2.$3/$4-$5')
-  }
-
-  return value || '-'
-}
-
-function formatPhone(value?: string | null) {
-  const digits = onlyDigits(value || '')
-
-  if (digits.length === 11) {
-    return digits.replace(/(\d{2})(\d{5})(\d{4})/, '($1) $2-$3')
-  }
-
-  if (digits.length === 10) {
-    return digits.replace(/(\d{2})(\d{4})(\d{4})/, '($1) $2-$3')
-  }
-
-  return value || '-'
-}
-
-function formatCep(value?: string | null) {
-  const digits = onlyDigits(value || '')
-
-  if (digits.length === 8) {
-    return digits.replace(/(\d{5})(\d{3})/, '$1-$2')
-  }
-
-  return value || '-'
-}
-
-function formatDocumentInput(value: string) {
-  const digits = onlyDigits(value).slice(0, 14)
-
-  if (digits.length <= 11) {
-    return digits
-      .replace(/(\d{3})(\d)/, '$1.$2')
-      .replace(/(\d{3})(\d)/, '$1.$2')
-      .replace(/(\d{3})(\d{1,2})$/, '$1-$2')
-  }
-
-  return digits
-    .replace(/(\d{2})(\d)/, '$1.$2')
-    .replace(/(\d{3})(\d)/, '$1.$2')
-    .replace(/(\d{3})(\d)/, '$1/$2')
-    .replace(/(\d{4})(\d{1,2})$/, '$1-$2')
-}
-
-function formatZipInput(value: string) {
-  return onlyDigits(value).slice(0, 8).replace(/(\d{5})(\d{1,3})$/, '$1-$2')
-}
-
-function formatWhatsappInput(value: string) {
-  const digits = onlyDigits(value).slice(0, 13)
-
-  if (digits.length <= 10) {
-    return digits.replace(/(\d{2})(\d{4})(\d{0,4})/, (_, ddd, first, last) =>
-      last ? `(${ddd}) ${first}-${last}` : `(${ddd}) ${first}`,
-    )
-  }
-
-  return digits.replace(/(\d{2})(\d{5})(\d{0,4})/, (_, ddd, first, last) =>
-    last ? `(${ddd}) ${first}-${last}` : `(${ddd}) ${first}`,
-  )
-}
-
-function getPlanName(tenant: Tenant) {
-  return tenant.subscriptions?.[0]?.plan?.name || 'Sem plano'
-}
-
-function getCurrentSubscription(tenant: Tenant | null) {
-  return tenant?.subscriptions?.[0] || null
-}
-
-function getErrorMessage(error: unknown) {
-  if (!(error instanceof Error)) {
-    return 'Nao foi possivel concluir a acao.'
-  }
-
-  try {
-    const parsed = JSON.parse(error.message)
-    return Array.isArray(parsed.message)
-      ? parsed.message.join(', ')
-      : parsed.message || error.message
-  } catch {
-    return error.message
-  }
-}
+import {
+  formatCep,
+  formatCpfCnpj,
+  formatDate,
+  formatDocumentInput,
+  formatFullDate,
+  formatMoney,
+  formatPhone,
+  formatWhatsappInput,
+  formatZipInput,
+  getCurrentSubscription,
+  getErrorMessage,
+  getPlanName,
+  parseMoneyInput,
+  slugify,
+} from './clientes-formatters'
+import {
+  type ChangePlanForm,
+  type Plan,
+  type ResetPasswordForm,
+  type Tenant,
+  type TenantEditForm,
+  type TenantForm,
+  initialChangePlanForm,
+  initialEditForm,
+  initialForm,
+  initialResetPasswordForm,
+} from './clientes.types'
 
 export default function ClientesPage() {
   const [tenants, setTenants] = React.useState<Tenant[]>([])
