@@ -10,7 +10,6 @@ import {
   Eye,
   ExternalLink,
   History,
-  RadioTower,
   Plus,
   Power,
   RefreshCw,
@@ -54,212 +53,38 @@ import {
 } from '../components/master-permissions'
 import {
   RestrictedFinancialPanel,
-  RestrictedFinancialValue,
 } from '../components/restricted-financial-value'
-
-type TenantUser = {
-  id: string
-  name: string
-  email: string
-}
-
-type Tenant = {
-  id: string
-  name: string
-  slug: string
-  isActive: boolean
-  users?: TenantUser[]
-}
-
-type BillingInvoice = {
-  id: string
-  tenantId: string
-  amount: string | number
-  dueDate: string
-  status: 'OPEN' | 'PAID' | 'OVERDUE' | 'CANCELLED'
-  paymentMethod?: 'MERCADO_PAGO' | 'MANUAL' | null
-  mercadoPagoPreferenceId?: string | null
-  mercadoPagoPaymentId?: string | null
-  paymentUrl?: string | null
-  sandboxPaymentUrl?: string | null
-  paidAt?: string | null
-  notes?: string | null
-  tenant: Tenant
-}
-
-type SubscriptionStatus =
-  | 'PENDING'
-  | 'ACTIVE'
-  | 'PAST_DUE'
-  | 'CANCEL_SCHEDULED'
-  | 'CANCELED'
-  | 'BLOCKED'
-
-type BillingSubscription = {
-  id: string
-  tenantId: string
-  planId: string
-  mercadoPagoSubscriptionId?: string | null
-  mercadoPagoSubscriptionUrl?: string | null
-  mercadoPagoSubscriptionStatus?: string | null
-  status: SubscriptionStatus
-  startedAt?: string | null
-  nextBillingDate?: string | null
-  canceledAt?: string | null
-  accessUntil?: string | null
-  gracePeriodDays: number
-  blockedAt?: string | null
-  plan: {
-    id: string
-    name: string
-    monthlyPrice: string | number
-  }
-  tenant: Tenant
-}
-
-type BillingEvent = {
-  id: string
-  source: 'AUDIT' | 'WEBHOOK'
-  title: string
-  target: string
-  level: 'INFO' | 'WARNING' | 'CRITICAL'
-  processed: boolean
-  error?: string | null
-  createdAt: string
-}
-
-type BillingDiagnostics = {
-  status: 'OK' | 'WARNING' | 'CRITICAL'
-  checkedAt: string
-  pendingWebhooks: number
-  oldPendingWebhooks: number
-  failedWebhooks24h: number
-  latestWebhookError?: {
-    eventType?: string | null
-    resourceId?: string | null
-    error?: string | null
-    createdAt?: string | null
-  } | null
-  pastDueSubscriptions: number
-  blockedSubscriptions: number
-  upcomingRenewals: number
-}
-
-type CreateInvoiceForm = {
-  tenantId: string
-  dueDate: string
-}
-
-type ManualPaymentForm = {
-  confirmationPassword: string
-  notes: string
-}
-
-type SubscriptionAction =
-  | 'cancel-scheduled'
-  | 'block'
-  | 'unblock'
-
-type SubscriptionActionForm = {
-  confirmationPassword: string
-  reason: string
-  accessUntil: string
-}
-
-const monthlyFee = 150
-
-const statusLabels: Record<BillingInvoice['status'], string> = {
-  OPEN: 'Em aberto',
-  PAID: 'Pago',
-  OVERDUE: 'Vencido',
-  CANCELLED: 'Cancelado',
-}
-
-const statusVariant: Record<BillingInvoice['status'], 'success' | 'warning' | 'danger' | 'default'> = {
-  OPEN: 'warning',
-  PAID: 'success',
-  OVERDUE: 'danger',
-  CANCELLED: 'default',
-}
-
-const subscriptionStatusLabels: Record<SubscriptionStatus, string> = {
-  PENDING: 'Pendente',
-  ACTIVE: 'Ativa',
-  PAST_DUE: 'Em atraso',
-  CANCEL_SCHEDULED: 'Cancelamento agendado',
-  CANCELED: 'Cancelada',
-  BLOCKED: 'Bloqueada',
-}
-
-const subscriptionStatusVariant: Record<SubscriptionStatus, 'success' | 'warning' | 'danger' | 'default'> = {
-  PENDING: 'warning',
-  ACTIVE: 'success',
-  PAST_DUE: 'warning',
-  CANCEL_SCHEDULED: 'warning',
-  CANCELED: 'default',
-  BLOCKED: 'danger',
-}
-
-function parseMoney(value: unknown) {
-  const parsed = Number(String(value ?? '0').replace(',', '.'))
-  return Number.isFinite(parsed) ? parsed : 0
-}
-
-function formatMoney(value: number) {
-  return value.toLocaleString('pt-BR', {
-    style: 'currency',
-    currency: 'BRL',
-  })
-}
-
-function formatDate(value?: string | null) {
-  if (!value) return '-'
-
-  return new Intl.DateTimeFormat('pt-BR').format(new Date(value))
-}
-
-function formatDateTime(value?: string | null) {
-  if (!value) return '-'
-
-  return new Intl.DateTimeFormat('pt-BR', {
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  }).format(new Date(value))
-}
-
-function toDateInputValue(date: Date) {
-  return date.toISOString().slice(0, 10)
-}
-
-function getErrorMessage(error: unknown) {
-  if (!(error instanceof Error)) return 'Nao foi possivel concluir a acao.'
-
-  try {
-    const parsed = JSON.parse(error.message)
-    return Array.isArray(parsed.message)
-      ? parsed.message.join(', ')
-      : parsed.message || error.message
-  } catch {
-    return error.message
-  }
-}
-
-function getSubscriptionActionSuccess(action: SubscriptionAction) {
-  if (action === 'cancel-scheduled') return 'Cancelamento da assinatura agendado.'
-  if (action === 'block') return 'Assinatura bloqueada.'
-
-  return 'Assinatura desbloqueada.'
-}
-
-function getSubscriptionActionTitle(action: SubscriptionAction) {
-  if (action === 'cancel-scheduled') return 'Agendar cancelamento'
-  if (action === 'block') return 'Bloquear assinatura'
-
-  return 'Desbloquear assinatura'
-}
+import { DetailBox } from './cobrancas-detail-box'
+import { CobrancasDiagnosticsPanel } from './cobrancas-diagnostics-panel'
+import { CobrancasFilters } from './cobrancas-filters'
+import { CobrancasInvoicesTable } from './cobrancas-invoices-table'
+import {
+  formatDate,
+  formatDateTime,
+  formatMoney,
+  getErrorMessage,
+  getSubscriptionActionSuccess,
+  getSubscriptionActionTitle,
+  monthlyFee,
+  parseMoney,
+  statusLabels,
+  statusVariant,
+  subscriptionStatusLabels,
+  subscriptionStatusVariant,
+  toDateInputValue,
+} from './cobrancas-formatters'
+import { BillingMetric } from './cobrancas-metric'
+import type {
+  BillingDiagnostics,
+  BillingEvent,
+  BillingInvoice,
+  BillingSubscription,
+  CreateInvoiceForm,
+  ManualPaymentForm,
+  SubscriptionAction,
+  SubscriptionActionForm,
+  Tenant,
+} from './cobrancas.types'
 
 export default function CobrancasPage() {
   const [role, setRole] = React.useState<string | null>(null)
@@ -728,196 +553,30 @@ export default function CobrancasPage() {
         <BillingMetric title="Clientes em atraso" value={`${stats.overdueCount}`} icon={CalendarClock} />
       </div>
 
-      {diagnostics ? (
-        <Card className="mb-5">
-          <CardHeader className="flex-row items-start justify-between gap-4">
-            <div>
-              <CardTitle className="flex items-center gap-2">
-                <RadioTower className="h-5 w-5 text-orange-600" />
-                Saude do billing
-              </CardTitle>
-              <p className="mt-1 text-sm leading-relaxed text-slate-500">
-                Monitoramento rapido de webhooks, assinaturas em risco e proximas renovacoes.
-              </p>
-            </div>
-            <Badge
-              variant={
-                diagnostics.status === 'CRITICAL'
-                  ? 'danger'
-                  : diagnostics.status === 'WARNING'
-                    ? 'warning'
-                    : 'success'
-              }
-            >
-              {diagnostics.status === 'CRITICAL'
-                ? 'Atencao critica'
-                : diagnostics.status === 'WARNING'
-                  ? 'Requer atencao'
-                  : 'Operacional'}
-            </Badge>
-          </CardHeader>
-          <CardContent className="grid gap-3 md:grid-cols-4">
-            <DiagnosticBox
-              label="Webhooks pendentes"
-              value={`${diagnostics.pendingWebhooks}`}
-              tone={diagnostics.oldPendingWebhooks > 0 ? 'danger' : diagnostics.pendingWebhooks > 0 ? 'warning' : 'success'}
-              helper={
-                diagnostics.oldPendingWebhooks > 0
-                  ? `${diagnostics.oldPendingWebhooks} ha mais de 15 min`
-                  : 'Fila dentro do esperado'
-              }
-            />
-            <DiagnosticBox
-              label="Falhas 24h"
-              value={`${diagnostics.failedWebhooks24h}`}
-              tone={diagnostics.failedWebhooks24h > 0 ? 'danger' : 'success'}
-              helper={
-                diagnostics.latestWebhookError?.error
-                  ? diagnostics.latestWebhookError.error
-                  : 'Sem erro recente'
-              }
-            />
-            <DiagnosticBox
-              label="Assinaturas em risco"
-              value={`${diagnostics.pastDueSubscriptions + diagnostics.blockedSubscriptions}`}
-              tone={diagnostics.blockedSubscriptions > 0 ? 'danger' : diagnostics.pastDueSubscriptions > 0 ? 'warning' : 'success'}
-              helper={`${diagnostics.pastDueSubscriptions} em atraso | ${diagnostics.blockedSubscriptions} bloqueadas`}
-            />
-            <DiagnosticBox
-              label="Vencem em 7 dias"
-              value={`${diagnostics.upcomingRenewals}`}
-              tone="default"
-              helper={`Atualizado em ${formatDateTime(diagnostics.checkedAt)}`}
-            />
-          </CardContent>
-        </Card>
-      ) : null}
+      {diagnostics ? <CobrancasDiagnosticsPanel diagnostics={diagnostics} /> : null}
 
-      <Card className="mb-5">
-        <CardContent className="grid gap-3 p-5 lg:grid-cols-[1fr_220px_260px]">
-          <Input
-            value={search}
-            onChange={(event) => setSearch(event.target.value)}
-            placeholder="Buscar cliente, slug ou email..."
-          />
-          <select
-            value={statusFilter}
-            onChange={(event) => setStatusFilter(event.target.value)}
-            className="h-12 rounded-2xl border border-slate-200 bg-white px-4 text-sm font-bold text-slate-700 shadow-sm outline-none focus:border-orange-500"
-          >
-            <option value="ALL">Todos os status</option>
-            <option value="OPEN">Em aberto</option>
-            <option value="PAID">Pago</option>
-            <option value="OVERDUE">Vencido</option>
-            <option value="CANCELLED">Cancelado</option>
-          </select>
-          <select
-            value={subscriptionStatusFilter}
-            onChange={(event) => setSubscriptionStatusFilter(event.target.value)}
-            className="h-12 rounded-2xl border border-slate-200 bg-white px-4 text-sm font-bold text-slate-700 shadow-sm outline-none focus:border-orange-500"
-          >
-            <option value="ALL">Todas as assinaturas</option>
-            <option value="PENDING">Pendente</option>
-            <option value="ACTIVE">Ativa</option>
-            <option value="PAST_DUE">Em atraso</option>
-            <option value="CANCEL_SCHEDULED">Cancelamento agendado</option>
-            <option value="CANCELED">Cancelada</option>
-            <option value="BLOCKED">Bloqueada</option>
-          </select>
-        </CardContent>
-      </Card>
+      <CobrancasFilters
+        search={search}
+        invoiceStatusFilter={statusFilter}
+        subscriptionStatusFilter={subscriptionStatusFilter}
+        onSearchChange={setSearch}
+        onInvoiceStatusChange={setStatusFilter}
+        onSubscriptionStatusChange={setSubscriptionStatusFilter}
+      />
 
-      <Card>
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Cliente</TableHead>
-              <TableHead>Plano</TableHead>
-              <TableHead>Mensalidade</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead>Vencimento</TableHead>
-              <TableHead>Ultimo pagamento</TableHead>
-              <TableHead className="text-right">Acoes</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {isLoading ? (
-              <TableRow>
-                <TableCell colSpan={7} className="py-8 text-center text-slate-500">
-                  Carregando cobrancas...
-                </TableCell>
-              </TableRow>
-            ) : filteredInvoices.length ? (
-              filteredInvoices.map((invoice) => {
-                const paymentLink = invoice.paymentUrl || invoice.sandboxPaymentUrl
-
-                return (
-                  <TableRow key={invoice.id}>
-                    <TableCell>
-                      <p className="font-black text-slate-900">{invoice.tenant.name}</p>
-                      <p className="text-xs text-slate-500">{invoice.tenant.users?.[0]?.email || invoice.tenant.slug}</p>
-                    </TableCell>
-                    <TableCell>Unico Plano</TableCell>
-                    <TableCell>
-                      <RestrictedFinancialValue value={formatMoney(parseMoney(invoice.amount))} canView />
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant={statusVariant[invoice.status]}>
-                        {statusLabels[invoice.status]}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>{formatDate(invoice.dueDate)}</TableCell>
-                    <TableCell>{formatDate(invoice.paidAt)}</TableCell>
-                    <TableCell>
-                      <div className="flex flex-wrap justify-end gap-2">
-                        {paymentLink ? (
-                          <>
-                            <Button variant="outline" size="sm" onClick={() => copyPaymentLink(invoice)}>
-                              <Copy className="h-4 w-4" />
-                              Copiar
-                            </Button>
-                            <Button asChild variant="outline" size="sm">
-                              <a href={paymentLink} target="_blank" rel="noreferrer">
-                                <ExternalLink className="h-4 w-4" />
-                                Mercado Pago
-                              </a>
-                            </Button>
-                          </>
-                        ) : invoice.status !== 'PAID' ? (
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => createMercadoPagoPreference(invoice)}
-                            disabled={isSaving}
-                          >
-                            Gerar link
-                          </Button>
-                        ) : null}
-
-                        {invoice.status !== 'PAID' ? (
-                          <Button
-                            variant="primary"
-                            size="sm"
-                            onClick={() => setManualPaymentInvoice(invoice)}
-                          >
-                            Pago manual
-                          </Button>
-                        ) : null}
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                )
-              })
-            ) : (
-              <TableRow>
-                <TableCell colSpan={7} className="py-8 text-center text-slate-500">
-                  Nenhuma cobranca encontrada.
-                </TableCell>
-              </TableRow>
-            )}
-          </TableBody>
-        </Table>
-      </Card>
+      <CobrancasInvoicesTable
+        filteredInvoices={filteredInvoices}
+        isLoading={isLoading}
+        isSaving={isSaving}
+        onCopyPaymentLink={copyPaymentLink}
+        onCreateMercadoPagoPreference={createMercadoPagoPreference}
+        onOpenManualPayment={setManualPaymentInvoice}
+        formatMoney={formatMoney}
+        formatDate={formatDate}
+        parseMoney={parseMoney}
+        statusLabels={statusLabels}
+        statusVariant={statusVariant}
+      />
 
       <Card className="mt-5">
         <CardHeader className="flex-row items-start justify-between gap-4">
@@ -1534,67 +1193,5 @@ export default function CobrancasPage() {
         </ModalContent>
       </Modal>
     </PageContainer>
-  )
-}
-
-function BillingMetric({
-  title,
-  value,
-  icon: Icon,
-}: {
-  title: string
-  value: string
-  icon: React.ElementType
-}) {
-  return (
-    <Card>
-      <CardHeader className="flex-row items-start justify-between gap-4 pb-3">
-        <CardTitle className="text-sm text-slate-500">{title}</CardTitle>
-        <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-orange-50 text-orange-600">
-          <Icon className="h-5 w-5" />
-        </div>
-      </CardHeader>
-      <CardContent>
-        <p className="text-2xl font-black text-slate-950">{value}</p>
-      </CardContent>
-    </Card>
-  )
-}
-
-function DiagnosticBox({
-  label,
-  value,
-  helper,
-  tone,
-}: {
-  label: string
-  value: string
-  helper: string
-  tone: 'success' | 'warning' | 'danger' | 'default'
-}) {
-  const toneClassName = {
-    success: 'border-emerald-100 bg-emerald-50 text-emerald-700',
-    warning: 'border-orange-100 bg-orange-50 text-orange-700',
-    danger: 'border-red-100 bg-red-50 text-red-700',
-    default: 'border-slate-100 bg-slate-50 text-slate-700',
-  }[tone]
-
-  return (
-    <div className={`rounded-2xl border p-4 ${toneClassName}`}>
-      <p className="text-xs font-black uppercase opacity-75">{label}</p>
-      <p className="mt-2 text-2xl font-black">{value}</p>
-      <p className="mt-1 line-clamp-2 text-xs font-semibold opacity-80">
-        {helper}
-      </p>
-    </div>
-  )
-}
-
-function DetailBox({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
-      <p className="text-xs font-black uppercase text-slate-400">{label}</p>
-      <p className="mt-1 font-black text-slate-900">{value}</p>
-    </div>
   )
 }
