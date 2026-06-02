@@ -40,7 +40,7 @@ import {
 import {
   RestrictedFinancialPanel,
 } from '../components/restricted-financial-value'
-import { DetailBox } from './cobrancas-detail-box'
+import { CobrancaDetailsModal } from './cobranca-details-modal'
 import { CobrancasDiagnosticsPanel } from './cobrancas-diagnostics-panel'
 import { CobrancasEventsPanel } from './cobrancas-events-panel'
 import { CobrancasFilters } from './cobrancas-filters'
@@ -595,128 +595,20 @@ export default function CobrancasPage() {
         formatDateTime={formatDateTime}
       />
 
-      <Modal
+      <CobrancaDetailsModal
         open={Boolean(selectedSubscription)}
-        onOpenChange={(open) => {
-          if (!open) setSelectedSubscription(null)
-        }}
-      >
-        <ModalContent>
-          {selectedSubscription ? (
-            <>
-              <ModalHeader>
-                <ModalTitle>{selectedSubscription.tenant.name}</ModalTitle>
-                <ModalDescription>
-                  Detalhes financeiros e operacionais da assinatura do cliente.
-                </ModalDescription>
-              </ModalHeader>
-
-              <div className="space-y-4">
-                <div className="grid gap-3 sm:grid-cols-3">
-                  <DetailBox
-                    label="Status"
-                    value={subscriptionStatusLabels[selectedSubscription.status]}
-                  />
-                  <DetailBox
-                    label="Proximo vencimento"
-                    value={formatDate(selectedSubscription.nextBillingDate)}
-                  />
-                  <DetailBox
-                    label="Acesso ate"
-                    value={formatDate(selectedSubscription.accessUntil)}
-                  />
-                </div>
-
-                <div className="rounded-2xl border border-slate-100 bg-slate-50 p-4">
-                  <p className="text-xs font-black uppercase text-slate-400">
-                    Cliente
-                  </p>
-                  <p className="mt-1 font-black text-slate-900">
-                    {selectedSubscription.tenant.name}
-                  </p>
-                  <p className="text-sm text-slate-500">
-                    {selectedSubscription.tenant.users?.[0]?.email ||
-                      selectedSubscription.tenant.slug}
-                  </p>
-                  <p className="mt-2 text-sm font-semibold text-slate-600">
-                    Plano: {selectedSubscription.plan.name} |{' '}
-                    {formatMoney(parseMoney(selectedSubscription.plan.monthlyPrice))} / mes
-                  </p>
-                </div>
-
-                <div>
-                  <p className="mb-2 text-sm font-black text-slate-900">
-                    Cobrancas deste cliente
-                  </p>
-                  <div className="space-y-2">
-                    {selectedClientInvoices.length ? (
-                      selectedClientInvoices.slice(0, 5).map((invoice) => (
-                        <div
-                          key={invoice.id}
-                          className="flex items-center justify-between rounded-2xl border border-slate-100 px-3 py-2 text-sm"
-                        >
-                          <div>
-                            <p className="font-bold text-slate-800">
-                              {formatMoney(parseMoney(invoice.amount))}
-                            </p>
-                            <p className="text-xs text-slate-500">
-                              Vence em {formatDate(invoice.dueDate)}
-                            </p>
-                          </div>
-                          <Badge variant={statusVariant[invoice.status]}>
-                            {statusLabels[invoice.status]}
-                          </Badge>
-                        </div>
-                      ))
-                    ) : (
-                      <p className="rounded-2xl border border-dashed border-slate-200 p-3 text-sm text-slate-500">
-                        Nenhuma cobranca encontrada para este cliente.
-                      </p>
-                    )}
-                  </div>
-                </div>
-
-                <div>
-                  <p className="mb-2 text-sm font-black text-slate-900">
-                    Eventos recentes
-                  </p>
-                  <div className="space-y-2">
-                    {selectedClientEvents.length ? (
-                      selectedClientEvents.slice(0, 5).map((event) => (
-                        <div
-                          key={`${event.source}-${event.id}`}
-                          className="rounded-2xl border border-slate-100 px-3 py-2"
-                        >
-                          <p className="text-sm font-bold text-slate-800">
-                            {event.title}
-                          </p>
-                          <p className="text-xs text-slate-500">
-                            {formatDateTime(event.createdAt)}
-                          </p>
-                        </div>
-                      ))
-                    ) : (
-                      <p className="rounded-2xl border border-dashed border-slate-200 p-3 text-sm text-slate-500">
-                        Nenhum evento encontrado para este cliente.
-                      </p>
-                    )}
-                  </div>
-                </div>
-              </div>
-
-              <ModalFooter>
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => setSelectedSubscription(null)}
-                >
-                  Fechar
-                </Button>
-              </ModalFooter>
-            </>
-          ) : null}
-        </ModalContent>
-      </Modal>
+        subscription={selectedSubscription}
+        invoices={selectedClientInvoices}
+        events={selectedClientEvents}
+        onClose={() => setSelectedSubscription(null)}
+        formatMoney={formatMoney}
+        formatDate={formatDate}
+        formatDateTime={formatDateTime}
+        parseMoney={parseMoney}
+        statusLabels={statusLabels}
+        statusVariant={statusVariant}
+        subscriptionStatusLabels={subscriptionStatusLabels}
+      />
 
       <Modal open={createModalOpen} onOpenChange={setCreateModalOpen}>
         <ModalContent>
