@@ -1,7 +1,7 @@
 'use client'
 
 import * as React from 'react'
-import { CreditCard, Plus, RefreshCw } from 'lucide-react'
+import { Plus, RefreshCw } from 'lucide-react'
 
 import { PageContainer, PageHeader } from '@/components/layout/page-container'
 import { Button } from '@/components/ui/button'
@@ -16,13 +16,12 @@ import {
 } from '@/components/ui/modal'
 import { apiFetch } from '@/lib/api'
 import { canViewFinancialData, getStoredPermissions, hasPermission } from '../components/master-permissions'
-import { DetailItem } from './clientes-detail-item'
+import { ClienteCreateModal } from './cliente-create-modal'
+import { ClienteDetailsModal } from './cliente-details-modal'
 import {
   formatCep,
   formatCpfCnpj,
-  formatDate,
   formatDocumentInput,
-  formatFullDate,
   formatMoney,
   formatPhone,
   formatWhatsappInput,
@@ -489,99 +488,15 @@ export default function ClientesPage() {
         onDeleteTenant={removeTenant}
       />
 
-      <Modal open={isModalOpen} onOpenChange={setIsModalOpen}>
-        <ModalContent className="max-w-2xl">
-          <form onSubmit={createTenant}>
-            <ModalHeader>
-              <ModalTitle>Nova pizzaria</ModalTitle>
-              <ModalDescription>
-                Crie o cliente e o primeiro acesso do dono da pizzaria.
-              </ModalDescription>
-            </ModalHeader>
-
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div className="grid gap-1.5">
-                <label className="text-sm font-bold text-slate-700">Nome da pizzaria</label>
-                <Input value={form.name} onChange={(event) => updateForm('name', event.target.value)} required />
-              </div>
-
-              <div className="grid gap-1.5">
-                <label className="text-sm font-bold text-slate-700">URL publica gerada</label>
-                <div className="flex h-12 items-center rounded-2xl border border-slate-200 bg-slate-50 px-4 text-sm font-bold text-slate-700 shadow-sm">
-                  /c/{form.slug || 'nome-da-pizzaria'}
-                </div>
-                <p className="text-xs font-medium text-slate-500">
-                  O sistema gera automaticamente pelo nome da pizzaria.
-                </p>
-              </div>
-
-              <div className="grid gap-1.5">
-                <label className="text-sm font-bold text-slate-700">Nome do dono</label>
-                <Input value={form.ownerName} onChange={(event) => updateForm('ownerName', event.target.value)} required />
-              </div>
-
-              <div className="grid gap-1.5">
-                <label className="text-sm font-bold text-slate-700">Email do dono</label>
-                <Input type="email" value={form.ownerEmail} onChange={(event) => updateForm('ownerEmail', event.target.value)} required />
-              </div>
-
-              <div className="grid gap-1.5">
-                <label className="text-sm font-bold text-slate-700">Senha inicial</label>
-                <Input type="password" value={form.ownerPassword} onChange={(event) => updateForm('ownerPassword', event.target.value)} required minLength={6} />
-              </div>
-
-              <div className="grid gap-1.5">
-                <label className="text-sm font-bold text-slate-700">WhatsApp</label>
-                <Input value={form.whatsapp} onChange={(event) => updateForm('whatsapp', event.target.value)} required />
-              </div>
-
-              <div className="grid gap-1.5">
-                <label className="text-sm font-bold text-slate-700">CPF ou CNPJ</label>
-                <Input value={form.document} onChange={(event) => updateForm('document', event.target.value)} required />
-              </div>
-
-              <div className="grid gap-1.5">
-                <label className="text-sm font-bold text-slate-700">Cidade</label>
-                <Input value={form.city} onChange={(event) => updateForm('city', event.target.value)} required />
-              </div>
-
-              <div className="grid gap-1.5">
-                <label className="text-sm font-bold text-slate-700">Estado</label>
-                <Input value={form.state} onChange={(event) => updateForm('state', event.target.value)} required maxLength={2} placeholder="RJ" />
-              </div>
-
-              <div className="grid gap-1.5">
-                <label className="text-sm font-bold text-slate-700">CEP</label>
-                <Input value={form.zipCode} onChange={(event) => updateForm('zipCode', event.target.value)} placeholder="27320-360" />
-              </div>
-
-              <div className="grid gap-1.5 sm:col-span-2">
-                <label className="text-sm font-bold text-slate-700">Endereco completo</label>
-                <Input value={form.address} onChange={(event) => updateForm('address', event.target.value)} placeholder="Rua, numero, bairro" />
-              </div>
-
-              <div className="grid gap-1.5 sm:col-span-2">
-                <label className="text-sm font-bold text-slate-700">Observacoes internas</label>
-                <textarea
-                  value={form.internalNotes}
-                  onChange={(event) => updateForm('internalNotes', event.target.value)}
-                  className="min-h-24 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-700 shadow-sm outline-none focus:border-orange-500"
-                  placeholder="Informacoes administrativas visiveis apenas no Master."
-                />
-              </div>
-            </div>
-
-            <ModalFooter>
-              <Button type="button" variant="outline" onClick={() => setIsModalOpen(false)}>
-                Cancelar
-              </Button>
-              <Button type="submit" variant="primary" disabled={isSaving}>
-                {isSaving ? 'Criando...' : 'Criar pizzaria'}
-              </Button>
-            </ModalFooter>
-          </form>
-        </ModalContent>
-      </Modal>
+      <ClienteCreateModal
+        isOpen={isModalOpen}
+        form={form}
+        isSaving={isSaving}
+        onOpenChange={setIsModalOpen}
+        onChange={updateForm}
+        onSubmit={createTenant}
+        onClose={() => setIsModalOpen(false)}
+      />
 
       <Modal open={Boolean(editTenant)} onOpenChange={(open) => !open && setEditTenant(null)}>
         <ModalContent className="max-w-2xl">
@@ -675,123 +590,14 @@ export default function ClientesPage() {
         </ModalContent>
       </Modal>
 
-      <Modal open={Boolean(detailsTenant)} onOpenChange={(open) => !open && setDetailsTenant(null)}>
-        <ModalContent className="max-w-2xl">
-          {detailsTenant ? (
-            <>
-              <ModalHeader>
-                <ModalTitle>{detailsTenant.name}</ModalTitle>
-                <ModalDescription>
-                  Dados administrativos internos para suporte, cobranca e auditoria.
-                </ModalDescription>
-              </ModalHeader>
-
-              <div className="grid gap-3 sm:grid-cols-2">
-                <DetailItem label="Codigo interno" value={detailsTenant.internalCode || 'Sem codigo'} />
-                <DetailItem label="Slug" value={`/c/${detailsTenant.slug}`} />
-                <DetailItem label="Responsavel" value={detailsTenant.responsibleName || detailsTenant.users?.find((user) => user.role === 'CLIENT_OWNER')?.name || '-'} />
-                <DetailItem label="Email" value={detailsTenant.users?.find((user) => user.role === 'CLIENT_OWNER')?.email || '-'} />
-                <DetailItem label="WhatsApp" value={formatPhone(detailsTenant.whatsapp)} />
-                <DetailItem label="CPF/CNPJ" value={formatCpfCnpj(detailsTenant.document)} />
-                <DetailItem label="Cidade" value={detailsTenant.city || '-'} />
-                <DetailItem label="Estado" value={detailsTenant.state || '-'} />
-                <DetailItem label="Endereco completo" value={detailsTenant.address || '-'} />
-                <DetailItem label="CEP" value={formatCep(detailsTenant.zipCode)} />
-                <DetailItem label="Status" value={detailsTenant.isActive ? 'Ativo' : 'Inativo'} />
-                <DetailItem label="Data de cadastro" value={formatDate(detailsTenant.createdAt)} />
-                <div className="rounded-2xl border border-orange-100 bg-orange-50 p-4 sm:col-span-2">
-                  <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                    <div>
-                      <p className="text-xs font-black uppercase text-orange-700">Plano atual</p>
-                      <p className="mt-1 text-base font-black text-slate-950">
-                        {getPlanName(detailsTenant)}
-                      </p>
-                      <p className="mt-1 text-sm font-semibold text-slate-600">
-                        Valor contratado:{' '}
-                        {getCurrentSubscription(detailsTenant)
-                          ? formatMoney(getCurrentSubscription(detailsTenant)?.contractedMonthlyPrice)
-                          : '-'}
-                      </p>
-                    </div>
-                    {canManagePlans ? (
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        onClick={() => {
-                          setDetailsTenant(null)
-                          openChangePlanModal(detailsTenant)
-                        }}
-                      >
-                        <CreditCard className="h-4 w-4" />
-                        Alterar plano
-                      </Button>
-                    ) : null}
-                  </div>
-                  <div className="mt-4 grid gap-3 sm:grid-cols-3">
-                    <DetailItem
-                      label="Valor atual do plano"
-                      value={
-                        getCurrentSubscription(detailsTenant)?.plan
-                          ? formatMoney(getCurrentSubscription(detailsTenant)?.plan?.monthlyPrice)
-                          : '-'
-                      }
-                    />
-                    <DetailItem
-                      label="Status da assinatura"
-                      value={getCurrentSubscription(detailsTenant)?.status || 'Sem assinatura'}
-                    />
-                    <DetailItem
-                      label="Contratado em"
-                      value={formatFullDate(getCurrentSubscription(detailsTenant)?.contractedAt)}
-                    />
-                    <DetailItem
-                      label="Proximo vencimento"
-                      value={formatFullDate(getCurrentSubscription(detailsTenant)?.nextBillingDate)}
-                    />
-                    <DetailItem
-                      label="Acesso ate"
-                      value={formatFullDate(getCurrentSubscription(detailsTenant)?.accessUntil)}
-                    />
-                    <DetailItem
-                      label="Valor de implantacao"
-                      value={
-                        getCurrentSubscription(detailsTenant)?.contractedSetupFee
-                          ? formatMoney(getCurrentSubscription(detailsTenant)?.contractedSetupFee)
-                          : '-'
-                      }
-                    />
-                  </div>
-                </div>
-                <div className="rounded-2xl border border-slate-100 bg-slate-50 p-4 sm:col-span-2">
-                  <p className="text-xs font-black uppercase text-slate-400">Observacoes internas</p>
-                  <p className="mt-1 whitespace-pre-wrap text-sm font-semibold text-slate-700">
-                    {detailsTenant.internalNotes || 'Sem observacoes.'}
-                  </p>
-                </div>
-              </div>
-
-              <ModalFooter>
-                <Button type="button" variant="outline" onClick={() => setDetailsTenant(null)}>
-                  Fechar
-                </Button>
-                {canCreateClients ? (
-                  <Button
-                    type="button"
-                    variant="primary"
-                    onClick={() => {
-                      setDetailsTenant(null)
-                      openEditModal(detailsTenant)
-                    }}
-                  >
-                    Editar dados
-                  </Button>
-                ) : null}
-              </ModalFooter>
-            </>
-          ) : null}
-        </ModalContent>
-      </Modal>
+      <ClienteDetailsModal
+        tenant={detailsTenant}
+        canCreateClients={canCreateClients}
+        canManagePlans={canManagePlans}
+        onClose={() => setDetailsTenant(null)}
+        onOpenEdit={openEditModal}
+        onOpenChangePlan={openChangePlanModal}
+      />
 
       <Modal open={Boolean(resetPasswordTenant)} onOpenChange={(open) => !open && setResetPasswordTenant(null)}>
         <ModalContent className="max-w-lg">
