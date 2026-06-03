@@ -60,6 +60,13 @@ type AppliedCoupon = {
   subtotal: number
 }
 
+const couponFriendlyMessages: Record<string, string> = {
+  'cupom ainda nao esta disponivel': 'Cupom ainda não está disponível.',
+  'cupom expirado': 'Cupom expirado.',
+  'cupom invalido': 'Cupom inválido.',
+  'cupom nao encontrado': 'Cupom não encontrado.',
+}
+
 function toNumber(value: unknown) {
   const number = Number(value)
 
@@ -83,6 +90,51 @@ function itemSubtitle(item: {
   ].filter(Boolean)
 
   return details.join(' · ')
+}
+
+function normalizeCouponMessage(message: string) {
+  const cleanedMessage = message.trim()
+
+  if (!cleanedMessage) {
+    return 'Não foi possível aplicar este cupom.'
+  }
+
+  const normalizedKey = cleanedMessage
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[.!?]+$/g, '')
+    .toLowerCase()
+
+  return couponFriendlyMessages[normalizedKey] ?? cleanedMessage
+}
+
+function getCouponErrorMessage(error: unknown) {
+  const fallbackMessage = 'Não foi possível aplicar este cupom.'
+  const rawMessage =
+    error instanceof Error
+      ? error.message
+      : typeof error === 'string'
+        ? error
+        : ''
+
+  if (!rawMessage.trim()) {
+    return fallbackMessage
+  }
+
+  try {
+    const parsed = JSON.parse(rawMessage) as { message?: string | string[] }
+    const parsedMessage = Array.isArray(parsed.message)
+      ? parsed.message[0]
+      : parsed.message
+
+    return typeof parsedMessage === 'string'
+      ? normalizeCouponMessage(parsedMessage)
+      : fallbackMessage
+  } catch {
+    return rawMessage.trim().startsWith('{')
+      ? fallbackMessage
+      : normalizeCouponMessage(rawMessage)
+  }
 }
 
 export function CartDrawer({
@@ -153,9 +205,7 @@ export function CartDrawer({
       setCouponOpen(false)
     } catch (error) {
       setAppliedCoupon(null)
-      setCouponError(
-        error instanceof Error ? error.message : 'Cupom invalido.',
-      )
+      setCouponError(getCouponErrorMessage(error))
     } finally {
       setCouponLoading(false)
     }

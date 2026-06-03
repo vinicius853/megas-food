@@ -2,7 +2,6 @@
 
 import {
   BadgePlus,
-  TicketPercent,
   Eye,
   Grid3X3,
   PackagePlus,
@@ -16,7 +15,6 @@ import {
   PageContainer,
   PageHeader,
 } from '@/components/layout/page-container'
-import Link from 'next/link'
 
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -48,17 +46,6 @@ export default function CardapioPage() {
         description="Configure pizzas, tamanhos, bordas, bebidas, adicionais e seções do cardápio em uma única tela operacional."
         actions={
           <div className="flex flex-wrap gap-2">
-            <Button
-              asChild
-              variant="outline"
-              size="sm"
-            >
-              <Link href="/dashboard/cardapio/cupons">
-                <TicketPercent className="h-4 w-4" />
-                Cupons
-              </Link>
-            </Button>
-
             <Button
               variant="outline"
               size="sm"

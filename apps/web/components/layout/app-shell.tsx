@@ -210,14 +210,19 @@ function MobileNav({
             <ul key={index} className="mb-3 space-y-1">
               {section.items.map((item) => {
                 const Icon = item.icon
-                const isHome = item.href === homeHref
+                const activeItemHref = section.items
+                  .filter((currentItem) => {
+                    if (currentItem.external) return false
+                    if (currentItem.href === homeHref) return pathname === homeHref
 
-                const active = item.external
-                  ? false
-                  : isHome
-                    ? pathname === homeHref
-                    : pathname === item.href ||
-                    pathname.startsWith(item.href + '/')
+                    return (
+                      pathname === currentItem.href ||
+                      pathname.startsWith(currentItem.href + '/')
+                    )
+                  })
+                  .sort((first, second) => second.href.length - first.href.length)[0]
+                  ?.href
+                const active = item.href === activeItemHref
 
                 const content = (
                   <>
