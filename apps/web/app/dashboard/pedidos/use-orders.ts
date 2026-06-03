@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useCallback, useMemo, useState } from 'react'
 
 import { apiFetch } from '@/lib/api'
 
@@ -35,6 +35,7 @@ export type OrderItem = {
 
 export type Order = {
   id: string
+  displayNumber?: string | number | null
   customerName?: string | null
   customerPhone?: string | null
   type: OrderType
@@ -47,24 +48,88 @@ export type Order = {
   items: OrderItem[]
 }
 
+export type OrdersPeriod = 'today' | 'yesterday' | 'last7' | 'last30'
+
+const periodLabels: Record<OrdersPeriod, string> = {
+  today: 'Hoje',
+  yesterday: 'Ontem',
+  last7: 'Últimos 7 dias',
+  last30: 'Últimos 30 dias',
+}
+
+function startOfDay(date: Date) {
+  const result = new Date(date)
+  result.setHours(0, 0, 0, 0)
+  return result
+}
+
+function addDays(date: Date, days: number) {
+  const result = new Date(date)
+  result.setDate(result.getDate() + days)
+  return result
+}
+
+function getPeriodRange(period: OrdersPeriod) {
+  const today = startOfDay(new Date())
+
+  if (period === 'yesterday') {
+    return {
+      dateFrom: addDays(today, -1),
+      dateTo: today,
+    }
+  }
+
+  if (period === 'last7') {
+    return {
+      dateFrom: addDays(today, -6),
+      dateTo: addDays(today, 1),
+    }
+  }
+
+  if (period === 'last30') {
+    return {
+      dateFrom: addDays(today, -29),
+      dateTo: addDays(today, 1),
+    }
+  }
+
+  return {
+    dateFrom: today,
+    dateTo: addDays(today, 1),
+  }
+}
+
+function buildOrdersUrl(period: OrdersPeriod) {
+  const range = getPeriodRange(period)
+  const params = new URLSearchParams({
+    dateFrom: range.dateFrom.toISOString(),
+    dateTo: range.dateTo.toISOString(),
+  })
+
+  return `/orders?${params.toString()}`
+}
+
 export function useOrders() {
   const [orders, setOrders] = useState<Order[]>(
     [],
   )
+  const [period, setPeriod] = useState<OrdersPeriod>('today')
 
   const [loading, setLoading] =
     useState(true)
 
   const [error, setError] = useState('')
 
-  async function loadOrders() {
+  const periodLabel = useMemo(() => periodLabels[period], [period])
+
+  const loadOrders = useCallback(async () => {
     try {
       setLoading(true)
 
       setError('')
 
       const data = await apiFetch<Order[]>(
-        '/orders',
+        buildOrdersUrl(period),
       )
 
       setOrders(data)
@@ -76,7 +141,7 @@ export function useOrders() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [period])
 
   async function updateStatus(
     orderId: string,
@@ -115,8 +180,11 @@ export function useOrders() {
     orders,
     loading,
     error,
+    period,
+    periodLabel,
 
     loadOrders,
+    setPeriod,
     updateStatus,
   }
 }

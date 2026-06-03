@@ -13,6 +13,13 @@ import { UpdateOrderDto } from './dto/update-order.dto'
 import { OrdersGateway } from './gateways/orders.gateway'
 import { CouponsService } from '../coupons/coupons.service'
 
+const dashboardOrdersTimeZone = 'America/Sao_Paulo'
+
+type FindOrdersFilters = {
+  dateFrom?: string
+  dateTo?: string
+}
+
 @Injectable()
 export class OrdersService {
   constructor(
@@ -316,10 +323,19 @@ export class OrdersService {
     return order
   }
 
-  async findAll(tenantId: string) {
+  async findAll(
+    tenantId: string,
+    filters: FindOrdersFilters = {},
+  ) {
+    const range = this.resolveOrdersDateRange(filters)
+
     return this.prisma.order.findMany({
       where: {
         tenantId,
+        createdAt: {
+          gte: range.dateFrom,
+          lt: range.dateTo,
+        },
       },
 
       include: {
@@ -333,6 +349,8 @@ export class OrdersService {
       orderBy: {
         createdAt: 'desc',
       },
+
+      take: 200,
     })
   }
 
@@ -411,5 +429,116 @@ export class OrdersService {
     )
 
     return deletedOrder
+  }
+
+  private resolveOrdersDateRange(filters: FindOrdersFilters) {
+    const dateFrom = filters.dateFrom
+      ? this.parseDateFilter(filters.dateFrom, 'dateFrom')
+      : null
+    const dateTo = filters.dateTo
+      ? this.parseDateFilter(filters.dateTo, 'dateTo')
+      : null
+
+    if (dateFrom || dateTo) {
+      return {
+        dateFrom: dateFrom ?? new Date(0),
+        dateTo: dateTo ?? this.getStartOfNextDay(dashboardOrdersTimeZone),
+      }
+    }
+
+    return {
+      dateFrom: this.getStartOfToday(dashboardOrdersTimeZone),
+      dateTo: this.getStartOfNextDay(dashboardOrdersTimeZone),
+    }
+  }
+
+  private parseDateFilter(value: string, field: string) {
+    const date = new Date(value)
+
+    if (Number.isNaN(date.getTime())) {
+      throw new BadRequestException(
+        `Filtro de data invalido: ${field}.`,
+      )
+    }
+
+    return date
+  }
+
+  private getStartOfToday(timeZone: string) {
+    const parts = this.getTimeZoneDateParts(new Date(), timeZone)
+
+    return this.getZonedStartOfDay(
+      parts.year,
+      parts.month,
+      parts.day,
+      timeZone,
+    )
+  }
+
+  private getStartOfNextDay(timeZone: string) {
+    const parts = this.getTimeZoneDateParts(new Date(), timeZone)
+
+    return this.getZonedStartOfDay(
+      parts.year,
+      parts.month,
+      parts.day + 1,
+      timeZone,
+    )
+  }
+
+  private getZonedStartOfDay(
+    year: number,
+    month: number,
+    day: number,
+    timeZone: string,
+  ) {
+    const utcDate = new Date(Date.UTC(year, month - 1, day, 0, 0, 0, 0))
+    const offset = this.getTimeZoneOffset(utcDate, timeZone)
+
+    return new Date(utcDate.getTime() - offset)
+  }
+
+  private getTimeZoneDateParts(date: Date, timeZone: string) {
+    const formatter = new Intl.DateTimeFormat('en-US', {
+      timeZone,
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+    })
+    const parts = formatter.formatToParts(date)
+    const getPart = (type: string) =>
+      Number(parts.find((part) => part.type === type)?.value)
+
+    return {
+      year: getPart('year'),
+      month: getPart('month'),
+      day: getPart('day'),
+    }
+  }
+
+  private getTimeZoneOffset(date: Date, timeZone: string) {
+    const formatter = new Intl.DateTimeFormat('en-US', {
+      timeZone,
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+      hour12: false,
+    })
+    const parts = formatter.formatToParts(date)
+    const getPart = (type: string) =>
+      Number(parts.find((part) => part.type === type)?.value)
+    const timeZoneDate = Date.UTC(
+      getPart('year'),
+      getPart('month') - 1,
+      getPart('day'),
+      getPart('hour'),
+      getPart('minute'),
+      getPart('second'),
+    )
+
+    return timeZoneDate - date.getTime()
   }
 }

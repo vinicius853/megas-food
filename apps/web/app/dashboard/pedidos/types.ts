@@ -31,6 +31,7 @@ export type OrderItem = {
 
 export type Order = {
   id: string
+  displayNumber?: string | number | null
   customerName?: string | null
   customerPhone?: string | null
   type: OrderType

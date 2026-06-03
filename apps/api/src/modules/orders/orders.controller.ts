@@ -6,6 +6,7 @@ import {
   Param,
   Patch,
   Post,
+  Query,
   Req,
   UseGuards,
 } from '@nestjs/common'
@@ -29,8 +30,15 @@ export class OrdersController {
   }
 
   @Get()
-  findAll(@Req() req: any) {
-    return this.ordersService.findAll(req.user.tenantId)
+  findAll(
+    @Req() req: any,
+    @Query('dateFrom') dateFrom?: string,
+    @Query('dateTo') dateTo?: string,
+  ) {
+    return this.ordersService.findAll(req.user.tenantId, {
+      dateFrom,
+      dateTo,
+    })
   }
 
   @Get(':id')

@@ -3,6 +3,7 @@ import type { CartItem } from './cart-context'
 export type CheckoutModalProps = {
   open: boolean
   onClose: () => void
+  onOrderFinished?: () => void
   items: CartItem[]
   totalPrice: number
   couponCode?: string

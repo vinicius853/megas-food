@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 
 import { renderOrderActions } from './order-actions'
+import { getOrderDisplayNumber } from './order-display-number'
 import {
   formatDateTime,
   formatMoney,
@@ -41,6 +42,7 @@ type OrderItem = {
 
 type Order = {
   id: string
+  displayNumber?: string | number | null
   customerName?: string | null
   customerPhone?: string | null
   type: OrderType
@@ -126,6 +128,10 @@ export function OrderModal({
               <Badge variant={statusVariants[order.status]}>
                 {statusLabels[order.status]}
               </Badge>
+
+              <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-black text-slate-700">
+                {getOrderDisplayNumber(order)}
+              </span>
             </div>
 
             <p className="mt-1 text-xs text-slate-500 sm:text-sm">

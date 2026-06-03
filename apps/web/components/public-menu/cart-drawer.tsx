@@ -18,6 +18,7 @@ import { CheckoutModal } from './checkout-modal'
 type CartDrawerProps = {
   open: boolean
   onClose: () => void
+  onOrderFinished?: () => void
   tenantName: string
   tenantSlug: string
   whatsapp?: string | null
@@ -87,6 +88,7 @@ function itemSubtitle(item: {
 export function CartDrawer({
   open,
   onClose,
+  onOrderFinished,
   tenantName,
   tenantSlug,
   whatsapp,
@@ -103,6 +105,7 @@ export function CartDrawer({
     removeFlavor,
     removeBorder,
     removeAdditionalItem,
+    clearCart,
     totalItems,
     totalPrice,
   } = useCart()
@@ -162,6 +165,15 @@ export function CartDrawer({
     setAppliedCoupon(null)
     setCouponCode('')
     setCouponError('')
+  }
+
+  function handleOrderFinished() {
+    clearCart()
+    removeCoupon()
+    setCouponOpen(false)
+    setCheckoutOpen(false)
+    onClose()
+    onOrderFinished?.()
   }
 
   useEffect(() => {
@@ -584,6 +596,7 @@ export function CartDrawer({
       <CheckoutModal
         open={checkoutOpen}
         onClose={() => setCheckoutOpen(false)}
+        onOrderFinished={handleOrderFinished}
         items={items}
         totalPrice={totalPrice}
         couponCode={appliedCoupon?.code}

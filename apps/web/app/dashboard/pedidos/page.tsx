@@ -28,6 +28,7 @@ import type {
   OrderStatus,
   OrderType,
 } from './types'
+import type { OrdersPeriod } from './use-orders'
 
 const statusLabels: Record<OrderStatus, string> = {
   PENDING: 'Pendente',
@@ -62,6 +63,16 @@ const typeLabels: Record<OrderType, string> = {
   DELIVERY: 'Delivery',
 }
 
+const periodOptions: Array<{
+  value: OrdersPeriod
+  label: string
+}> = [
+  { value: 'today', label: 'Hoje' },
+  { value: 'yesterday', label: 'Ontem' },
+  { value: 'last7', label: 'Últimos 7 dias' },
+  { value: 'last30', label: 'Últimos 30 dias' },
+]
+
 export default function PedidosPage() {
   const [selectedOrder, setSelectedOrder] =
     useState<Order | null>(null)
@@ -70,8 +81,11 @@ export default function PedidosPage() {
     orders,
     loading,
     error,
+    period,
+    periodLabel,
 
     loadOrders,
+    setPeriod,
     updateStatus,
   } = useOrders()
 
@@ -83,7 +97,7 @@ export default function PedidosPage() {
 
   useEffect(() => {
     loadOrders()
-  }, [])
+  }, [loadOrders])
 
   useOrdersSocket({
     loadOrders,
@@ -93,8 +107,8 @@ export default function PedidosPage() {
   return (
     <PageContainer>
       <PageHeader
-        title="Pedidos"
-        description="Todos os pedidos do dia, em tempo real."
+        title="Pedidos de hoje"
+        description={`Pedidos do período: ${periodLabel}. Atualização em tempo real.`}
         actions={
           <div className="grid w-full grid-cols-1 gap-2 sm:w-auto sm:grid-cols-3">
             <Button
@@ -142,6 +156,21 @@ export default function PedidosPage() {
           {error}
         </div>
       )}
+
+      <div className="mb-4 flex flex-wrap gap-2">
+        {periodOptions.map((option) => (
+          <Button
+            key={option.value}
+            type="button"
+            size="sm"
+            variant={period === option.value ? 'primary' : 'outline'}
+            onClick={() => setPeriod(option.value)}
+            disabled={loading && period === option.value}
+          >
+            {option.label}
+          </Button>
+        ))}
+      </div>
 
       <OrdersTable
         orders={orders}

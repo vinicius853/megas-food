@@ -1,3 +1,5 @@
+import { getOrderDisplayNumber } from './order-display-number'
+
 type PrintPaperSize = '58mm' | '80mm'
 type PrintMode = 'customer' | 'kitchen'
 
@@ -49,15 +51,7 @@ function isFilled(value?: string | number | null) {
 }
 
 function shortOrderNumber(order: any) {
-  const explicitNumber = order.number ?? order.code ?? order.sequence
-
-  if (explicitNumber) return String(explicitNumber)
-
-  const digits = String(order.id ?? '').replace(/\D/g, '')
-
-  if (digits.length >= 3) return digits.slice(-3)
-
-  return String(order.id ?? '').slice(0, 6).toUpperCase() || '---'
+  return getOrderDisplayNumber(order)
 }
 
 function getStoreName(order: any) {
@@ -516,7 +510,7 @@ function buildPrintHtml(order: any, options: Required<PrintOrderOptions>) {
         <div class="dash"></div>
 
         <div class="order-label">${isKitchen ? 'COZINHA' : 'PEDIDO ONLINE'}</div>
-        <div class="order-number">#${escapeHtml(shortOrderNumber(order))}</div>
+        <div class="order-number">${escapeHtml(shortOrderNumber(order))}</div>
 
         <p>Tipo: ${escapeHtml(orderType)}</p>
         <p>Data: ${escapeHtml(formatDateTime(order.createdAt))}</p>
@@ -574,13 +568,13 @@ function buildPrintHtml(order: any, options: Required<PrintOrderOptions>) {
 
               <div class="footer">
                 <div>IMPRESSO AUTOMATICAMENTE</div>
-                <div>MEGAS TECH</div>
+                <div>MEGAS FOOD</div>
               </div>
             `
             : `
               <div class="footer">
                 <div>CONFERIR ITENS ANTES DE FINALIZAR</div>
-                <div>MEGAS TECH</div>
+                <div>MEGAS FOOD</div>
               </div>
             `
         }

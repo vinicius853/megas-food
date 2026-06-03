@@ -13,6 +13,7 @@ import {
 } from '@/components/ui/table'
 
 import { renderOrderActions } from './order-actions'
+import { getOrderDisplayNumber } from './order-display-number'
 import { formatMoney } from './print-order'
 
 type OrderStatus =
@@ -45,6 +46,7 @@ type OrderItem = {
 
 type Order = {
   id: string
+  displayNumber?: string | number | null
   customerName?: string | null
   customerPhone?: string | null
   type: OrderType
@@ -86,11 +88,16 @@ function formatTime(value: string) {
   })
 }
 
-function getOrderNumber(
+function getOrderForDetails(
   orders: Order[],
   index: number,
 ) {
-  return `#${orders.length - index}`
+  const order = orders[index]
+
+  return {
+    ...order,
+    displayNumber: getOrderDisplayNumber(order, { orders, index }),
+  }
 }
 
 function getItemsQuantity(order: Order) {
@@ -120,7 +127,7 @@ export function OrdersTable({
               <TableHead>Cliente</TableHead>
               <TableHead>Itens</TableHead>
               <TableHead>Total</TableHead>
-              <TableHead>Aberto</TableHead>
+              <TableHead>Hora</TableHead>
               <TableHead>Status</TableHead>
               <TableHead>Acoes</TableHead>
               <TableHead>Detalhes</TableHead>
@@ -150,7 +157,7 @@ export function OrdersTable({
               orders.map((order, index) => (
                 <TableRow key={order.id}>
                   <TableCell className="font-semibold text-slate-900">
-                    {getOrderNumber(orders, index)}
+                    {getOrderDisplayNumber(order, { orders, index })}
                   </TableCell>
 
                   <TableCell>
@@ -193,7 +200,7 @@ export function OrdersTable({
                     <Button
                       size="sm"
                       variant="outline"
-                      onClick={() => onOpenOrder(order)}
+                      onClick={() => onOpenOrder(getOrderForDetails(orders, index))}
                     >
                       <Eye className="h-4 w-4" />
                       Ver
@@ -225,7 +232,7 @@ export function OrdersTable({
                 <div className="min-w-0">
                   <div className="flex flex-wrap items-center gap-2">
                     <span className="text-sm font-black text-slate-950">
-                      {getOrderNumber(orders, index)}
+                      {getOrderDisplayNumber(order, { orders, index })}
                     </span>
 
                     <Badge
@@ -282,7 +289,7 @@ export function OrdersTable({
                 <Button
                   size="sm"
                   variant="outline"
-                  onClick={() => onOpenOrder(order)}
+                  onClick={() => onOpenOrder(getOrderForDetails(orders, index))}
                   className="w-full"
                 >
                   <Eye className="h-4 w-4" />

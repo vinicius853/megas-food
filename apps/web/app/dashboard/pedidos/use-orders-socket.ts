@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect, useRef } from 'react'
 
 import { io } from 'socket.io-client'
 
@@ -11,6 +11,14 @@ export function useOrdersSocket({
   loadOrders,
   playNewOrderSound,
 }: UseOrdersSocketProps) {
+  const loadOrdersRef = useRef(loadOrders)
+  const playNewOrderSoundRef = useRef(playNewOrderSound)
+
+  useEffect(() => {
+    loadOrdersRef.current = loadOrders
+    playNewOrderSoundRef.current = playNewOrderSound
+  }, [loadOrders, playNewOrderSound])
+
   useEffect(() => {
     const token = localStorage.getItem('token')
     const tenantId = localStorage.getItem('tenantId')
@@ -46,23 +54,23 @@ export function useOrdersSocket({
     socket.on(
       'order.created',
       () => {
-        loadOrders()
+        loadOrdersRef.current()
 
-        playNewOrderSound()
+        playNewOrderSoundRef.current()
       },
     )
 
     socket.on(
       'order.updated',
       () => {
-        loadOrders()
+        loadOrdersRef.current()
       },
     )
 
     socket.on(
       'order.cancelled',
       () => {
-        loadOrders()
+        loadOrdersRef.current()
       },
     )
 

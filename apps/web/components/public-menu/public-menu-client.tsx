@@ -246,6 +246,16 @@ function PublicMenuContent({ slug }: { slug: string }) {
     })
   }
 
+  function handleOrderFinished() {
+    setActiveCategory('Todos')
+    setSearch('')
+
+    window.scrollTo({
+      top: 0,
+      behavior: 'smooth',
+    })
+  }
+
   function markDrinkSuggestionShown() {
     setDrinkSuggestionShown(true)
   }
@@ -471,6 +481,7 @@ function PublicMenuContent({ slug }: { slug: string }) {
       <CartDrawer
         open={cartOpen}
         onClose={() => setCartOpen(false)}
+        onOrderFinished={handleOrderFinished}
         tenantName={tenantName}
         tenantSlug={tenant?.slug ?? slug}
         whatsapp={menuData.delivery?.whatsapp || tenant?.whatsapp}

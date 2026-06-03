@@ -21,6 +21,7 @@ import type {
 export function CheckoutModal({
   open,
   onClose,
+  onOrderFinished,
   items,
   totalPrice,
   couponCode,
@@ -355,6 +356,7 @@ export function CheckoutModal({
 
       if (!whatsapp) {
         alert('WhatsApp da pizzaria não configurado.')
+        onOrderFinished?.()
         return
       }
 
@@ -362,6 +364,7 @@ export function CheckoutModal({
       const url = `https://wa.me/${cleanPhone}?text=${whatsappMessage}`
 
       window.open(url, '_blank')
+      onOrderFinished?.()
       onClose()
     } catch (error: unknown) {
       alert(getErrorMessage(error))

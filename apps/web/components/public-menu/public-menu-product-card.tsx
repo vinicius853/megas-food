@@ -43,7 +43,7 @@ export function PublicFlavorCard({
               {flavor.prices.slice(0, 4).map((price, priceIndex) => (
                 <div
                   key={price.label}
-                  className={`min-w-0 border-slate-200 px-3 text-left ${
+                  className={`min-w-0 border-slate-200 px-2 text-left sm:px-3 ${
                     priceIndex % 2 === 0
                       ? 'border-l-0 pl-0'
                       : 'border-l'
@@ -62,7 +62,7 @@ export function PublicFlavorCard({
                     </p>
                   ) : null}
                   <p
-                    className="mt-0.5 text-sm font-black"
+                    className="mt-0.5 whitespace-nowrap text-sm font-black leading-tight"
                     style={{ color: palette.primary }}
                   >
                     R$ {formatShortMoney(price.value)}
