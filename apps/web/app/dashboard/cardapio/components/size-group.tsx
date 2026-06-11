@@ -1,6 +1,6 @@
 import {
-  type PizzaSizeConfig,
-  type PizzaSizeSetter,
+  type SizeOptionMatrixRow,
+  type SizeOptionMatrixSetter,
 } from '../types/menu-management'
 
 import { EditableSizeRule } from './editable-size-rule'
@@ -15,8 +15,8 @@ export function SizeGroup({
 }: {
   title: string
   description: string
-  sizes: PizzaSizeConfig[]
-  setSizes: PizzaSizeSetter
+  sizes: SizeOptionMatrixRow[]
+  setSizes: SizeOptionMatrixSetter
   onAdd: () => void
   onRemove: (sizeId: string) => void
 }) {

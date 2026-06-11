@@ -13,51 +13,10 @@ import {
 } from '@/components/ui/table'
 
 import { renderOrderActions } from './order-actions'
+import { normalizeOrderItemForDisplay } from './order-item-display'
 import { getOrderDisplayNumber } from './order-display-number'
 import { formatMoney } from './print-order'
-
-type OrderStatus =
-  | 'PENDING'
-  | 'CONFIRMED'
-  | 'READY'
-  | 'OUT_FOR_DELIVERY'
-  | 'DELIVERED'
-  | 'CANCELLED'
-
-type OrderType = 'ONLINE' | 'TAKEAWAY' | 'DELIVERY'
-
-type OrderItemFlavor = {
-  id: string
-  flavorName: string
-  fraction: string | number
-}
-
-type OrderItem = {
-  id: string
-  name: string
-  sizeName: string
-  borderName?: string | null
-  quantity: number
-  unitPrice: string | number
-  total: string | number
-  notes?: string | null
-  flavors: OrderItemFlavor[]
-}
-
-type Order = {
-  id: string
-  displayNumber?: string | number | null
-  customerName?: string | null
-  customerPhone?: string | null
-  type: OrderType
-  status: OrderStatus
-  subtotal: string | number
-  deliveryFee: string | number
-  total: string | number
-  notes?: string | null
-  createdAt: string
-  items: OrderItem[]
-}
+import type { Order, OrderStatus, OrderType } from './types'
 
 type OrdersTableProps = {
   orders: Order[]
@@ -74,10 +33,7 @@ type OrdersTableProps = {
     | 'info'
     | 'outline'
   >
-  updateStatus: (
-    orderId: string,
-    status: OrderStatus,
-  ) => Promise<void>
+  updateStatus: (orderId: string, status: OrderStatus) => Promise<void>
   onOpenOrder: (order: Order) => void
 }
 
@@ -88,10 +44,7 @@ function formatTime(value: string) {
   })
 }
 
-function getOrderForDetails(
-  orders: Order[],
-  index: number,
-) {
+function getOrderForDetails(orders: Order[], index: number) {
   const order = orders[index]
 
   return {
@@ -101,10 +54,24 @@ function getOrderForDetails(
 }
 
 function getItemsQuantity(order: Order) {
-  return order.items.reduce(
-    (total, item) => total + item.quantity,
-    0,
-  )
+  return order.items.reduce((total, item) => total + item.quantity, 0)
+}
+
+function getItemsSummary(order: Order) {
+  return order.items
+    .map((item) => {
+      const normalized = normalizeOrderItemForDisplay(item)
+      const firstGroup = normalized.groups[0]
+      const firstOption = firstGroup?.options[0]?.optionName
+
+      return [
+        `${normalized.quantity}x ${normalized.name}`,
+        firstOption ? `(${firstOption})` : '',
+      ]
+        .filter(Boolean)
+        .join(' ')
+    })
+    .join(', ')
 }
 
 export function OrdersTable({
@@ -160,18 +127,13 @@ export function OrdersTable({
                     {getOrderDisplayNumber(order, { orders, index })}
                   </TableCell>
 
-                  <TableCell>
-                    {typeLabels[order.type] ?? order.type}
-                  </TableCell>
+                  <TableCell>{typeLabels[order.type] ?? order.type}</TableCell>
 
                   <TableCell>
-                    {order.customerName ||
-                      'Cliente nao informado'}
+                    {order.customerName || 'Cliente nao informado'}
                   </TableCell>
 
-                  <TableCell>
-                    {getItemsQuantity(order)}
-                  </TableCell>
+                  <TableCell>{getItemsQuantity(order)}</TableCell>
 
                   <TableCell className="font-medium">
                     {formatMoney(order.total)}
@@ -182,9 +144,7 @@ export function OrdersTable({
                   </TableCell>
 
                   <TableCell>
-                    <Badge
-                      variant={statusVariants[order.status]}
-                    >
+                    <Badge variant={statusVariants[order.status]}>
                       {statusLabels[order.status]}
                     </Badge>
                   </TableCell>
@@ -200,7 +160,9 @@ export function OrdersTable({
                     <Button
                       size="sm"
                       variant="outline"
-                      onClick={() => onOpenOrder(getOrderForDetails(orders, index))}
+                      onClick={() =>
+                        onOpenOrder(getOrderForDetails(orders, index))
+                      }
                     >
                       <Eye className="h-4 w-4" />
                       Ver
@@ -224,10 +186,7 @@ export function OrdersTable({
           </Card>
         ) : (
           orders.map((order, index) => (
-            <Card
-              key={order.id}
-              className="overflow-hidden p-4"
-            >
+            <Card key={order.id} className="overflow-hidden p-4">
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
                   <div className="flex flex-wrap items-center gap-2">
@@ -235,16 +194,13 @@ export function OrdersTable({
                       {getOrderDisplayNumber(order, { orders, index })}
                     </span>
 
-                    <Badge
-                      variant={statusVariants[order.status]}
-                    >
+                    <Badge variant={statusVariants[order.status]}>
                       {statusLabels[order.status]}
                     </Badge>
                   </div>
 
                   <p className="mt-2 truncate text-base font-black text-slate-950">
-                    {order.customerName ||
-                      'Cliente nao informado'}
+                    {order.customerName || 'Cliente nao informado'}
                   </p>
 
                   <p className="mt-1 text-xs font-bold text-slate-500">
@@ -260,23 +216,23 @@ export function OrdersTable({
 
               <div className="mt-4 grid grid-cols-2 gap-2 rounded-2xl bg-slate-50 p-3 text-sm">
                 <div>
-                  <p className="text-xs font-bold text-slate-400">
-                    Itens
-                  </p>
+                  <p className="text-xs font-bold text-slate-400">Itens</p>
                   <p className="mt-1 font-black text-slate-900">
                     {getItemsQuantity(order)}
                   </p>
                 </div>
 
                 <div className="min-w-0">
-                  <p className="text-xs font-bold text-slate-400">
-                    Telefone
-                  </p>
+                  <p className="text-xs font-bold text-slate-400">Telefone</p>
                   <p className="mt-1 truncate font-black text-slate-900">
                     {order.customerPhone || 'Nao informado'}
                   </p>
                 </div>
               </div>
+
+              <p className="mt-3 line-clamp-2 text-xs font-medium text-slate-500">
+                {getItemsSummary(order)}
+              </p>
 
               <div className="mt-4 flex flex-col gap-2">
                 <div className="[&>button]:w-full [&>div]:w-full [&>div>button]:flex-1">

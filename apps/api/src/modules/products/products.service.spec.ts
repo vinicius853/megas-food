@@ -1,18 +1,33 @@
-import { Test, TestingModule } from '@nestjs/testing';
 import { ProductsService } from './products.service';
 
 describe('ProductsService', () => {
-  let service: ProductsService;
+  const findMany = jest.fn();
+  const prisma = {
+    product: {
+      findMany,
+    },
+  };
+  const service = new ProductsService(prisma as never);
 
-  beforeEach(async () => {
-    const module: TestingModule = await Test.createTestingModule({
-      providers: [ProductsService],
-    }).compile();
-
-    service = module.get<ProductsService>(ProductsService);
+  beforeEach(() => {
+    jest.clearAllMocks();
+    findMany.mockResolvedValue([]);
   });
 
-  it('should be defined', () => {
-    expect(service).toBeDefined();
+  it('lists tenant products without legacy pizza relations', async () => {
+    await service.findAll('tenant-1', 'category-1');
+
+    expect(findMany).toHaveBeenCalledWith({
+      where: {
+        tenantId: 'tenant-1',
+        categoryId: 'category-1',
+      },
+      include: {
+        category: true,
+      },
+      orderBy: {
+        createdAt: 'desc',
+      },
+    });
   });
 });

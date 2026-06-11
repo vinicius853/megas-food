@@ -47,9 +47,6 @@ export class ProductsService {
       },
       include: {
         category: true,
-        sizes: true,
-        flavorPrices: true,
-        borderPrices: true,
       },
       orderBy: {
         createdAt: 'desc',

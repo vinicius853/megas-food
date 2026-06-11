@@ -1,7 +1,4 @@
-import type {
-  Dispatch,
-  SetStateAction,
-} from 'react'
+import type { Dispatch, SetStateAction } from 'react'
 
 export type StaticTab =
   | 'pizzas'
@@ -16,17 +13,11 @@ export type Tab = StaticTab | ProductSectionTab
 
 export type PizzaMode = 'round' | 'square' | 'mixed'
 
-export type CategoryType =
-  | 'PRODUCT_SECTION'
-  | 'PIZZA_FLAVOR_GROUP'
+export type CategoryType = 'PRODUCT_SECTION' | 'PIZZA_FLAVOR_GROUP'
 
-export type ProductType =
-  | 'PIZZA_ROUND'
-  | 'PIZZA_SQUARE'
-  | 'DRINK'
-  | 'OTHER'
+export type ProductType = 'PIZZA_ROUND' | 'PIZZA_SQUARE' | 'DRINK' | 'OTHER'
 
-export type PizzaSizeType = 'CM' | 'SLICES' | 'CUSTOM'
+export type SizeOptionDisplayType = 'CM' | 'SLICES' | 'CUSTOM'
 
 export type Category = {
   id: string
@@ -49,12 +40,12 @@ export type Product = {
   isActive: boolean
 }
 
-export type PizzaSizeConfig = {
+export type SizeOptionMatrixRow = {
   id: string
   productId: string
   name: string
   subtitle?: string | null
-  type: PizzaSizeType
+  type: SizeOptionDisplayType
   value?: number | null
   maxFlavors: number | ''
   isActive: boolean
@@ -62,7 +53,7 @@ export type PizzaSizeConfig = {
   sortOrder?: number
 }
 
-export type PizzaFlavor = {
+export type FlavorOptionMatrixRow = {
   id: string
   categoryId?: string | null
   name: string
@@ -72,7 +63,7 @@ export type PizzaFlavor = {
   isActive: boolean
 }
 
-export type PizzaBorder = {
+export type BorderOptionMatrixRow = {
   id: string
   name: string
   isActive: boolean
@@ -97,16 +88,93 @@ export type BorderPrice = {
 export type MenuManagementResponse = {
   categories: Category[]
   products: Product[]
-  pizzaSizes: PizzaSizeConfig[]
-  pizzaFlavors: PizzaFlavor[]
+  sizeOptions: SizeOptionMatrixRow[]
+  flavorOptions: FlavorOptionMatrixRow[]
   flavorPrices: FlavorPrice[]
-  pizzaBorders: PizzaBorder[]
+  borderOptions: BorderOptionMatrixRow[]
   borderPrices: BorderPrice[]
 }
 
-export type PizzaSizeSetter = Dispatch<
-  SetStateAction<PizzaSizeConfig[]>
->
+export type GenericMenuManagementResponse = {
+  categories: Category[]
+  products: GenericMenuProduct[]
+}
+
+export type GenericMenuUpdateResponse = {
+  result: {
+    categories: number
+    products: number
+    groups: number
+    options: number
+    prices: number
+    rules: number
+  }
+  menu: GenericMenuManagementResponse
+}
+
+export type GenericMenuProduct = {
+  id: string
+  categoryId: string
+  name: string
+  description: string | null
+  imageUrl: string | null
+  type: ProductType
+  pricingMode: 'FIXED' | 'FROM_MODIFIERS'
+  basePrice: number | null
+  price: number | null
+  isActive: boolean
+  sortOrder: number
+  modifierGroups: GenericModifierGroup[]
+}
+
+export type GenericModifierGroup = {
+  id: string
+  productModifierGroupId: string
+  code: string
+  name: string
+  description: string | null
+  selectionType: 'SINGLE' | 'MULTIPLE'
+  pricingMode: 'INCLUDED' | 'ADDITIVE' | 'REPLACE_BASE' | 'HIGHEST_SELECTED'
+  isRequired: boolean
+  minSelections: number
+  maxSelections: number
+  sortOrder: number
+  isActive: boolean
+  options: GenericModifierOption[]
+}
+
+export type GenericModifierOption = {
+  id: string
+  productModifierOptionId: string
+  code: string | null
+  name: string
+  description: string | null
+  imageUrl: string | null
+  displayCategoryId: string | null
+  priceDelta: number
+  sortOrder: number
+  isActive: boolean
+  prices: GenericContextualPrice[]
+  rules: GenericConditionalRule[]
+}
+
+export type GenericContextualPrice = {
+  id: string
+  dependsOnOptionId: string | null
+  price: number
+}
+
+export type GenericConditionalRule = {
+  id: string
+  targetGroupId: string
+  targetGroupCode: string
+  isEnabled: boolean
+  minSelections: number | null
+  maxSelections: number | null
+  metadata: unknown
+}
+
+export type SizeOptionMatrixSetter = Dispatch<SetStateAction<SizeOptionMatrixRow[]>>
 
 export type ProductUpdater = (
   id: string,
@@ -120,23 +188,19 @@ export type CategoryUpdater = (
   value: Category[keyof Category],
 ) => void
 
-export function isProductSectionTab(
-  tab: Tab,
-): tab is ProductSectionTab {
+export function isProductSectionTab(tab: Tab): tab is ProductSectionTab {
   return tab.startsWith('section:')
 }
 
 export function getProductSectionIdFromTab(tab: Tab) {
-  return isProductSectionTab(tab)
-    ? tab.replace('section:', '')
-    : null
+  return isProductSectionTab(tab) ? tab.replace('section:', '') : null
 }
 
-export function isRoundSize(size: PizzaSizeConfig) {
+export function isRoundSize(size: SizeOptionMatrixRow) {
   return size.type === 'CM'
 }
 
-export function isSquareSize(size: PizzaSizeConfig) {
+export function isSquareSize(size: SizeOptionMatrixRow) {
   return size.type === 'SLICES'
 }
 
@@ -152,10 +216,7 @@ export function parseMoney(value: unknown) {
   return Number.isFinite(parsed) ? parsed : 0
 }
 
-export function parsePositiveInteger(
-  value: unknown,
-  fallback = 1,
-) {
+export function parsePositiveInteger(value: unknown, fallback = 1) {
   const parsed = Number(value)
 
   if (!Number.isFinite(parsed) || parsed < 1) {

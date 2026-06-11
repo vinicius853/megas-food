@@ -2,9 +2,9 @@ import { formatMoney } from './pizza-configurator-helpers'
 
 type PizzaConfiguratorSummaryProps = {
   productName: string
-  sizeName?: string
-  flavorNames: string[]
-  borderName?: string
+  sizeOptionLabel?: string
+  flavorOptionLabels: string[]
+  borderOptionLabel?: string
   additionalNames: string[]
   isMulti: boolean
   notes: string
@@ -14,9 +14,9 @@ type PizzaConfiguratorSummaryProps = {
 
 export function PizzaConfiguratorSummary({
   productName,
-  sizeName,
-  flavorNames,
-  borderName,
+  sizeOptionLabel,
+  flavorOptionLabels,
+  borderOptionLabel,
   additionalNames,
   isMulti,
   notes,
@@ -31,15 +31,15 @@ export function PizzaConfiguratorSummary({
 
       <div className="space-y-3 rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm font-bold text-slate-700">
         <p>Produto: <span className="text-slate-950">{productName}</span></p>
-        <p>Tamanho: <span className="text-slate-950">{sizeName}</span></p>
+        <p>Tamanho: <span className="text-slate-950">{sizeOptionLabel}</span></p>
         <p>
           Sabores:{' '}
           <span className="text-slate-950">
-            {flavorNames.filter(Boolean).join(' / ')}
+            {flavorOptionLabels.filter(Boolean).join(' / ')}
           </span>
         </p>
-        {borderName && (
-          <p>Borda: <span className="text-slate-950">{borderName}</span></p>
+        {borderOptionLabel && (
+          <p>Borda: <span className="text-slate-950">{borderOptionLabel}</span></p>
         )}
         {additionalNames.length > 0 && (
           <p>

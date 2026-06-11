@@ -1,27 +1,18 @@
-import { Module } from '@nestjs/common'
-import { AuthModule } from '../auth/auth.module'
-import { PrismaModule } from '../../prisma/prisma.module'
-import { CouponsModule } from '../coupons/coupons.module'
-import { BillingModule } from '../billing/billing.module'
+import { Module } from '@nestjs/common';
+import { AuthModule } from '../auth/auth.module';
+import { PrismaModule } from '../../prisma/prisma.module';
 
-import { OrdersService } from './orders.service'
+import { OrdersService } from './orders.service';
 
-import { OrdersController } from './orders.controller'
-import { PublicOrdersController } from './public-orders.controller'
+import { OrdersController } from './orders.controller';
 
-import { OrdersGateway } from './gateways/orders.gateway'
+import { OrdersGateway } from './gateways/orders.gateway';
 
 @Module({
-  imports: [PrismaModule, AuthModule, CouponsModule, BillingModule],
+  imports: [PrismaModule, AuthModule],
 
-  controllers: [
-    OrdersController,
-    PublicOrdersController,
-  ],
+  controllers: [OrdersController],
 
-  providers: [
-    OrdersService,
-    OrdersGateway,
-  ],
+  providers: [OrdersService, OrdersGateway],
 })
 export class OrdersModule {}

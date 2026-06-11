@@ -2,7 +2,7 @@ import {
   type Category,
   type MenuManagementResponse,
   type PizzaMode,
-  type PizzaSizeConfig,
+  type SizeOptionMatrixRow,
   type Product,
   isRoundSize,
   isSquareSize,
@@ -64,7 +64,7 @@ export function getSelectedProductSectionProducts(
   )
 }
 
-export function getPizzaFlavorGroups(
+export function getFlavorDisplayGroups(
   categories: Category[],
 ) {
   return categories.filter(
@@ -97,7 +97,7 @@ export function getExtras(
 }
 
 export function getVisibleSizes(
-  sizes: PizzaSizeConfig[],
+  sizes: SizeOptionMatrixRow[],
   pizzaMode: PizzaMode,
 ) {
   return sizes.filter((size) => {
@@ -112,7 +112,7 @@ export function getVisibleSizes(
 }
 
 export function getBorderSizes(
-  sizes: PizzaSizeConfig[],
+  sizes: SizeOptionMatrixRow[],
 ) {
   return sizes.filter(
     (size) => size.isActive && size.allowBorder,
@@ -120,19 +120,19 @@ export function getBorderSizes(
 }
 
 export function getRoundSizes(
-  sizes: PizzaSizeConfig[],
+  sizes: SizeOptionMatrixRow[],
 ) {
   return sizes.filter(isRoundSize)
 }
 
 export function getSquareSizes(
-  sizes: PizzaSizeConfig[],
+  sizes: SizeOptionMatrixRow[],
 ) {
   return sizes.filter(isSquareSize)
 }
 
 export function getFilteredFlavors(
-  flavors: MenuManagementResponse['pizzaFlavors'],
+  flavors: MenuManagementResponse['flavorOptions'],
   search: string,
 ) {
   return flavors.filter((flavor) =>

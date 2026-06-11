@@ -1,7 +1,7 @@
-'use client'
+"use client";
 
-import Link from 'next/link'
-import { useEffect, useMemo, useState } from 'react'
+import Link from "next/link";
+import { useEffect, useMemo, useState } from "react";
 import {
   CheckCircle2,
   Clock,
@@ -12,205 +12,205 @@ import {
   Save,
   Trash2,
   Truck,
-} from 'lucide-react'
+  Settings,
+} from "lucide-react";
 
-import { apiFetch } from '@/lib/api'
-import { Badge } from '@/components/ui/badge'
-import { Button } from '@/components/ui/button'
+import { apiFetch } from "@/lib/api";
+import { EmptyState } from "@/components/feedback/empty-state";
+import { Skeleton } from "@/components/feedback/loading-state";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
-} from '@/components/ui/card'
-import { Input } from '@/components/ui/input'
-import {
-  PageContainer,
-  PageHeader,
-} from '@/components/layout/page-container'
+} from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { PageContainer, PageHeader } from "@/components/layout/page-container";
 
 type DeliveryZone = {
-  id: string
-  name: string
-  fee: number
-  eta: string
-  isActive: boolean
-}
+  id: string;
+  name: string;
+  fee: number;
+  eta: string;
+  isActive: boolean;
+};
 
 type OpeningHourRange = {
-  enabled?: boolean
-  open: string
-  close: string
-}
+  enabled?: boolean;
+  open: string;
+  close: string;
+};
 
 type DeliveryOpeningHours = {
-  monday: OpeningHourRange
-  tuesday: OpeningHourRange
-  wednesday: OpeningHourRange
-  thursday: OpeningHourRange
-  friday: OpeningHourRange
-  saturday: OpeningHourRange
-  sunday: OpeningHourRange
-  weekday?: OpeningHourRange
-}
+  monday: OpeningHourRange;
+  tuesday: OpeningHourRange;
+  wednesday: OpeningHourRange;
+  thursday: OpeningHourRange;
+  friday: OpeningHourRange;
+  saturday: OpeningHourRange;
+  sunday: OpeningHourRange;
+  weekday?: OpeningHourRange;
+};
 
 type DeliverySettings = {
-  isDeliveryOpen: boolean
-  city: string
-  state: string
-  storeCep: string
-  storeAddress: string
-  whatsapp: string
-  zones: DeliveryZone[]
-  openingHours: DeliveryOpeningHours
-}
+  isDeliveryOpen: boolean;
+  city: string;
+  state: string;
+  storeCep: string;
+  storeAddress: string;
+  whatsapp: string;
+  zones: DeliveryZone[];
+  openingHours: DeliveryOpeningHours;
+};
 
-const fallbackSettings: DeliverySettings = {
-  isDeliveryOpen: true,
-  city: 'Barra Mansa',
-  state: 'RJ',
-  storeCep: '27320-360',
-  storeAddress: 'Rua Presidente Tancredo Neves, 1105 - Vista Alegre',
-  whatsapp: '24998508308',
-  zones: [
-    { id: 'centro', name: 'Centro', fee: 5, eta: '30-40 min', isActive: true },
-    { id: 'vista-alegre', name: 'Vista Alegre', fee: 6, eta: '35-45 min', isActive: true },
-    { id: 'ano-bom', name: 'Ano Bom', fee: 7, eta: '40-50 min', isActive: true },
-    { id: 'saudade', name: 'Saudade', fee: 8, eta: '45-55 min', isActive: true },
-    { id: 'santa-clara', name: 'Santa Clara', fee: 6, eta: '35-45 min', isActive: false },
-  ],
+const emptySettings: DeliverySettings = {
+  isDeliveryOpen: false,
+  city: "",
+  state: "",
+  storeCep: "",
+  storeAddress: "",
+  whatsapp: "",
+  zones: [],
   openingHours: {
-    monday: { enabled: true, open: '18:00', close: '23:30' },
-    tuesday: { enabled: true, open: '18:00', close: '23:30' },
-    wednesday: { enabled: true, open: '18:00', close: '23:30' },
-    thursday: { enabled: true, open: '18:00', close: '23:30' },
-    friday: { enabled: true, open: '18:00', close: '23:30' },
-    saturday: { enabled: true, open: '18:00', close: '23:30' },
-    sunday: { enabled: true, open: '18:00', close: '23:30' },
+    monday: { enabled: false, open: "", close: "" },
+    tuesday: { enabled: false, open: "", close: "" },
+    wednesday: { enabled: false, open: "", close: "" },
+    thursday: { enabled: false, open: "", close: "" },
+    friday: { enabled: false, open: "", close: "" },
+    saturday: { enabled: false, open: "", close: "" },
+    sunday: { enabled: false, open: "", close: "" },
   },
-}
+};
 
-const tabs = ['Areas de entrega', 'Horarios de funcionamento', 'Configuracoes']
+const tabs = ["Areas de entrega", "Horarios de funcionamento", "Configuracoes"];
 
 function formatMoney(value: number) {
-  return value.toLocaleString('pt-BR', {
-    style: 'currency',
-    currency: 'BRL',
-  })
+  return value.toLocaleString("pt-BR", {
+    style: "currency",
+    currency: "BRL",
+  });
 }
 
 function parseMoney(value: string) {
-  const parsed = Number(value.replace(/\./g, '').replace(',', '.'))
-  return Number.isFinite(parsed) ? parsed : 0
+  const parsed = Number(value.replace(/\./g, "").replace(",", "."));
+  return Number.isFinite(parsed) ? parsed : 0;
 }
 
 function normalizeOpeningHours(
   openingHours?: Partial<DeliveryOpeningHours>,
 ): DeliveryOpeningHours {
-  const weekday = openingHours?.weekday
+  const weekday = openingHours?.weekday;
 
   return {
     monday: {
-      ...fallbackSettings.openingHours.monday,
+      ...emptySettings.openingHours.monday,
       ...(weekday ?? {}),
       ...(openingHours?.monday ?? {}),
     },
     tuesday: {
-      ...fallbackSettings.openingHours.tuesday,
+      ...emptySettings.openingHours.tuesday,
       ...(weekday ?? {}),
       ...(openingHours?.tuesday ?? {}),
     },
     wednesday: {
-      ...fallbackSettings.openingHours.wednesday,
+      ...emptySettings.openingHours.wednesday,
       ...(weekday ?? {}),
       ...(openingHours?.wednesday ?? {}),
     },
     thursday: {
-      ...fallbackSettings.openingHours.thursday,
+      ...emptySettings.openingHours.thursday,
       ...(weekday ?? {}),
       ...(openingHours?.thursday ?? {}),
     },
     friday: {
-      ...fallbackSettings.openingHours.friday,
+      ...emptySettings.openingHours.friday,
       ...(weekday ?? {}),
       ...(openingHours?.friday ?? {}),
     },
     saturday: {
-      ...fallbackSettings.openingHours.saturday,
+      ...emptySettings.openingHours.saturday,
       ...(openingHours?.saturday ?? {}),
     },
     sunday: {
-      ...fallbackSettings.openingHours.sunday,
+      ...emptySettings.openingHours.sunday,
       ...(openingHours?.sunday ?? {}),
     },
-  }
+  };
 }
 
 export default function EntregasPage() {
-  const [settings, setSettings] = useState<DeliverySettings>(fallbackSettings)
-  const [tenantSlug, setTenantSlug] = useState('parada-pizza')
-  const [activeTab, setActiveTab] = useState(tabs[0])
-  const [loading, setLoading] = useState(true)
-  const [saving, setSaving] = useState(false)
-  const [message, setMessage] = useState('')
-  const [error, setError] = useState('')
+  const [settings, setSettings] = useState<DeliverySettings>(emptySettings);
+  const [tenantSlug, setTenantSlug] = useState("");
+  const [activeTab, setActiveTab] = useState(tabs[0]);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [message, setMessage] = useState("");
+  const [error, setError] = useState("");
 
   const summary = useMemo(() => {
-    const activeZones = settings.zones.filter((zone) => zone.isActive)
-    const inactiveZones = settings.zones.filter((zone) => !zone.isActive)
-    const fees = activeZones.map((zone) => zone.fee)
+    const activeZones = settings.zones.filter((zone) => zone.isActive);
+    const inactiveZones = settings.zones.filter((zone) => !zone.isActive);
+    const fees = activeZones.map((zone) => zone.fee);
 
     return {
       activeCount: activeZones.length,
       inactiveCount: inactiveZones.length,
       minFee: fees.length ? Math.min(...fees) : 0,
       maxFee: fees.length ? Math.max(...fees) : 0,
-      etaRange: activeZones.length ? '35 - 55 min' : 'Sem entregas',
-    }
-  }, [settings.zones])
+      etaRange: activeZones.length
+        ? [
+            ...new Set(activeZones.map((zone) => zone.eta).filter(Boolean)),
+          ].join(", ")
+        : "Não configurado",
+    };
+  }, [settings.zones]);
 
   async function loadSettings() {
     try {
-      setLoading(true)
-      setError('')
-      setMessage('')
+      setLoading(true);
+      setError("");
+      setMessage("");
 
       const [delivery, tenant] = await Promise.all([
-        apiFetch<DeliverySettings>('/dashboard-settings/delivery'),
-        apiFetch<{ slug: string }>('/tenants/me'),
-      ])
+        apiFetch<DeliverySettings>("/dashboard-settings/delivery"),
+        apiFetch<{ slug: string }>("/tenants/me"),
+      ]);
 
       setSettings({
-        ...fallbackSettings,
+        ...emptySettings,
         ...delivery,
-        zones: delivery.zones?.length ? delivery.zones : fallbackSettings.zones,
+        zones: delivery.zones ?? [],
         openingHours: normalizeOpeningHours(delivery.openingHours),
-      })
-      setTenantSlug(tenant.slug || 'parada-pizza')
+      });
+      setTenantSlug(tenant.slug || "");
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Erro ao carregar entregas.')
+      setError(
+        err instanceof Error ? err.message : "Erro ao carregar entregas.",
+      );
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
   }
 
   async function saveSettings() {
     try {
-      setSaving(true)
-      setError('')
-      setMessage('')
+      setSaving(true);
+      setError("");
+      setMessage("");
 
-      await apiFetch('/dashboard-settings/delivery', {
-        method: 'PUT',
+      await apiFetch("/dashboard-settings/delivery", {
+        method: "PUT",
         body: JSON.stringify(settings),
-      })
+      });
 
-      setMessage('Configuracoes de entrega salvas com sucesso.')
+      setMessage("Configuracoes de entrega salvas com sucesso.");
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Erro ao salvar entregas.')
+      setError(err instanceof Error ? err.message : "Erro ao salvar entregas.");
     } finally {
-      setSaving(false)
+      setSaving(false);
     }
   }
 
@@ -218,7 +218,7 @@ export default function EntregasPage() {
     setSettings((current) => ({
       ...current,
       [field]: value,
-    }))
+    }));
   }
 
   function updateZone(id: string, patch: Partial<DeliveryZone>) {
@@ -227,11 +227,11 @@ export default function EntregasPage() {
       zones: current.zones.map((zone) =>
         zone.id === id ? { ...zone, ...patch } : zone,
       ),
-    }))
+    }));
   }
 
   function updateOpeningHours(
-    key: keyof Omit<DeliveryOpeningHours, 'weekday'>,
+    key: keyof Omit<DeliveryOpeningHours, "weekday">,
     patch: Partial<OpeningHourRange>,
   ) {
     setSettings((current) => ({
@@ -243,7 +243,7 @@ export default function EntregasPage() {
           ...patch,
         },
       },
-    }))
+    }));
   }
 
   function addZone() {
@@ -253,25 +253,25 @@ export default function EntregasPage() {
         ...current.zones,
         {
           id: crypto.randomUUID(),
-          name: 'Novo bairro',
-          fee: 5,
-          eta: '35-45 min',
-          isActive: true,
+          name: "",
+          fee: 0,
+          eta: "",
+          isActive: false,
         },
       ],
-    }))
+    }));
   }
 
   function removeZone(id: string) {
     setSettings((current) => ({
       ...current,
       zones: current.zones.filter((zone) => zone.id !== id),
-    }))
+    }));
   }
 
   useEffect(() => {
-    loadSettings()
-  }, [])
+    loadSettings();
+  }, []);
 
   return (
     <PageContainer>
@@ -280,16 +280,23 @@ export default function EntregasPage() {
         description="Gerencie suas areas de entrega, taxas e horarios de funcionamento."
         actions={
           <>
-            <Button asChild variant="outline" size="sm">
-              <Link href={`/c/${tenantSlug}`} target="_blank">
-                <Eye className="h-4 w-4" />
-                Ver cardapio publico
-              </Link>
-            </Button>
+            {tenantSlug && (
+              <Button asChild variant="outline" size="sm">
+                <Link href={`/c/${tenantSlug}`} target="_blank">
+                  <Eye className="h-4 w-4" />
+                  Ver cardápio público
+                </Link>
+              </Button>
+            )}
 
-            <Button onClick={saveSettings} disabled={saving || loading} variant="primary" size="sm">
+            <Button
+              onClick={saveSettings}
+              disabled={saving || loading}
+              variant="primary"
+              size="sm"
+            >
               <Save className="h-4 w-4" />
-              {saving ? 'Salvando...' : 'Salvar alteracoes'}
+              {saving ? "Salvando..." : "Salvar alteracoes"}
             </Button>
           </>
         }
@@ -318,29 +325,51 @@ export default function EntregasPage() {
               <div>
                 <div className="flex flex-wrap items-center gap-2">
                   <h2 className="text-xl font-black text-emerald-600">
-                    {settings.isDeliveryOpen ? 'Entregas ativas' : 'Entregas fechadas'}
+                    {settings.isDeliveryOpen
+                      ? "Entregas ativas"
+                      : "Entregas fechadas"}
                   </h2>
-                  <Badge variant={settings.isDeliveryOpen ? 'success' : 'warning'}>
-                    {settings.isDeliveryOpen ? 'Recebendo pedidos' : 'Pausado'}
+                  <Badge
+                    variant={settings.isDeliveryOpen ? "success" : "warning"}
+                  >
+                    {settings.isDeliveryOpen ? "Recebendo pedidos" : "Pausado"}
                   </Badge>
                 </div>
                 <p className="mt-1 text-sm font-medium text-slate-500">
                   {settings.isDeliveryOpen
-                    ? 'Sua pizzaria esta recebendo pedidos para entrega.'
-                    : 'Pedidos para entrega estao temporariamente pausados.'}
+                    ? "Sua pizzaria esta recebendo pedidos para entrega."
+                    : "Pedidos para entrega estao temporariamente pausados."}
                 </p>
               </div>
             </div>
 
-            <StatusMetric icon={MapPin} value={summary.activeCount} label="Bairros atendidos" />
-            <StatusMetric icon={CheckCircle2} value={`${formatMoney(summary.minFee)} - ${formatMoney(summary.maxFee)}`} label="Taxa de entrega" />
-            <StatusMetric icon={Clock} value={summary.etaRange} label="Tempo medio" />
+            <StatusMetric
+              icon={MapPin}
+              value={summary.activeCount}
+              label="Bairros atendidos"
+            />
+            <StatusMetric
+              icon={CheckCircle2}
+              value={
+                summary.activeCount
+                  ? `${formatMoney(summary.minFee)} - ${formatMoney(summary.maxFee)}`
+                  : "Não configurada"
+              }
+              label="Taxa de entrega"
+            />
+            <StatusMetric
+              icon={Clock}
+              value={summary.etaRange}
+              label="Tempo medio"
+            />
 
             <Button
-              variant={settings.isDeliveryOpen ? 'outline' : 'primary'}
-              onClick={() => updateField('isDeliveryOpen', !settings.isDeliveryOpen)}
+              variant={settings.isDeliveryOpen ? "outline" : "primary"}
+              onClick={() =>
+                updateField("isDeliveryOpen", !settings.isDeliveryOpen)
+              }
             >
-              {settings.isDeliveryOpen ? 'Fechar entregas' : 'Abrir entregas'}
+              {settings.isDeliveryOpen ? "Fechar entregas" : "Abrir entregas"}
             </Button>
           </div>
         </CardContent>
@@ -354,8 +383,8 @@ export default function EntregasPage() {
             onClick={() => setActiveTab(tab)}
             className={`whitespace-nowrap border-b-2 px-5 py-4 text-sm font-black transition ${
               activeTab === tab
-                ? 'border-orange-600 text-orange-600'
-                : 'border-transparent text-slate-500 hover:text-slate-900'
+                ? "border-orange-600 text-orange-600"
+                : "border-transparent text-slate-500 hover:text-slate-900"
             }`}
           >
             {tab}
@@ -365,14 +394,15 @@ export default function EntregasPage() {
 
       <div className="grid gap-5 xl:grid-cols-[1fr_420px]">
         <div>
-          {activeTab === 'Areas de entrega' && (
+          {activeTab === "Areas de entrega" && (
             <Card>
               <CardHeader>
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                   <div>
                     <CardTitle>Areas de entrega</CardTitle>
                     <CardDescription>
-                      Gerencie bairros atendidos pela sua pizzaria e os valores de frete.
+                      Gerencie bairros atendidos pela sua pizzaria e os valores
+                      de frete.
                     </CardDescription>
                   </div>
 
@@ -384,65 +414,93 @@ export default function EntregasPage() {
               </CardHeader>
 
               <CardContent className="space-y-3">
-                {settings.zones.map((zone) => (
-                  <div
-                    key={zone.id}
-                    className="grid gap-3 rounded-3xl border border-slate-200 bg-white p-4 shadow-sm lg:grid-cols-[1.2fr_150px_150px_auto_auto] lg:items-center"
-                  >
-                    <Input
-                      value={zone.name}
-                      onChange={(event) => updateZone(zone.id, { name: event.target.value })}
-                      aria-label="Nome do bairro"
-                    />
-
-                    <FeeInput
-                      value={zone.fee}
-                      onChange={(fee) => updateZone(zone.id, { fee })}
-                    />
-
-                    <Input
-                      value={zone.eta}
-                      onChange={(event) => updateZone(zone.id, { eta: event.target.value })}
-                      aria-label="Tempo estimado"
-                    />
-
-                    <button
-                      type="button"
-                      onClick={() => updateZone(zone.id, { isActive: !zone.isActive })}
-                      className={`rounded-2xl px-4 py-3 text-xs font-black transition ${
-                        zone.isActive
-                          ? 'bg-emerald-100 text-emerald-700'
-                          : 'bg-slate-100 text-slate-500'
-                      }`}
+                {loading && <Skeleton className="h-40 w-full rounded-3xl" />}
+                {!loading && settings.zones.length === 0 && (
+                  <EmptyState
+                    icon={MapPin}
+                    title="Nenhuma entrega cadastrada"
+                    description="Adicione um bairro para configurar taxa e prazo de entrega."
+                    action={
+                      <Button onClick={addZone} variant="outline" size="sm">
+                        <Plus className="h-4 w-4" />
+                        Adicionar bairro
+                      </Button>
+                    }
+                    className="bg-slate-50"
+                  />
+                )}
+                {!loading &&
+                  settings.zones.map((zone) => (
+                    <div
+                      key={zone.id}
+                      className="grid gap-3 rounded-3xl border border-slate-200 bg-white p-4 shadow-sm lg:grid-cols-[1.2fr_150px_150px_auto_auto] lg:items-center"
                     >
-                      {zone.isActive ? 'Ativo' : 'Inativo'}
-                    </button>
+                      <Input
+                        value={zone.name}
+                        onChange={(event) =>
+                          updateZone(zone.id, { name: event.target.value })
+                        }
+                        aria-label="Nome do bairro"
+                      />
 
-                    <div className="flex gap-2">
-                      <button className="flex h-11 w-11 items-center justify-center rounded-2xl border border-slate-200 text-slate-500">
-                        <Edit3 className="h-4 w-4" />
-                      </button>
+                      <FeeInput
+                        value={zone.fee}
+                        onChange={(fee) => updateZone(zone.id, { fee })}
+                      />
+
+                      <Input
+                        value={zone.eta}
+                        onChange={(event) =>
+                          updateZone(zone.id, { eta: event.target.value })
+                        }
+                        aria-label="Tempo estimado"
+                      />
 
                       <button
-                        onClick={() => removeZone(zone.id)}
-                        className="flex h-11 w-11 items-center justify-center rounded-2xl border border-red-100 text-red-600"
+                        type="button"
+                        onClick={() =>
+                          updateZone(zone.id, { isActive: !zone.isActive })
+                        }
+                        className={`rounded-2xl px-4 py-3 text-xs font-black transition ${
+                          zone.isActive
+                            ? "bg-emerald-100 text-emerald-700"
+                            : "bg-slate-100 text-slate-500"
+                        }`}
                       >
-                        <Trash2 className="h-4 w-4" />
+                        {zone.isActive ? "Ativo" : "Inativo"}
                       </button>
+
+                      <div className="flex gap-2">
+                        <button className="flex h-11 w-11 items-center justify-center rounded-2xl border border-slate-200 text-slate-500">
+                          <Edit3 className="h-4 w-4" />
+                        </button>
+
+                        <button
+                          onClick={() => removeZone(zone.id)}
+                          className="flex h-11 w-11 items-center justify-center rounded-2xl border border-red-100 text-red-600"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  ))}
               </CardContent>
             </Card>
           )}
 
-          {activeTab === 'Horarios de funcionamento' && (
+          {activeTab === "Horarios de funcionamento" && (
             <ScheduleCard
               openingHours={settings.openingHours}
               updateOpeningHours={updateOpeningHours}
             />
           )}
-          {activeTab === 'Configuracoes' && <DeliveryOptionsCard />}
+          {activeTab === "Configuracoes" && (
+            <EmptyState
+              icon={Settings}
+              title="Nenhuma configuração adicional"
+              description="As opções de entrega serão exibidas aqui quando estiverem disponíveis."
+            />
+          )}
         </div>
 
         <aside className="space-y-5">
@@ -451,7 +509,7 @@ export default function EntregasPage() {
         </aside>
       </div>
     </PageContainer>
-  )
+  );
 }
 
 function StatusMetric({
@@ -459,9 +517,9 @@ function StatusMetric({
   value,
   label,
 }: {
-  icon: typeof MapPin
-  value: string | number
-  label: string
+  icon: typeof MapPin;
+  value: string | number;
+  label: string;
 }) {
   return (
     <div className="flex items-center gap-3">
@@ -473,44 +531,66 @@ function StatusMetric({
         <p className="text-xs font-medium text-slate-500">{label}</p>
       </div>
     </div>
-  )
+  );
 }
 
 function DeliveryInfoCard({
   settings,
   updateField,
 }: {
-  settings: DeliverySettings
-  updateField: (field: keyof DeliverySettings, value: string | boolean) => void
+  settings: DeliverySettings;
+  updateField: (field: keyof DeliverySettings, value: string | boolean) => void;
 }) {
   return (
     <Card>
       <CardHeader>
         <CardTitle>Informacoes da entrega</CardTitle>
-        <CardDescription>Dados usados no atendimento ao cliente.</CardDescription>
+        <CardDescription>
+          Dados usados no atendimento ao cliente.
+        </CardDescription>
       </CardHeader>
 
       <CardContent className="space-y-3">
-        <LabeledInput label="Cidade" value={settings.city} onChange={(value) => updateField('city', value)} />
-        <LabeledInput label="Estado" value={settings.state} onChange={(value) => updateField('state', value)} />
-        <LabeledInput label="CEP da loja" value={settings.storeCep} onChange={(value) => updateField('storeCep', value)} />
-        <LabeledInput label="Endereco da loja" value={settings.storeAddress} onChange={(value) => updateField('storeAddress', value)} />
-        <LabeledInput label="WhatsApp para pedidos" value={settings.whatsapp} onChange={(value) => updateField('whatsapp', value)} />
+        <LabeledInput
+          label="Cidade"
+          value={settings.city}
+          onChange={(value) => updateField("city", value)}
+        />
+        <LabeledInput
+          label="Estado"
+          value={settings.state}
+          onChange={(value) => updateField("state", value)}
+        />
+        <LabeledInput
+          label="CEP da loja"
+          value={settings.storeCep}
+          onChange={(value) => updateField("storeCep", value)}
+        />
+        <LabeledInput
+          label="Endereco da loja"
+          value={settings.storeAddress}
+          onChange={(value) => updateField("storeAddress", value)}
+        />
+        <LabeledInput
+          label="WhatsApp para pedidos"
+          value={settings.whatsapp}
+          onChange={(value) => updateField("whatsapp", value)}
+        />
       </CardContent>
     </Card>
-  )
+  );
 }
 
 function DeliverySummaryCard({
   summary,
 }: {
   summary: {
-    activeCount: number
-    inactiveCount: number
-    minFee: number
-    maxFee: number
-    etaRange: string
-  }
+    activeCount: number;
+    inactiveCount: number;
+    minFee: number;
+    maxFee: number;
+    etaRange: string;
+  };
 }) {
   return (
     <Card className="bg-gradient-to-br from-orange-50 to-white">
@@ -521,12 +601,18 @@ function DeliverySummaryCard({
       <CardContent className="space-y-3 text-sm">
         <SummaryRow label="Bairros ativos" value={summary.activeCount} />
         <SummaryRow label="Bairros inativos" value={summary.inactiveCount} />
-        <SummaryRow label="Menor taxa de entrega" value={formatMoney(summary.minFee)} />
-        <SummaryRow label="Maior taxa de entrega" value={formatMoney(summary.maxFee)} />
+        <SummaryRow
+          label="Menor taxa de entrega"
+          value={formatMoney(summary.minFee)}
+        />
+        <SummaryRow
+          label="Maior taxa de entrega"
+          value={formatMoney(summary.maxFee)}
+        />
         <SummaryRow label="Tempo medio de entrega" value={summary.etaRange} />
       </CardContent>
     </Card>
-  )
+  );
 }
 
 function LabeledInput({
@@ -534,108 +620,110 @@ function LabeledInput({
   value,
   onChange,
 }: {
-  label: string
-  value: string
-  onChange: (value: string) => void
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
 }) {
   return (
     <label className="block">
-      <span className="mb-1.5 block text-xs font-bold text-slate-500">{label}</span>
+      <span className="mb-1.5 block text-xs font-bold text-slate-500">
+        {label}
+      </span>
       <Input value={value} onChange={(event) => onChange(event.target.value)} />
     </label>
-  )
+  );
 }
 
 function formatFeeInput(value: number) {
-  return value.toLocaleString('pt-BR', {
+  return value.toLocaleString("pt-BR", {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
-  })
+  });
 }
 
 function FeeInput({
   value,
   onChange,
 }: {
-  value: number
-  onChange: (value: number) => void
+  value: number;
+  onChange: (value: number) => void;
 }) {
-  const [draft, setDraft] = useState(formatFeeInput(value))
-  const [focused, setFocused] = useState(false)
+  const [draft, setDraft] = useState(formatFeeInput(value));
+  const [focused, setFocused] = useState(false);
 
   useEffect(() => {
     if (!focused) {
-      setDraft(formatFeeInput(value))
+      setDraft(formatFeeInput(value));
     }
-  }, [focused, value])
+  }, [focused, value]);
 
   function handleChange(nextValue: string) {
-    setDraft(nextValue)
+    setDraft(nextValue);
 
     if (!nextValue.trim()) {
-      onChange(0)
-      return
+      onChange(0);
+      return;
     }
 
-    onChange(parseMoney(nextValue))
+    onChange(parseMoney(nextValue));
   }
 
   return (
     <Input
       value={draft}
       onFocus={(event) => {
-        setFocused(true)
-        event.currentTarget.select()
+        setFocused(true);
+        event.currentTarget.select();
       }}
       onBlur={() => {
-        setFocused(false)
-        setDraft(formatFeeInput(value))
+        setFocused(false);
+        setDraft(formatFeeInput(value));
       }}
       onChange={(event) => handleChange(event.target.value)}
       inputMode="decimal"
       placeholder="0,00"
       aria-label="Taxa de entrega"
     />
-  )
+  );
 }
 
 function SummaryRow({
   label,
   value,
 }: {
-  label: string
-  value: string | number
+  label: string;
+  value: string | number;
 }) {
   return (
     <div className="flex items-center justify-between gap-4">
       <span className="text-slate-500">{label}</span>
       <strong className="text-slate-950">{value}</strong>
     </div>
-  )
+  );
 }
 
 function ScheduleCard({
   openingHours,
   updateOpeningHours,
 }: {
-  openingHours: DeliveryOpeningHours
+  openingHours: DeliveryOpeningHours;
   updateOpeningHours: (
-    key: keyof Omit<DeliveryOpeningHours, 'weekday'>,
+    key: keyof Omit<DeliveryOpeningHours, "weekday">,
     patch: Partial<OpeningHourRange>,
-  ) => void
+  ) => void;
 }) {
   const days: Array<{
-    key: keyof Omit<DeliveryOpeningHours, 'weekday'>
-    label: string
+    key: keyof Omit<DeliveryOpeningHours, "weekday">;
+    label: string;
   }> = [
-    { key: 'monday', label: 'Segunda-feira' },
-    { key: 'tuesday', label: 'Terca-feira' },
-    { key: 'wednesday', label: 'Quarta-feira' },
-    { key: 'thursday', label: 'Quinta-feira' },
-    { key: 'friday', label: 'Sexta-feira' },
-    { key: 'saturday', label: 'Sabado' },
-    { key: 'sunday', label: 'Domingo' },
-  ]
+    { key: "monday", label: "Segunda-feira" },
+    { key: "tuesday", label: "Terca-feira" },
+    { key: "wednesday", label: "Quarta-feira" },
+    { key: "thursday", label: "Quinta-feira" },
+    { key: "friday", label: "Sexta-feira" },
+    { key: "saturday", label: "Sabado" },
+    { key: "sunday", label: "Domingo" },
+  ];
 
   return (
     <Card>
@@ -662,16 +750,16 @@ function ScheduleCard({
                 }
                 className={`rounded-full px-3 py-1 text-xs font-black transition ${
                   openingHours[day.key].enabled === false
-                    ? 'bg-slate-200 text-slate-500'
-                    : 'bg-emerald-100 text-emerald-700'
+                    ? "bg-slate-200 text-slate-500"
+                    : "bg-emerald-100 text-emerald-700"
                 }`}
               >
-                {openingHours[day.key].enabled === false ? 'Fechado' : 'Aberto'}
+                {openingHours[day.key].enabled === false ? "Fechado" : "Aberto"}
               </button>
             </div>
             <div
               className={`mt-3 grid grid-cols-2 gap-2 ${
-                openingHours[day.key].enabled === false ? 'opacity-45' : ''
+                openingHours[day.key].enabled === false ? "opacity-45" : ""
               }`}
             >
               <Input
@@ -695,26 +783,5 @@ function ScheduleCard({
         ))}
       </CardContent>
     </Card>
-  )
-}
-
-function DeliveryOptionsCard() {
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Configuracoes</CardTitle>
-        <CardDescription>
-          Ajustes simples para deixar a operacao clara para o cliente.
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-3">
-        {['Mostrar tempo estimado no checkout', 'Aplicar taxa por bairro automaticamente', 'Permitir retirada no balcao'].map((option) => (
-          <label key={option} className="flex items-center justify-between rounded-3xl border border-slate-200 bg-white p-4 text-sm font-bold text-slate-700">
-            {option}
-            <input type="checkbox" defaultChecked className="h-5 w-5 accent-orange-600" />
-          </label>
-        ))}
-      </CardContent>
-    </Card>
-  )
+  );
 }

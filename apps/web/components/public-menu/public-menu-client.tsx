@@ -1,124 +1,123 @@
-'use client'
+"use client";
 
-import { useEffect, useMemo, useState } from 'react'
-import { Search, ShoppingCart } from 'lucide-react'
+import { useEffect, useMemo, useState } from "react";
+import { Search, ShoppingCart } from "lucide-react";
 
-import { apiFetch } from '@/lib/api'
+import { apiFetch } from "@/lib/api";
 
-import { CartDrawer } from './cart-drawer'
-import { CartProvider, useCart } from './cart-context'
-import { PizzaConfiguratorFlow } from './pizza-configurator-flow'
-import {
-  AddedToCartToast,
-  BottomCartBar,
-} from './public-menu-feedback'
-import {
-  formatMoney,
-  getCategoryIcon,
-  getSectionDomId,
-} from './public-menu-formatters'
-import { getStoreOpenStatus } from './public-menu-hours'
+import { CartDrawer } from "./cart-drawer";
+import { CartProvider, useCart } from "./cart-context";
+import { PizzaConfiguratorFlow } from "./pizza-configurator-flow";
+import { AddedToCartToast, BottomCartBar } from "./public-menu-feedback";
+import { getCategoryIcon, getSectionDomId } from "./public-menu-formatters";
+import { getStoreOpenStatus } from "./public-menu-hours";
 import {
   buildCategoryTabs,
   buildMenuSections,
-  getPizzaProduct,
+  getPizzaProductFromV2,
   isAdditionalCategory,
-  mapFixedProductCards,
-  mapFlavorCards,
-} from './public-menu-mappers'
+  mapFixedProductCardsFromV2,
+  mapFlavorCardsFromV2,
+} from "./public-menu-mappers";
 import {
   PublicFixedProductCard,
   PublicFlavorCard,
-} from './public-menu-product-card'
-import { getMenuPalette } from './public-menu-theme'
-import type { FixedProductCard, PublicMenuResponse } from './public-menu.types'
+} from "./public-menu-product-card";
+import { getMenuPalette } from "./public-menu-theme";
+import type {
+  FixedProductCard,
+  PublicMenuV2Response,
+} from "./public-menu.types";
 
 function PublicMenuContent({ slug }: { slug: string }) {
-  const { addItem, totalItems, totalPrice } = useCart()
+  const { addItem, totalItems, totalPrice } = useCart();
 
-  const [menuData, setMenuData] = useState<PublicMenuResponse | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState('')
-  const [activeCategory, setActiveCategory] = useState('Todos')
-  const [search, setSearch] = useState('')
-  const [cartOpen, setCartOpen] = useState(false)
-  const [selectedFlavorId, setSelectedFlavorId] = useState<string | null>(null)
-  const [pizzaFlowOpen, setPizzaFlowOpen] = useState(false)
-  const [drinkSuggestionShown, setDrinkSuggestionShown] = useState(false)
+  const [menuV2Data, setMenuV2Data] = useState<PublicMenuV2Response | null>(
+    null,
+  );
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [activeCategory, setActiveCategory] = useState("Todos");
+  const [search, setSearch] = useState("");
+  const [cartOpen, setCartOpen] = useState(false);
+  const [selectedFlavorId, setSelectedFlavorId] = useState<string | null>(null);
+  const [pizzaFlowOpen, setPizzaFlowOpen] = useState(false);
+  const [drinkSuggestionShown, setDrinkSuggestionShown] = useState(false);
   const [addedFeedback, setAddedFeedback] = useState<{
-    name: string
-    imageUrl?: string
-  } | null>(null)
-  const [cartPulseKey, setCartPulseKey] = useState(0)
+    name: string;
+    imageUrl?: string;
+  } | null>(null);
+  const [cartPulseKey, setCartPulseKey] = useState(0);
 
   useEffect(() => {
-    let active = true
+    let active = true;
 
     async function loadMenu() {
       try {
-        setLoading(true)
-        setError('')
+        setLoading(true);
+        setError("");
 
-        const response = await apiFetch<PublicMenuResponse>(`/public-menu/${slug}`)
+        const response = await apiFetch<PublicMenuV2Response>(
+          `/public-menu-v2/${slug}`,
+        );
 
-        if (!active) return
+        if (!active) return;
 
-        setMenuData(response)
+        setMenuV2Data(response);
       } catch (err) {
-        if (!active) return
+        if (!active) return;
 
-        setError(err instanceof Error ? err.message : 'Erro ao carregar cardapio.')
+        setError(
+          err instanceof Error ? err.message : "Erro ao carregar cardapio.",
+        );
       } finally {
         if (active) {
-          setLoading(false)
+          setLoading(false);
         }
       }
     }
 
-    loadMenu()
+    loadMenu();
 
     return () => {
-      active = false
-    }
-  }, [slug])
+      active = false;
+    };
+  }, [slug]);
 
-  const tenant = menuData?.tenant
-  const customization = menuData?.customization
-  const palette = getMenuPalette(customization?.paletteId)
+  const tenant = menuV2Data?.tenant;
+  const customization = menuV2Data?.customization;
+  const palette = getMenuPalette(customization?.paletteId);
   const tenantName =
-    customization?.brandName ||
-    tenant?.name ||
-    'Sabor & Lenha'
-  const menuTagline =
-    customization?.tagline ||
-    'Cardapio digital'
-  const menuLogo =
-    customization?.logoUrl ||
-    tenant?.logoUrl ||
-    ''
-  const menuCover =
-    customization?.coverUrl ||
-    'https://images.unsplash.com/photo-1513104890138-7c749659a591?w=1400&q=85'
+    customization?.brandName || tenant?.name || "Sabor & Lenha";
+  const menuTagline = customization?.tagline || "Cardapio digital";
+  const menuLogo = customization?.logoUrl || tenant?.logoUrl || "";
+  const menuCover = customization?.coverUrl;
   const storeStatus = useMemo(() => {
-    const openStatus = getStoreOpenStatus(menuData?.delivery)
+    const openStatus = getStoreOpenStatus(menuV2Data?.delivery);
 
     if (!openStatus.isOpen) {
-      return openStatus
+      return openStatus;
     }
 
-    if (menuData?.subscription && !menuData.subscription.canAcceptOrders) {
+    if (menuV2Data?.subscription && !menuV2Data.subscription.canAcceptOrders) {
       return {
         isOpen: false,
         message:
-          'Este cardapio nao esta recebendo pedidos no momento. Entre em contato com a loja.',
-      }
+          "Este cardapio nao esta recebendo pedidos no momento. Entre em contato com a loja.",
+      };
     }
 
-    return openStatus
-  }, [menuData?.delivery, menuData?.subscription])
-  const pizzaProduct = menuData ? getPizzaProduct(menuData) : null
-  const flavorCards = useMemo(() => (menuData ? mapFlavorCards(menuData) : []), [menuData])
-  const fixedProducts = useMemo(() => (menuData ? mapFixedProductCards(menuData) : []), [menuData])
+    return openStatus;
+  }, [menuV2Data?.delivery, menuV2Data?.subscription]);
+  const pizzaProductV2 = menuV2Data ? getPizzaProductFromV2(menuV2Data) : null;
+  const flavorCards = useMemo(
+    () => (menuV2Data ? mapFlavorCardsFromV2(menuV2Data) : []),
+    [menuV2Data],
+  );
+  const fixedProducts = useMemo(
+    () => (menuV2Data ? mapFixedProductCardsFromV2(menuV2Data) : []),
+    [menuV2Data],
+  );
   const pizzaAdditionalProducts = useMemo(
     () =>
       fixedProducts
@@ -131,87 +130,79 @@ function PublicMenuContent({ slug }: { slug: string }) {
           price: product.price,
         })),
     [fixedProducts],
-  )
-  const visibleFixedProducts = useMemo(
-    () =>
-      fixedProducts.filter(
-        (product) => !isAdditionalCategory(product.categoryName),
-      ),
-    [fixedProducts],
-  )
+  );
+  const visibleFixedProducts = useMemo(() => fixedProducts, [fixedProducts]);
   const categories = useMemo(
     () => buildCategoryTabs(flavorCards, visibleFixedProducts),
     [flavorCards, visibleFixedProducts],
-  )
+  );
+  const currentCategory = categories.includes(activeCategory)
+    ? activeCategory
+    : "Todos";
 
-  const searchText = search.trim().toLowerCase()
-  const activeCategoryText = activeCategory.toLowerCase()
+  const searchText = search.trim().toLowerCase();
+  const activeCategoryText = currentCategory.toLowerCase();
 
   const filteredFlavors = flavorCards.filter((flavor) => {
     const matchesSearch =
       !searchText ||
       flavor.name.toLowerCase().includes(searchText) ||
-      flavor.description.toLowerCase().includes(searchText)
+      flavor.description.toLowerCase().includes(searchText);
 
     const matchesCategory =
-      activeCategory === 'Todos' ||
-      flavor.categoryName.toLowerCase() === activeCategoryText
+      currentCategory === "Todos" ||
+      flavor.categoryName.toLowerCase() === activeCategoryText;
 
-    return matchesSearch && matchesCategory
-  })
+    return matchesSearch && matchesCategory;
+  });
 
   const filteredProducts = visibleFixedProducts.filter((product) => {
     const matchesSearch =
       !searchText ||
       product.name.toLowerCase().includes(searchText) ||
-      product.description.toLowerCase().includes(searchText)
+      product.description.toLowerCase().includes(searchText);
 
     const matchesCategory =
-      activeCategory === 'Todos' || product.categoryName.toLowerCase() === activeCategoryText
+      currentCategory === "Todos" ||
+      product.categoryName.toLowerCase() === activeCategoryText;
 
-    return matchesSearch && matchesCategory
-  })
+    return matchesSearch && matchesCategory;
+  });
 
   const menuSections = useMemo(
     () => buildMenuSections(filteredFlavors, filteredProducts),
     [filteredFlavors, filteredProducts],
-  )
+  );
 
   useEffect(() => {
-    if (!categories.includes(activeCategory)) {
-      setActiveCategory('Todos')
-    }
-  }, [activeCategory, categories])
-
-  useEffect(() => {
-    if (!addedFeedback) return undefined
+    if (!addedFeedback) return undefined;
 
     const timeout = window.setTimeout(() => {
-      setAddedFeedback(null)
-    }, 1800)
+      setAddedFeedback(null);
+    }, 1800);
 
-    return () => window.clearTimeout(timeout)
-  }, [addedFeedback])
+    return () => window.clearTimeout(timeout);
+  }, [addedFeedback]);
 
   function showAddedFeedback(item: { name: string; imageUrl?: string }) {
-    setAddedFeedback(item)
-    setCartPulseKey((current) => current + 1)
+    setAddedFeedback(item);
+    setCartPulseKey((current) => current + 1);
   }
 
   function openPizzaFlow(flavorId: string) {
     if (!storeStatus.isOpen) {
-      alert(storeStatus.message)
-      return
+      alert(storeStatus.message);
+      return;
     }
 
-    setSelectedFlavorId(flavorId)
-    setPizzaFlowOpen(true)
+    setSelectedFlavorId(flavorId);
+    setPizzaFlowOpen(true);
   }
 
   function addFixedProduct(product: FixedProductCard) {
     if (!storeStatus.isOpen) {
-      alert(storeStatus.message)
-      return
+      alert(storeStatus.message);
+      return;
     }
 
     addItem({
@@ -219,45 +210,43 @@ function PublicMenuContent({ slug }: { slug: string }) {
       productId: product.product.id,
       productName: product.name,
       imageUrl: product.image,
-      flavorIds: [],
-      flavors: [],
       quantity: 1,
       unitPrice: product.price,
       totalPrice: product.price,
-    })
+      selectedModifiers: [],
+      displayGroups: [],
+    });
 
     showAddedFeedback({
       name: product.name,
       imageUrl: product.image,
-    })
+    });
   }
 
   function scrollToDrinks() {
-    setActiveCategory('Bebidas')
-    setDrinkSuggestionShown(true)
+    setActiveCategory("Bebidas");
+    setDrinkSuggestionShown(true);
 
     window.requestAnimationFrame(() => {
-      document
-        .getElementById(getSectionDomId('Bebidas'))
-        ?.scrollIntoView({
-          behavior: 'smooth',
-          block: 'start',
-        })
-    })
+      document.getElementById(getSectionDomId("Bebidas"))?.scrollIntoView({
+        behavior: "smooth",
+        block: "start",
+      });
+    });
   }
 
   function handleOrderFinished() {
-    setActiveCategory('Todos')
-    setSearch('')
+    setActiveCategory("Todos");
+    setSearch("");
 
     window.scrollTo({
       top: 0,
-      behavior: 'smooth',
-    })
+      behavior: "smooth",
+    });
   }
 
   function markDrinkSuggestionShown() {
-    setDrinkSuggestionShown(true)
+    setDrinkSuggestionShown(true);
   }
 
   if (loading) {
@@ -268,39 +257,47 @@ function PublicMenuContent({ slug }: { slug: string }) {
           <div className="mt-4 h-12 animate-pulse rounded-full bg-white" />
           <div className="mt-8 space-y-3">
             {Array.from({ length: 6 }).map((_, index) => (
-              <div key={index} className="h-36 animate-pulse rounded-lg bg-white" />
+              <div
+                key={index}
+                className="h-36 animate-pulse rounded-lg bg-white"
+              />
             ))}
           </div>
         </div>
       </main>
-    )
+    );
   }
 
-  if (error || !menuData) {
+  if (error || !menuV2Data) {
     return (
       <main className="flex min-h-screen items-center justify-center bg-slate-200 p-4 font-sans text-slate-950">
         <div className="w-full max-w-md rounded-3xl bg-white p-8 text-center shadow-xl">
-          <h1 className="text-2xl font-black text-slate-950">Cardapio indisponivel</h1>
+          <h1 className="text-2xl font-black text-slate-950">
+            Cardapio indisponivel
+          </h1>
           <p className="mt-3 text-sm text-slate-500">{error}</p>
         </div>
       </main>
-    )
+    );
   }
 
   return (
-    <main data-slug={slug} className="min-h-screen bg-slate-200 font-sans text-slate-950">
+    <main
+      data-slug={slug}
+      className="min-h-screen bg-slate-200 font-sans text-slate-950"
+    >
       <div className="mx-auto min-h-screen w-full max-w-[860px] bg-slate-50 shadow-2xl">
-        <div
-          className="h-3"
-          style={{ backgroundColor: palette.primary }}
-        />
+        <div className="h-3" style={{ backgroundColor: palette.primary }} />
 
         <header
           className="relative min-h-[190px] overflow-hidden px-4 pb-16 pt-5 text-white shadow-sm sm:min-h-[230px] sm:px-8"
           style={{
-            backgroundImage: `linear-gradient(180deg, #00000099, ${palette.primary}55), url(${menuCover})`,
-            backgroundPosition: 'center',
-            backgroundSize: 'cover',
+            backgroundColor: palette.primary,
+            backgroundImage: menuCover
+              ? `linear-gradient(180deg, #00000099, ${palette.primary}55), url(${menuCover})`
+              : undefined,
+            backgroundPosition: "center",
+            backgroundSize: "cover",
           }}
         >
           <div className="relative z-10 flex items-start justify-between gap-4">
@@ -368,12 +365,12 @@ function PublicMenuContent({ slug }: { slug: string }) {
                 key={category}
                 onClick={() => setActiveCategory(category)}
                 className={`flex-shrink-0 rounded-full border px-4 py-2 text-xs font-black shadow-sm transition-all ${
-                  activeCategory === category
-                    ? 'text-white'
-                    : 'border-slate-200 bg-white text-slate-950'
+                  currentCategory === category
+                    ? "text-white"
+                    : "border-slate-200 bg-white text-slate-950"
                 }`}
                 style={
-                  activeCategory === category
+                  currentCategory === category
                     ? {
                         backgroundColor: palette.primary,
                         borderColor: palette.primary,
@@ -382,7 +379,9 @@ function PublicMenuContent({ slug }: { slug: string }) {
                     : undefined
                 }
               >
-                <span className="mr-2">{category === 'Todos' ? '' : getCategoryIcon(category)}</span>
+                <span className="mr-2">
+                  {category === "Todos" ? "" : getCategoryIcon(category)}
+                </span>
                 {category}
               </button>
             ))}
@@ -392,7 +391,8 @@ function PublicMenuContent({ slug }: { slug: string }) {
         {!storeStatus.isOpen && (
           <section className="border-b border-red-100 bg-red-50 px-4 py-3 sm:px-8">
             <div className="rounded-2xl border border-red-200 bg-white px-4 py-3 text-sm font-bold text-red-700 shadow-sm">
-              {storeStatus.message} Voce pode consultar o cardapio, mas os pedidos estao pausados.
+              {storeStatus.message} Voce pode consultar o cardapio, mas os
+              pedidos estao pausados.
             </div>
           </section>
         )}
@@ -410,29 +410,31 @@ function PublicMenuContent({ slug }: { slug: string }) {
                   style={{ borderColor: palette.primary }}
                 >
                   <h2 className="text-xl font-black uppercase tracking-tight text-slate-950">
-                    <span className="mr-2">{getCategoryIcon(section.title)}</span>
+                    <span className="mr-2">
+                      {getCategoryIcon(section.title)}
+                    </span>
                     {section.title}
                   </h2>
                 </div>
 
-                {section.type === 'flavors'
+                {section.type === "flavors"
                   ? section.items.map((flavor) => (
-                    <PublicFlavorCard
-                      key={flavor.id}
-                      flavor={flavor}
-                      palette={palette}
-                      storeOpen={storeStatus.isOpen}
-                      onAdd={openPizzaFlow}
-                    />
+                      <PublicFlavorCard
+                        key={flavor.id}
+                        flavor={flavor}
+                        palette={palette}
+                        storeOpen={storeStatus.isOpen}
+                        onAdd={openPizzaFlow}
+                      />
                     ))
                   : section.items.map((product) => (
-                    <PublicFixedProductCard
-                      key={product.id}
-                      product={product}
-                      palette={palette}
-                      storeOpen={storeStatus.isOpen}
-                      onAdd={addFixedProduct}
-                    />
+                      <PublicFixedProductCard
+                        key={product.id}
+                        product={product}
+                        palette={palette}
+                        storeOpen={storeStatus.isOpen}
+                        onAdd={addFixedProduct}
+                      />
                     ))}
               </div>
             ))}
@@ -456,20 +458,16 @@ function PublicMenuContent({ slug }: { slug: string }) {
 
       <AddedToCartToast item={addedFeedback} palette={palette} />
 
-      {pizzaProduct && (
+      {pizzaProductV2 && pizzaFlowOpen && (
         <PizzaConfiguratorFlow
-          open={pizzaFlowOpen}
-          product={pizzaProduct}
-          initialFlavorId={selectedFlavorId}
-          sizes={menuData.sizes}
-          flavors={menuData.flavors}
-          flavorPrices={menuData.flavorPrices}
-          borders={menuData.borders}
-          borderPrices={menuData.borderPrices}
+          open
+          tenantSlug={tenant?.slug ?? slug}
+          product={pizzaProductV2}
+          initialFlavorOptionId={selectedFlavorId}
           additionalProducts={pizzaAdditionalProducts}
           onClose={() => setPizzaFlowOpen(false)}
           shouldOfferDrinkSuggestion={
-            !drinkSuggestionShown && categories.includes('Bebidas')
+            !drinkSuggestionShown && categories.includes("Bebidas")
           }
           onDrinkSuggestionShown={markDrinkSuggestionShown}
           onViewDrinks={scrollToDrinks}
@@ -484,14 +482,14 @@ function PublicMenuContent({ slug }: { slug: string }) {
         onOrderFinished={handleOrderFinished}
         tenantName={tenantName}
         tenantSlug={tenant?.slug ?? slug}
-        whatsapp={menuData.delivery?.whatsapp || tenant?.whatsapp}
+        whatsapp={menuV2Data.delivery?.whatsapp || tenant?.whatsapp}
         palette={palette}
-        delivery={menuData.delivery}
+        delivery={menuV2Data.delivery}
         ordersEnabled={storeStatus.isOpen}
         closedMessage={storeStatus.message}
       />
     </main>
-  )
+  );
 }
 
 export default function PublicMenuClient({ slug }: { slug: string }) {
@@ -499,6 +497,5 @@ export default function PublicMenuClient({ slug }: { slug: string }) {
     <CartProvider>
       <PublicMenuContent slug={slug} />
     </CartProvider>
-  )
+  );
 }
-

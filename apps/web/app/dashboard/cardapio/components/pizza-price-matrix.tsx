@@ -1,23 +1,20 @@
-import {
-  Plus,
-  Search,
-  Trash2,
-} from 'lucide-react'
+import { Plus, Search, Trash2 } from "lucide-react";
 
-import { Button } from '@/components/ui/button'
+import { Button } from "@/components/ui/button";
 
 import {
   type Category,
   type FlavorPrice,
-  type PizzaFlavor,
+  type FlavorOptionMatrixRow,
   type PizzaMode,
-  type PizzaSizeConfig,
+  type SizeOptionMatrixRow,
   findFlavorPrice,
-} from '../types/menu-management'
+} from "../types/menu-management";
 
-import { MiniStat } from './mini-stat'
-import { ImageUploadField } from './image-upload-field'
-import { MoneyInput } from './money-input'
+import { MiniStat } from "./mini-stat";
+import { ImageUploadField } from "./image-upload-field";
+import { MoneyInput } from "./money-input";
+import { isNewFlavorDraft } from "../hooks/menu-management-drafts";
 
 export function PizzaPriceMatrix({
   pizzaMode,
@@ -33,39 +30,29 @@ export function PizzaPriceMatrix({
   onUpdateFlavorDescription,
   onUpdateFlavorImage,
   onUpdateFlavorName,
+  onUpdateFlavorActive,
   onUpdatePizzaPrice,
 }: {
-  pizzaMode: PizzaMode
-  search: string
-  flavors: PizzaFlavor[]
-  flavorPrices: FlavorPrice[]
-  flavorGroups: Category[]
-  visibleSizes: PizzaSizeConfig[]
-  onAddFlavor: () => void
-  onRemoveFlavor: (id: string) => void
-  onSearchChange: (value: string) => void
-  onUpdateFlavorCategory: (
-    id: string,
-    categoryId: string,
-  ) => void
-  onUpdateFlavorDescription: (
-    id: string,
-    value: string,
-  ) => void
-  onUpdateFlavorImage: (
-    id: string,
-    value: string | null,
-  ) => void
-  onUpdateFlavorName: (
-    id: string,
-    value: string,
-  ) => void
+  pizzaMode: PizzaMode;
+  search: string;
+  flavors: FlavorOptionMatrixRow[];
+  flavorPrices: FlavorPrice[];
+  flavorGroups: Category[];
+  visibleSizes: SizeOptionMatrixRow[];
+  onAddFlavor: () => void;
+  onRemoveFlavor: (id: string) => void;
+  onSearchChange: (value: string) => void;
+  onUpdateFlavorCategory: (id: string, categoryId: string) => void;
+  onUpdateFlavorDescription: (id: string, value: string) => void;
+  onUpdateFlavorImage: (id: string, value: string | null) => void;
+  onUpdateFlavorName: (id: string, value: string) => void;
+  onUpdateFlavorActive: (id: string, isActive: boolean) => void;
   onUpdatePizzaPrice: (
     productId: string,
     flavorId: string,
     sizeId: string,
     value: string,
-  ) => void
+  ) => void;
 }) {
   return (
     <>
@@ -76,15 +63,14 @@ export function PizzaPriceMatrix({
 
             <input
               value={search}
-              onChange={(event) =>
-                onSearchChange(event.target.value)
-              }
+              onChange={(event) => onSearchChange(event.target.value)}
               placeholder="Buscar sabor..."
               className="h-12 w-full rounded-2xl border border-slate-200 bg-white pl-11 pr-4 text-sm font-medium outline-none transition focus:border-orange-500 focus:ring-4 focus:ring-orange-500/15"
             />
           </div>
 
           <Button
+            type="button"
             variant="outline"
             size="sm"
             onClick={onAddFlavor}
@@ -96,10 +82,7 @@ export function PizzaPriceMatrix({
         </div>
 
         <div className="grid w-full grid-cols-2 gap-3 md:grid-cols-3 lg:w-auto">
-          <MiniStat
-            label="Sabores"
-            value={String(flavors.length)}
-          />
+          <MiniStat label="Sabores" value={String(flavors.length)} />
 
           <MiniStat
             label="Tamanhos ativos"
@@ -109,11 +92,11 @@ export function PizzaPriceMatrix({
           <MiniStat
             label="Modelo"
             value={
-              pizzaMode === 'round'
-                ? 'Redonda'
-                : pizzaMode === 'square'
-                  ? 'Quadrada'
-                  : 'Misto'
+              pizzaMode === "round"
+                ? "Redonda"
+                : pizzaMode === "square"
+                  ? "Quadrada"
+                  : "Misto"
             }
           />
         </div>
@@ -134,7 +117,7 @@ export function PizzaPriceMatrix({
           <table
             className="w-full border-collapse bg-white"
             style={{
-              minWidth: `${476 + visibleSizes.length * 116}px`,
+              minWidth: `${620 + visibleSizes.length * 116}px`,
             }}
           >
             <thead>
@@ -152,7 +135,7 @@ export function PizzaPriceMatrix({
                   </th>
                 ))}
 
-                <th className="sticky right-0 z-10 w-[56px] min-w-[56px] bg-slate-50 px-2 py-4 text-right text-xs font-black uppercase tracking-wide text-slate-500 shadow-[-10px_0_18px_rgba(15,23,42,0.04)]">
+                <th className="sticky right-0 z-10 w-[200px] min-w-[200px] bg-slate-50 px-2 py-4 text-right text-xs font-black uppercase tracking-wide text-slate-500 shadow-[-10px_0_18px_rgba(15,23,42,0.04)]">
                   Ações
                 </th>
               </tr>
@@ -162,21 +145,16 @@ export function PizzaPriceMatrix({
               {flavors.map((flavor) => (
                 <tr
                   key={flavor.id}
-                  className="border-b border-slate-100 transition hover:bg-orange-50/40"
+                  className={`border-b border-slate-100 transition hover:bg-orange-50/40 ${
+                    flavor.isActive ? "" : "bg-slate-50 opacity-60"
+                  }`}
                 >
                   <td className="px-5 py-4 align-top">
                     <input
+                      autoFocus={isNewFlavorDraft(flavor)}
                       value={flavor.name}
-                      onFocus={() => {
-                        if (flavor.name === 'Novo sabor') {
-                          onUpdateFlavorName(flavor.id, '')
-                        }
-                      }}
                       onChange={(event) =>
-                        onUpdateFlavorName(
-                          flavor.id,
-                          event.target.value,
-                        )
+                        onUpdateFlavorName(flavor.id, event.target.value)
                       }
                       placeholder="Nome do sabor"
                       className="w-full bg-transparent text-sm font-black text-slate-950 outline-none placeholder:text-slate-400"
@@ -185,7 +163,7 @@ export function PizzaPriceMatrix({
                     <div className="mt-3 grid gap-3 md:grid-cols-[158px_minmax(220px,1fr)]">
                       <ImageUploadField
                         imageUrl={flavor.imageUrl}
-                        label={flavor.name || 'sabor'}
+                        label={flavor.name || "sabor"}
                         compact
                         onChange={(value) =>
                           onUpdateFlavorImage(flavor.id, value)
@@ -194,7 +172,7 @@ export function PizzaPriceMatrix({
 
                       <div className="grid gap-2">
                         <select
-                          value={flavor.categoryId ?? ''}
+                          value={flavor.categoryId ?? ""}
                           onChange={(event) =>
                             onUpdateFlavorCategory(
                               flavor.id,
@@ -203,22 +181,17 @@ export function PizzaPriceMatrix({
                           }
                           className="h-10 rounded-2xl border border-slate-200 bg-white px-3 text-sm font-bold text-slate-600 outline-none transition focus:border-orange-500 focus:ring-4 focus:ring-orange-500/15"
                         >
-                          <option value="">
-                            Sem grupo
-                          </option>
+                          <option value="">Sem grupo</option>
 
                           {flavorGroups.map((group) => (
-                            <option
-                              key={group.id}
-                              value={group.id}
-                            >
+                            <option key={group.id} value={group.id}>
                               {group.name}
                             </option>
                           ))}
                         </select>
 
                         <textarea
-                          value={flavor.description ?? ''}
+                          value={flavor.description ?? ""}
                           onChange={(event) =>
                             onUpdateFlavorDescription(
                               flavor.id,
@@ -258,15 +231,30 @@ export function PizzaPriceMatrix({
                   ))}
 
                   <td className="sticky right-0 z-10 bg-white px-2 py-4 text-right align-top shadow-[-10px_0_18px_rgba(15,23,42,0.04)]">
-                    <button
-                      type="button"
-                      onClick={() =>
-                        onRemoveFlavor(flavor.id)
-                      }
-                      className="inline-flex h-10 w-10 items-center justify-center rounded-2xl text-slate-400 transition hover:bg-red-50 hover:text-red-600"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </button>
+                    <div className="flex items-center justify-end gap-2">
+                      <label className="flex cursor-pointer items-center gap-2 rounded-xl px-2 py-2 text-xs font-bold text-slate-500 hover:bg-slate-100">
+                        <input
+                          type="checkbox"
+                          checked={flavor.isActive}
+                          onChange={(event) =>
+                            onUpdateFlavorActive(
+                              flavor.id,
+                              event.target.checked,
+                            )
+                          }
+                        />
+                        {flavor.isActive ? "Ativo" : "Inativo"}
+                      </label>
+
+                      <button
+                        type="button"
+                        title="Excluir sabor"
+                        onClick={() => onRemoveFlavor(flavor.id)}
+                        className="inline-flex h-10 w-10 items-center justify-center rounded-2xl text-slate-400 transition hover:bg-red-50 hover:text-red-600"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -275,5 +263,5 @@ export function PizzaPriceMatrix({
         </div>
       )}
     </>
-  )
+  );
 }

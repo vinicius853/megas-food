@@ -1,157 +1,219 @@
-'use client'
+"use client";
 
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from "react";
 
-import { apiFetch } from '@/lib/api'
+import { apiFetch } from "@/lib/api";
 
 import {
   type Category,
   type CategoryType,
+  type GenericMenuManagementResponse,
+  type GenericMenuUpdateResponse,
   type MenuManagementResponse,
   type PizzaMode,
-  type PizzaSizeConfig,
+  type SizeOptionMatrixRow,
   type Product,
   type Tab,
   getProductSectionIdFromTab,
-  parseMoney,
-  parsePositiveInteger,
-} from '../types/menu-management'
-import { pizzaModes } from './menu-management-constants'
+} from "../types/menu-management";
+import { pizzaModes } from "./menu-management-constants";
 import {
-  ensureBaseData,
-  normalizeCategory,
-} from './menu-management-normalizers'
-import { getBorderSizes, getCustomProductSections, getDrinks, getExtras, getFilteredFlavors, getPizzaFlavorGroups, getPizzaProduct, getProductSections, getRoundSizes, getSelectedProductSection, getSelectedProductSectionProducts, getSquareSizes, getVisibleSizes } from './menu-management-selectors'
-import { generateSlug, getErrorMessage, temporaryId } from './menu-management-utils'
+  genericMenuToMatrix,
+  matrixToGenericUpdate,
+} from "./generic-menu-admin-adapter";
+import {
+  getBorderSizes,
+  getCustomProductSections,
+  getDrinks,
+  getExtras,
+  getFilteredFlavors,
+  getFlavorDisplayGroups,
+  getPizzaProduct,
+  getProductSections,
+  getRoundSizes,
+  getSelectedProductSection,
+  getSelectedProductSectionProducts,
+  getSquareSizes,
+  getVisibleSizes,
+} from "./menu-management-selectors";
+import {
+  generateSlug,
+  getErrorMessage,
+  temporaryId,
+} from "./menu-management-utils";
+import {
+  getNewBorderDraftIds,
+  getNewFlavorDraftIds,
+  getNewSizeDraftIds,
+  isEmptyBorderDraft,
+  isEmptyCategoryDraft,
+  isEmptyFlavorDraft,
+  isEmptyProductDraft,
+  isEmptySizeDraft,
+  isNewBorderDraft,
+  isNewCategoryDraft,
+  isNewFlavorDraft,
+  isNewProductDraft,
+  isNewSizeDraft,
+  validateBorderDrafts,
+  validateCategoryDrafts,
+  validateFlavorDrafts,
+  validateProductDrafts,
+  validateSizeDrafts,
+} from "./menu-management-drafts";
 
-export { pizzaModes }
+export { pizzaModes };
 
 export function useMenuManagement() {
-  const [activeTab, setActiveTab] = useState<Tab>('pizzas')
+  const [activeTab, setActiveTabState] = useState<Tab>("pizzas");
 
-  const [pizzaMode, setPizzaMode] = useState<PizzaMode>('mixed')
+  const [pizzaMode, setPizzaMode] = useState<PizzaMode>("mixed");
 
-  const [search, setSearch] = useState('')
+  const [search, setSearch] = useState("");
 
-  const [categories, setCategories] = useState<Category[]>([])
+  const [categories, setCategories] = useState<Category[]>([]);
 
-  const [products, setProducts] = useState<Product[]>([])
+  const [products, setProducts] = useState<Product[]>([]);
 
-  const [sizes, setSizes] = useState<PizzaSizeConfig[]>([])
+  const [sizes, setSizes] = useState<SizeOptionMatrixRow[]>([]);
 
-  const [flavors, setFlavors] = useState<MenuManagementResponse['pizzaFlavors']>([])
+  const [flavors, setFlavors] = useState<
+    MenuManagementResponse["flavorOptions"]
+  >([]);
 
-  const [flavorPrices, setFlavorPrices] = useState<MenuManagementResponse['flavorPrices']>([])
+  const [flavorPrices, setFlavorPrices] = useState<
+    MenuManagementResponse["flavorPrices"]
+  >([]);
 
-  const [borders, setBorders] = useState<MenuManagementResponse['pizzaBorders']>([])
+  const [borders, setBorders] = useState<
+    MenuManagementResponse["borderOptions"]
+  >([]);
 
-  const [borderPrices, setBorderPrices] = useState<MenuManagementResponse['borderPrices']>([])
+  const [borderPrices, setBorderPrices] = useState<
+    MenuManagementResponse["borderPrices"]
+  >([]);
 
-  const [loading, setLoading] = useState(true)
-  const [saving, setSaving] = useState(false)
-  const [error, setError] = useState('')
-  const [success, setSuccess] = useState('')
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
 
-  const autoSaveTimerRef =
-    useRef<ReturnType<typeof setTimeout> | null>(null)
+  const autoSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const hasLoadedMenuRef = useRef(false)
-  const skipNextAutoSaveRef = useRef(false)
+  const hasLoadedMenuRef = useRef(false);
+  const skipNextAutoSaveRef = useRef(false);
+  const genericMenuRef = useRef<GenericMenuManagementResponse | null>(null);
 
-  const roundProduct = getPizzaProduct(products, 'PIZZA_ROUND')
+  const roundProduct = getPizzaProduct(products, "PIZZA_ROUND");
 
-  const squareProduct = getPizzaProduct(products, 'PIZZA_SQUARE')
+  const squareProduct = getPizzaProduct(products, "PIZZA_SQUARE");
 
-  const productSections = useMemo(() => getProductSections(categories), [categories])
+  const productSections = useMemo(
+    () => getProductSections(categories),
+    [categories],
+  );
 
-  const customProductSections = useMemo(() => getCustomProductSections(productSections), [productSections])
+  const customProductSections = useMemo(
+    () => getCustomProductSections(productSections),
+    [productSections],
+  );
 
-  const selectedProductSectionId =
-    getProductSectionIdFromTab(activeTab)
+  const selectedProductSectionId = getProductSectionIdFromTab(activeTab);
 
   const selectedProductSection = useMemo(() => {
     return getSelectedProductSection(
       customProductSections,
       selectedProductSectionId,
-    )
-  }, [customProductSections, selectedProductSectionId])
+    );
+  }, [customProductSections, selectedProductSectionId]);
 
   const selectedProductSectionProducts = useMemo(() => {
-    return getSelectedProductSectionProducts(
-      products,
-      selectedProductSection,
-    )
-  }, [products, selectedProductSection])
+    return getSelectedProductSectionProducts(products, selectedProductSection);
+  }, [products, selectedProductSection]);
 
-  const pizzaFlavorGroups = useMemo(() => getPizzaFlavorGroups(categories), [categories])
+  const flavorDisplayGroups = useMemo(
+    () => getFlavorDisplayGroups(categories),
+    [categories],
+  );
 
-  const drinks = getDrinks(products)
+  const drinks = getDrinks(products);
 
-  const extras = getExtras(products, productSections)
+  const extras = getExtras(products, productSections);
 
-  const visibleSizes = useMemo(() => getVisibleSizes(sizes, pizzaMode), [sizes, pizzaMode])
+  const visibleSizes = useMemo(
+    () => getVisibleSizes(sizes, pizzaMode),
+    [sizes, pizzaMode],
+  );
 
-  const borderSizes = useMemo(() => getBorderSizes(sizes), [sizes])
+  const borderSizes = useMemo(() => getBorderSizes(sizes), [sizes]);
 
-  const roundSizes = useMemo(
-    () => getRoundSizes(sizes),
-    [sizes],
-  )
+  const roundSizes = useMemo(() => getRoundSizes(sizes), [sizes]);
 
-  const squareSizes = useMemo(
-    () => getSquareSizes(sizes),
-    [sizes],
-  )
+  const squareSizes = useMemo(() => getSquareSizes(sizes), [sizes]);
 
-  const filteredFlavors = useMemo(() => getFilteredFlavors(flavors, search), [flavors, search])
+  const filteredFlavors = useMemo(
+    () => getFilteredFlavors(flavors, search),
+    [flavors, search],
+  );
 
   function applyMenuData(data: MenuManagementResponse) {
-    skipNextAutoSaveRef.current = true
+    skipNextAutoSaveRef.current = true;
 
-    setCategories(data.categories.map(normalizeCategory))
-    setProducts(data.products)
-    setSizes(data.pizzaSizes)
-    setFlavors(data.pizzaFlavors)
-    setFlavorPrices(data.flavorPrices)
-    setBorders(data.pizzaBorders)
-    setBorderPrices(data.borderPrices)
+    setCategories(data.categories);
+    setProducts(data.products);
+    setSizes(data.sizeOptions);
+    setFlavors(data.flavorOptions);
+    setFlavorPrices(data.flavorPrices);
+    setBorders(data.borderOptions);
+    setBorderPrices(data.borderPrices);
+  }
+
+  function currentMenuState(): MenuManagementResponse {
+    return {
+      categories,
+      products,
+      sizeOptions: sizes,
+      flavorOptions: flavors,
+      flavorPrices,
+      borderOptions: borders,
+      borderPrices,
+    };
+  }
+
+  function applyGenericMenuData(data: GenericMenuManagementResponse) {
+    genericMenuRef.current = data;
+    applyMenuData(genericMenuToMatrix(data));
   }
 
   async function loadMenu() {
     try {
-      setLoading(true)
-      setError('')
+      setLoading(true);
+      setError("");
 
-      const response = await apiFetch<MenuManagementResponse>(
-        '/menu-management',
-      )
-
-      applyMenuData(ensureBaseData(response))
+      const response = await apiFetch<GenericMenuManagementResponse>(
+        "/generic-menu-management",
+      );
+      applyGenericMenuData(response);
     } catch (err: unknown) {
-      setError(getErrorMessage(err, 'Erro ao carregar cardápio.'))
+      setError(getErrorMessage(err, "Erro ao carregar cardápio."));
     } finally {
-      hasLoadedMenuRef.current = true
-      setLoading(false)
+      hasLoadedMenuRef.current = true;
+      setLoading(false);
     }
   }
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
-    loadMenu()
+    loadMenu();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+  }, []);
 
   useEffect(() => {
-    if (
-      selectedProductSectionId &&
-      !selectedProductSection
-    ) {
-      setActiveTab('adicionais')
+    if (selectedProductSectionId && !selectedProductSection) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setActiveTabState("adicionais");
     }
-  }, [
-    selectedProductSection,
-    selectedProductSectionId,
-  ])
+  }, [selectedProductSection, selectedProductSectionId]);
 
   function updatePizzaPrice(
     productId: string,
@@ -165,7 +227,7 @@ export function useMenuManagement() {
           price.productId === productId &&
           price.flavorId === flavorId &&
           price.sizeId === sizeId,
-      )
+      );
 
       if (existing) {
         return prev.map((price) =>
@@ -175,7 +237,7 @@ export function useMenuManagement() {
                 price: value,
               }
             : price,
-        )
+        );
       }
 
       return [
@@ -186,24 +248,25 @@ export function useMenuManagement() {
           flavorId,
           price: value,
         },
-      ]
-    })
+      ];
+    });
   }
 
   function addFlavor() {
-    const flavorId = temporaryId('flavor')
-    const defaultGroup = pizzaFlavorGroups[0]
+    const flavorId = temporaryId("flavor");
+    const defaultGroup = flavorDisplayGroups[0];
 
+    setSearch("");
     setFlavors((prev) => [
       ...prev,
       {
         id: flavorId,
         categoryId: defaultGroup?.id ?? null,
-        name: 'Novo sabor',
+        name: "",
         sortOrder: prev.length,
         isActive: true,
       },
-    ])
+    ]);
 
     setFlavorPrices((prev) => [
       ...prev,
@@ -211,25 +274,23 @@ export function useMenuManagement() {
         productId: size.productId,
         sizeId: size.id,
         flavorId,
-        price: '0,00',
+        price: "",
       })),
-    ])
+    ]);
   }
 
   function removeFlavor(id: string) {
-    setFlavors((prev) =>
-      prev.filter((item) => item.id !== id),
-    )
+    if (!flavors.some((item) => item.id === id && isNewFlavorDraft(item))) {
+      updateFlavorActive(id, false);
+      return;
+    }
 
-    setFlavorPrices((prev) =>
-      prev.filter((item) => item.flavorId !== id),
-    )
+    setFlavors((prev) => prev.filter((item) => item.id !== id));
+
+    setFlavorPrices((prev) => prev.filter((item) => item.flavorId !== id));
   }
 
-  function updateFlavorName(
-    id: string,
-    value: string,
-  ) {
+  function updateFlavorName(id: string, value: string) {
     setFlavors((prev) =>
       prev.map((item) =>
         item.id === id
@@ -239,13 +300,23 @@ export function useMenuManagement() {
             }
           : item,
       ),
-    )
+    );
   }
 
-  function updateFlavorDescription(
-    id: string,
-    value: string,
-  ) {
+  function updateFlavorActive(id: string, isActive: boolean) {
+    setFlavors((prev) =>
+      prev.map((item) =>
+        item.id === id
+          ? {
+              ...item,
+              isActive,
+            }
+          : item,
+      ),
+    );
+  }
+
+  function updateFlavorDescription(id: string, value: string) {
     setFlavors((prev) =>
       prev.map((item) =>
         item.id === id
@@ -255,13 +326,10 @@ export function useMenuManagement() {
             }
           : item,
       ),
-    )
+    );
   }
 
-  function updateFlavorImage(
-    id: string,
-    value: string | null,
-  ) {
+  function updateFlavorImage(id: string, value: string | null) {
     setFlavors((prev) =>
       prev.map((item) =>
         item.id === id
@@ -271,13 +339,10 @@ export function useMenuManagement() {
             }
           : item,
       ),
-    )
+    );
   }
 
-  function updateFlavorCategory(
-    id: string,
-    categoryId: string,
-  ) {
+  function updateFlavorCategory(id: string, categoryId: string) {
     setFlavors((prev) =>
       prev.map((item) =>
         item.id === id
@@ -287,41 +352,38 @@ export function useMenuManagement() {
             }
           : item,
       ),
-    )
+    );
   }
 
-  function addSize(type: 'round' | 'square') {
-    const product = type === 'round' ? roundProduct : squareProduct
+  function addSize(type: "round" | "square") {
+    const product = type === "round" ? roundProduct : squareProduct;
 
-    if (!product) return
+    if (!product) return;
 
-    const productSizes = sizes.filter(
-      (size) => size.productId === product.id,
-    )
+    const productSizes = sizes.filter((size) => size.productId === product.id);
 
     if (productSizes.length >= 4) {
-      setError('Cada modelo de pizza pode ter no maximo 4 tamanhos para manter o cardapio responsivo.')
-      return
+      setError(
+        "Cada modelo de pizza pode ter no maximo 4 tamanhos para manter o cardapio responsivo.",
+      );
+      return;
     }
 
-    const sizeId = temporaryId('size')
-    const newSize: PizzaSizeConfig = {
+    const sizeId = temporaryId("size");
+    const newSize: SizeOptionMatrixRow = {
       id: sizeId,
       productId: product.id,
-      name:
-        type === 'round'
-          ? 'Novo tamanho'
-          : 'Nova fatia',
-      subtitle: '',
-      type: type === 'round' ? 'CM' : 'SLICES',
+      name: "",
+      subtitle: "",
+      type: type === "round" ? "CM" : "SLICES",
       value: null,
       maxFlavors: 1,
       isActive: true,
-      allowBorder: type === 'round',
+      allowBorder: type === "round",
       sortOrder: sizes.length,
-    }
+    };
 
-    setSizes((prev) => [...prev, newSize])
+    setSizes((prev) => [...prev, newSize]);
 
     setFlavorPrices((prev) => [
       ...prev,
@@ -329,50 +391,49 @@ export function useMenuManagement() {
         productId: product.id,
         sizeId,
         flavorId: flavor.id,
-        price: '0,00',
+        price: "",
       })),
-    ])
+    ]);
   }
 
   function removeSize(sizeId: string) {
-    setSizes((prev) =>
-      prev.filter((size) => size.id !== sizeId),
-    )
+    if (!sizes.some((size) => size.id === sizeId && isNewSizeDraft(size))) {
+      setSizes((prev) =>
+        prev.map((size) =>
+          size.id === sizeId ? { ...size, isActive: false } : size,
+        ),
+      );
+      return;
+    }
 
-    setFlavorPrices((prev) =>
-      prev.filter((price) => price.sizeId !== sizeId),
-    )
+    setSizes((prev) => prev.filter((size) => size.id !== sizeId));
 
-    setBorderPrices((prev) =>
-      prev.filter((price) => price.sizeId !== sizeId),
-    )
+    setFlavorPrices((prev) => prev.filter((price) => price.sizeId !== sizeId));
+
+    setBorderPrices((prev) => prev.filter((price) => price.sizeId !== sizeId));
   }
 
-  function addProduct(
-    type: 'DRINK' | 'OTHER',
-    categoryId?: string,
-  ) {
-    const category =
-      categoryId
-        ? categories.find((item) => item.id === categoryId)
-        : type === 'DRINK'
-          ? categories.find((item) => item.slug === 'bebidas')
-          : categories.find((item) => item.slug === 'adicionais')
+  function addProduct(type: "DRINK" | "OTHER", categoryId?: string) {
+    const category = categoryId
+      ? categories.find((item) => item.id === categoryId)
+      : type === "DRINK"
+        ? categories.find((item) => item.slug === "bebidas")
+        : categories.find((item) => item.slug === "adicionais");
 
-    if (!category) return
+    if (!category) return;
 
     setProducts((prev) => [
       ...prev,
       {
-        id: temporaryId('product'),
+        id: temporaryId("product"),
         categoryId: category.id,
-        name: type === 'DRINK' ? 'Nova bebida' : 'Novo produto',
+        name: "",
         type,
-        price: '0,00',
+        price: "",
         isActive: true,
         sortOrder: prev.length,
       },
-    ])
+    ]);
   }
 
   function updateProduct(
@@ -389,34 +450,30 @@ export function useMenuManagement() {
             }
           : item,
       ),
-    )
+    );
   }
 
   function removeProduct(id: string) {
-    setProducts((prev) =>
-      prev.filter((item) => item.id !== id),
-    )
+    if (!products.some((item) => item.id === id && isNewProductDraft(item))) {
+      updateProduct(id, "isActive", false);
+      return;
+    }
+
+    setProducts((prev) => prev.filter((item) => item.id !== id));
   }
 
-  function addCategory(
-    type: CategoryType = 'PRODUCT_SECTION',
-  ) {
-    const name =
-      type === 'PIZZA_FLAVOR_GROUP'
-        ? 'Novo grupo de sabores'
-        : 'Nova categoria'
-
+  function addCategory(type: CategoryType = "PRODUCT_SECTION") {
     setCategories((prev) => [
       ...prev,
       {
-        id: temporaryId('category'),
-        name,
-        slug: generateSlug(name),
+        id: temporaryId("category"),
+        name: "",
+        slug: "",
         type,
         sortOrder: prev.length,
         isActive: true,
       },
-    ])
+    ]);
   }
 
   function updateCategory(
@@ -430,47 +487,44 @@ export function useMenuManagement() {
           ? {
               ...item,
               [field]: value,
-              ...(field === 'name' && {
+              ...(field === "name" && {
                 slug: generateSlug(String(value)),
               }),
             }
           : item,
       ),
-    )
+    );
   }
 
   function removeCategory(id: string) {
+    if (
+      !categories.some(
+        (category) => category.id === id && isNewCategoryDraft(category),
+      )
+    ) {
+      updateCategory(id, "isActive", false);
+      return;
+    }
+
     const removedProductIds = products
       .filter((product) => product.categoryId === id)
-      .map((product) => product.id)
+      .map((product) => product.id);
 
-    setCategories((prev) =>
-      prev.filter((item) => item.id !== id),
-    )
+    setCategories((prev) => prev.filter((item) => item.id !== id));
 
-    setProducts((prev) =>
-      prev.filter((product) => product.categoryId !== id),
-    )
+    setProducts((prev) => prev.filter((product) => product.categoryId !== id));
 
     setSizes((prev) =>
-      prev.filter(
-        (size) => !removedProductIds.includes(size.productId),
-      ),
-    )
+      prev.filter((size) => !removedProductIds.includes(size.productId)),
+    );
 
     setFlavorPrices((prev) =>
-      prev.filter(
-        (price) =>
-          !removedProductIds.includes(price.productId),
-      ),
-    )
+      prev.filter((price) => !removedProductIds.includes(price.productId)),
+    );
 
     setBorderPrices((prev) =>
-      prev.filter(
-        (price) =>
-          !removedProductIds.includes(price.productId),
-      ),
-    )
+      prev.filter((price) => !removedProductIds.includes(price.productId)),
+    );
 
     setFlavors((prev) =>
       prev.map((flavor) =>
@@ -481,20 +535,20 @@ export function useMenuManagement() {
             }
           : flavor,
       ),
-    )
+    );
   }
 
   function addBorder() {
-    const borderId = temporaryId('border')
+    const borderId = temporaryId("border");
 
     setBorders((prev) => [
       ...prev,
       {
         id: borderId,
-        name: 'Nova borda',
+        name: "",
         isActive: true,
       },
-    ])
+    ]);
 
     setBorderPrices((prev) => [
       ...prev,
@@ -504,9 +558,9 @@ export function useMenuManagement() {
           productId: size.productId,
           sizeId: size.id,
           borderId,
-          price: '0,00',
+          price: "",
         })),
-    ])
+    ]);
   }
 
   function updateBorderName(id: string, value: string) {
@@ -519,12 +573,25 @@ export function useMenuManagement() {
             }
           : item,
       ),
-    )
+    );
+  }
+
+  function updateBorderActive(id: string, isActive: boolean) {
+    setBorders((prev) =>
+      prev.map((item) =>
+        item.id === id
+          ? {
+              ...item,
+              isActive,
+            }
+          : item,
+      ),
+    );
   }
 
   function updateBorderPrice(
     borderId: string,
-    size: PizzaSizeConfig,
+    size: SizeOptionMatrixRow,
     value: string,
   ) {
     setBorderPrices((prev) => {
@@ -533,7 +600,7 @@ export function useMenuManagement() {
           price.borderId === borderId &&
           price.sizeId === size.id &&
           price.productId === size.productId,
-      )
+      );
 
       if (existing) {
         return prev.map((price) =>
@@ -543,7 +610,7 @@ export function useMenuManagement() {
                 price: value,
               }
             : price,
-        )
+        );
       }
 
       return [
@@ -554,152 +621,232 @@ export function useMenuManagement() {
           borderId,
           price: value,
         },
-      ]
-    })
+      ];
+    });
   }
 
   function removeBorder(id: string) {
-    setBorders((prev) =>
-      prev.filter((item) => item.id !== id),
-    )
+    if (!borders.some((item) => item.id === id && isNewBorderDraft(item))) {
+      updateBorderActive(id, false);
+      return;
+    }
 
-    setBorderPrices((prev) =>
-      prev.filter((item) => item.borderId !== id),
-    )
+    setBorders((prev) => prev.filter((item) => item.id !== id));
+
+    setBorderPrices((prev) => prev.filter((item) => item.borderId !== id));
   }
 
-  function buildPayload() {
-    return {
-      categories: categories.map((category, index) => {
-        const normalizedCategory = normalizeCategory(category)
+  async function saveMenu(
+    isAutoSave = false,
+    stateOverride?: MenuManagementResponse,
+  ) {
+    try {
+      const menuState = stateOverride ?? currentMenuState();
+      const draftError =
+        validateSizeDrafts(
+          menuState.sizeOptions,
+          menuState.flavorOptions,
+          menuState.flavorPrices,
+        ) ??
+        validateFlavorDrafts(
+          menuState.flavorOptions,
+          menuState.sizeOptions,
+          menuState.flavorPrices,
+        ) ??
+        validateBorderDrafts(
+          menuState.borderOptions,
+          menuState.sizeOptions,
+          menuState.borderPrices,
+        ) ??
+        validateProductDrafts(menuState.products) ??
+        validateCategoryDrafts(menuState.categories);
 
-        return {
-          id: normalizedCategory.id,
-          name: normalizedCategory.name,
-          slug:
-            normalizedCategory.slug ||
-            generateSlug(normalizedCategory.name),
-          type: normalizedCategory.type,
-          sortOrder: index,
-          isActive: normalizedCategory.isActive,
+      if (draftError) {
+        if (!isAutoSave) {
+          setError(draftError);
         }
-      }),
-      products: ensureBaseData({
-        categories,
-        products,
-        pizzaSizes: sizes,
-        pizzaFlavors: flavors,
-        flavorPrices,
-        pizzaBorders: borders,
-        borderPrices,
-      }).products.map((product, index) => ({
-        id: product.id,
-        categoryId: product.categoryId,
-        name: product.name,
-        description: product.description || undefined,
-        imageUrl: product.imageUrl || undefined,
-        type: product.type,
-        price:
-          product.type === 'DRINK' || product.type === 'OTHER'
-            ? parseMoney(product.price)
-            : undefined,
-        sortOrder: index,
-        isActive: product.isActive,
-      })),
-      pizzaSizes: sizes.map((size, index) => ({
-        id: size.id,
-        productId: size.productId,
-        name: size.name,
-        subtitle: size.subtitle || undefined,
-        type: size.type,
-        value: size.value ?? undefined,
-        maxFlavors: parsePositiveInteger(size.maxFlavors),
-        allowBorder: size.allowBorder,
-        sortOrder: index,
-        isActive: size.isActive,
-      })),
-      pizzaFlavors: flavors.map((flavor, index) => ({
-        id: flavor.id,
-        categoryId: flavor.categoryId ?? null,
-        name: flavor.name,
-        description: flavor.description || undefined,
-        imageUrl: flavor.imageUrl || undefined,
-        sortOrder: index,
-        isActive: flavor.isActive,
-      })),
-      flavorPrices: flavorPrices.map((price) => ({
-        id: price.id,
-        productId: price.productId,
-        sizeId: price.sizeId,
-        flavorId: price.flavorId,
-        price: parseMoney(price.price),
-      })),
-      pizzaBorders: borders.map((border) => ({
-        id: border.id,
-        name: border.name,
-        isActive: border.isActive,
-      })),
-      borderPrices: borderPrices.map((price) => ({
-        id: price.id,
-        productId: price.productId,
-        sizeId: price.sizeId,
-        borderId: price.borderId,
-        price: parseMoney(price.price),
-      })),
+        return false;
+      }
+
+      setSaving(true);
+      setError("");
+
+      if (!isAutoSave) {
+        setSuccess("");
+      }
+
+      if (!genericMenuRef.current) {
+        throw new Error("Cardapio generico ainda nao foi carregado.");
+      }
+
+      const response = await apiFetch<GenericMenuUpdateResponse>(
+        "/generic-menu-management",
+        {
+          method: "PUT",
+          body: JSON.stringify(
+            matrixToGenericUpdate(menuState, genericMenuRef.current),
+          ),
+        },
+      );
+      applyGenericMenuData(response.menu);
+      setSuccess(
+        isAutoSave
+          ? "Alterações salvas automaticamente."
+          : "Cardápio salvo com sucesso.",
+      );
+      return true;
+    } catch (err: unknown) {
+      setError(getErrorMessage(err, "Erro ao salvar cardápio."));
+      return false;
+    } finally {
+      setSaving(false);
     }
   }
 
-  async function saveMenu(isAutoSave = false) {
-    try {
-      setSaving(true)
-      setError('')
+  async function changeActiveTab(nextTab: Tab) {
+    if (nextTab === activeTab) return;
 
-      if (!isAutoSave) {
-        setSuccess('')
-      }
+    const sizeDraftIds = getNewSizeDraftIds(sizes);
+    const flavorDraftIds = getNewFlavorDraftIds(flavors);
+    const borderDraftIds = getNewBorderDraftIds(borders);
+    if (
+      sizeDraftIds.size === 0 &&
+      flavorDraftIds.size === 0 &&
+      borderDraftIds.size === 0 &&
+      !products.some(isNewProductDraft) &&
+      !categories.some(isNewCategoryDraft)
+    ) {
+      setActiveTabState(nextTab);
+      return;
+    }
 
-      const response = await apiFetch<MenuManagementResponse>(
-        '/menu-management',
-        {
-          method: 'PUT',
-          body: JSON.stringify(buildPayload()),
-        },
-      )
+    const emptySizeDraftIds = new Set(
+      sizes
+        .filter(
+          (size) =>
+            sizeDraftIds.has(size.id) && isEmptySizeDraft(size, flavorPrices),
+        )
+        .map((size) => size.id),
+    );
+    const emptyFlavorDraftIds = new Set(
+      flavors
+        .filter(
+          (flavor) =>
+            flavorDraftIds.has(flavor.id) &&
+            isEmptyFlavorDraft(flavor, flavorPrices),
+        )
+        .map((flavor) => flavor.id),
+    );
+    const emptyBorderDraftIds = new Set(
+      borders
+        .filter(
+          (border) =>
+            borderDraftIds.has(border.id) &&
+            isEmptyBorderDraft(border, borderPrices),
+        )
+        .map((border) => border.id),
+    );
 
-      applyMenuData(ensureBaseData(response))
-      setSuccess(
-        isAutoSave
-          ? 'Alterações salvas automaticamente.'
-          : 'Cardápio salvo com sucesso.',
-      )
-    } catch (err: unknown) {
-      setError(getErrorMessage(err, 'Erro ao salvar cardápio.'))
-    } finally {
-      setSaving(false)
+    const nextSizes = sizes.filter((size) => !emptySizeDraftIds.has(size.id));
+    const nextFlavors = flavors.filter(
+      (flavor) => !emptyFlavorDraftIds.has(flavor.id),
+    );
+    const nextBorders = borders.filter(
+      (border) => !emptyBorderDraftIds.has(border.id),
+    );
+    const nextProducts = products.filter(
+      (product) =>
+        !(isNewProductDraft(product) && isEmptyProductDraft(product)),
+    );
+    const nextCategories = categories.filter(
+      (category) =>
+        !(isNewCategoryDraft(category) && isEmptyCategoryDraft(category)),
+    );
+    const nextFlavorPrices = flavorPrices.filter(
+      (price) =>
+        !emptySizeDraftIds.has(price.sizeId) &&
+        !emptyFlavorDraftIds.has(price.flavorId),
+    );
+    const nextBorderPrices = borderPrices.filter(
+      (price) =>
+        !emptySizeDraftIds.has(price.sizeId) &&
+        !emptyBorderDraftIds.has(price.borderId),
+    );
+
+    if (
+      emptySizeDraftIds.size > 0 ||
+      emptyFlavorDraftIds.size > 0 ||
+      emptyBorderDraftIds.size > 0 ||
+      nextProducts.length !== products.length ||
+      nextCategories.length !== categories.length
+    ) {
+      setCategories(nextCategories);
+      setProducts(nextProducts);
+      setSizes(nextSizes);
+      setFlavors(nextFlavors);
+      setBorders(nextBorders);
+      setFlavorPrices(nextFlavorPrices);
+      setBorderPrices(nextBorderPrices);
+    }
+
+    if (
+      !nextSizes.some(isNewSizeDraft) &&
+      !nextFlavors.some(isNewFlavorDraft) &&
+      !nextBorders.some(isNewBorderDraft) &&
+      !nextProducts.some(isNewProductDraft) &&
+      !nextCategories.some(isNewCategoryDraft)
+    ) {
+      setError("");
+      setActiveTabState(nextTab);
+      return;
+    }
+
+    const saved = await saveMenu(false, {
+      ...currentMenuState(),
+      categories: nextCategories,
+      products: nextProducts,
+      sizeOptions: nextSizes,
+      flavorOptions: nextFlavors,
+      borderOptions: nextBorders,
+      flavorPrices: nextFlavorPrices,
+      borderPrices: nextBorderPrices,
+    });
+    if (saved) {
+      setActiveTabState(nextTab);
     }
   }
 
   useEffect(() => {
-    if (!hasLoadedMenuRef.current || loading) return
+    if (!hasLoadedMenuRef.current || loading) return;
+
+    if (
+      sizes.some(isNewSizeDraft) ||
+      flavors.some(isNewFlavorDraft) ||
+      borders.some(isNewBorderDraft) ||
+      products.some(isNewProductDraft) ||
+      categories.some(isNewCategoryDraft)
+    ) {
+      return;
+    }
 
     if (skipNextAutoSaveRef.current) {
-      skipNextAutoSaveRef.current = false
-      return
+      skipNextAutoSaveRef.current = false;
+      return;
     }
 
     if (autoSaveTimerRef.current) {
-      clearTimeout(autoSaveTimerRef.current)
+      clearTimeout(autoSaveTimerRef.current);
     }
 
     autoSaveTimerRef.current = setTimeout(() => {
-      saveMenu(true)
-    }, 900)
+      saveMenu(true);
+    }, 900);
 
     return () => {
       if (autoSaveTimerRef.current) {
-        clearTimeout(autoSaveTimerRef.current)
+        clearTimeout(autoSaveTimerRef.current);
       }
-    }
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     categories,
@@ -709,13 +856,13 @@ export function useMenuManagement() {
     flavorPrices,
     borders,
     borderPrices,
-  ])
+  ]);
 
   function openPublicMenu() {
-    const slug = localStorage.getItem('tenantSlug')
+    const slug = localStorage.getItem("tenantSlug");
 
     if (slug) {
-      window.open(`/c/${slug}`, '_blank')
+      window.open(`/c/${slug}`, "_blank");
     }
   }
 
@@ -739,7 +886,7 @@ export function useMenuManagement() {
     flavors,
     loading,
     openPublicMenu,
-    pizzaFlavorGroups,
+    flavorDisplayGroups,
     pizzaMode,
     productSections,
     products,
@@ -754,7 +901,7 @@ export function useMenuManagement() {
     search,
     selectedProductSection,
     selectedProductSectionProducts,
-    setActiveTab,
+    setActiveTab: changeActiveTab,
     setPizzaMode,
     setSearch,
     setSizes,
@@ -762,14 +909,16 @@ export function useMenuManagement() {
     squareSizes,
     success,
     updateBorderName,
+    updateBorderActive,
     updateBorderPrice,
     updateCategory,
     updateFlavorCategory,
     updateFlavorDescription,
     updateFlavorImage,
     updateFlavorName,
+    updateFlavorActive,
     updatePizzaPrice,
     updateProduct,
     visibleSizes,
-  }
+  };
 }

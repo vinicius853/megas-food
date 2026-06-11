@@ -17,6 +17,11 @@ import type {
   DeliveryType,
   PaymentMethod,
 } from './checkout.types'
+import {
+  buildCartItemDisplay,
+  formatModifierFraction,
+} from './cart-item-display'
+import { buildPublicOrderV2Payload } from './public-order-v2-payload'
 
 export function CheckoutModal({
   open,
@@ -72,9 +77,7 @@ export function CheckoutModal({
       setLoadingCep(true)
       setCepError('')
 
-      const response = await fetch(
-        `https://viacep.com.br/ws/${cleanCep}/json/`,
-      )
+      const response = await fetch(`https://viacep.com.br/ws/${cleanCep}/json/`)
 
       const data = (await response.json()) as CepResponse
 
@@ -197,12 +200,24 @@ export function CheckoutModal({
     lines.push('')
 
     items.forEach((item, index) => {
-      lines.push(`*${index + 1}. ${item.productName}*`)
-      lines.push(`Tamanho: ${item.sizeName}`)
-      lines.push(`Sabores: ${item.flavors.join(', ')}`)
+      const itemDisplay = buildCartItemDisplay(item)
 
-      if (item.borderName) {
-        lines.push(`Borda: ${item.borderName}`)
+      lines.push(`*${index + 1}. ${item.productName}*`)
+
+      if (itemDisplay.sizeOption) {
+        lines.push(`Tamanho: ${itemDisplay.sizeOption}`)
+      }
+
+      if (itemDisplay.flavorOptions.length > 0) {
+        lines.push(
+          `Sabores: ${itemDisplay.flavorOptions
+            .map((option) => `${formatModifierFraction(option.fraction)}${option.name}`)
+            .join(', ')}`,
+        )
+      }
+
+      if (itemDisplay.borderOption) {
+        lines.push(`Borda: ${itemDisplay.borderOption.name}`)
       }
 
       if ((item.additionalItems?.length ?? 0) > 0) {
@@ -232,7 +247,9 @@ export function CheckoutModal({
     lines.push(`Pagamento: ${paymentLabel}`)
 
     if (paymentMethod === 'MONEY') {
-      lines.push(`Vai pagar com: ${cashAmountNumber > 0 ? formatMoney(cashAmountNumber) : 'Não informado'}`)
+      lines.push(
+        `Vai pagar com: ${cashAmountNumber > 0 ? formatMoney(cashAmountNumber) : 'Não informado'}`,
+      )
       lines.push(`Troco: ${formatMoney(changeAmount)}`)
     }
 
@@ -279,7 +296,10 @@ export function CheckoutModal({
       }
 
       if (!ordersEnabled) {
-        alert(closedMessage ?? 'O estabelecimento esta fora do horario de atendimento.')
+        alert(
+          closedMessage ??
+            'O estabelecimento esta fora do horario de atendimento.',
+        )
         return
       }
 
@@ -295,63 +315,63 @@ export function CheckoutModal({
         return
       }
 
-      if (deliveryType === 'DELIVERY' && hasDeliveryZones && !selectedDeliveryZone) {
-        alert('Esse bairro não está ativo para entrega. Confira o bairro ou escolha retirada.')
+      if (
+        deliveryType === 'DELIVERY' &&
+        hasDeliveryZones &&
+        !selectedDeliveryZone
+      ) {
+        alert(
+          'Esse bairro não está ativo para entrega. Confira o bairro ou escolha retirada.',
+        )
         return
       }
 
-      if (paymentMethod === 'MONEY' && cashAmountNumber > 0 && cashAmountNumber < orderTotal) {
-        alert('O valor em dinheiro precisa ser maior ou igual ao total do pedido.')
+      if (
+        paymentMethod === 'MONEY' &&
+        cashAmountNumber > 0 &&
+        cashAmountNumber < orderTotal
+      ) {
+        alert(
+          'O valor em dinheiro precisa ser maior ou igual ao total do pedido.',
+        )
         return
       }
 
       setSubmitting(true)
 
-      await apiFetch(`/public-orders/${tenantSlug}`, {
+      const paymentType =
+        paymentMethod === 'MONEY'
+          ? 'CASH'
+          : paymentMethod === 'CARD'
+            ? 'CREDIT_CARD'
+            : 'PIX'
+
+      await apiFetch(`/public-orders-v2/${tenantSlug}`, {
         method: 'POST',
-        body: JSON.stringify({
-          customerName: customerName.trim(),
-          customerPhone: customerWhatsapp.trim(),
-          type: deliveryType === 'DELIVERY' ? 'DELIVERY' : 'TAKEAWAY',
-          paymentType:
-            paymentMethod === 'MONEY'
-              ? 'CASH'
-              : paymentMethod === 'CARD'
-                ? 'CREDIT_CARD'
-                : 'PIX',
-          deliveryFee,
-          couponCode,
-          notes: [
-            notes.trim(),
-            paymentNotes,
-            couponCode && discountAmount > 0
-              ? `Cupom: ${couponCode}\nDesconto: -${formatMoney(discountAmount)}`
-              : '',
-            deliveryType === 'DELIVERY'
-              ? `Taxa de entrega: ${deliveryFeeLabel}`
-              : '',
-            fullAddress ? `Endereço: ${fullAddress}` : '',
-          ]
-            .filter(Boolean)
-            .join('\n'),
-          items: items.map((item) => ({
-            productId: item.productId,
-            sizeId: item.sizeId,
-            borderId: item.borderId,
-            quantity: item.quantity,
-            notes: item.notes,
-            additions: (item.additionalItems ?? []).map((additional) => ({
-              productId: additional.productId,
-            })),
-            flavors: item.flavorIds.map((flavorId) => ({
-              flavorId,
-              fraction:
-                item.flavorIds.length > 0
-                  ? 1 / item.flavorIds.length
-                  : 1,
-            })),
-          })),
-        }),
+        body: JSON.stringify(
+          buildPublicOrderV2Payload({
+            customerName: customerName.trim(),
+            customerPhone: customerWhatsapp.trim(),
+            type: deliveryType === 'DELIVERY' ? 'DELIVERY' : 'TAKEAWAY',
+            paymentType,
+            deliveryFee,
+            couponCode,
+            notes: [
+              notes.trim(),
+              paymentNotes,
+              couponCode && discountAmount > 0
+                ? `Cupom: ${couponCode}\nDesconto: -${formatMoney(discountAmount)}`
+                : '',
+              deliveryType === 'DELIVERY'
+                ? `Taxa de entrega: ${deliveryFeeLabel}`
+                : '',
+              fullAddress ? `Endereco: ${fullAddress}` : '',
+            ]
+              .filter(Boolean)
+              .join('\n'),
+            items,
+          }),
+        ),
       })
 
       if (!whatsapp) {
@@ -474,7 +494,10 @@ export function CheckoutModal({
             {deliveryType === 'DELIVERY' && (
               <div className="rounded-3xl border border-slate-200 bg-slate-50 p-4">
                 <div className="mb-3 flex items-center gap-2 text-sm font-semibold text-slate-700">
-                  <MapPin className="h-4 w-4" style={{ color: theme.primary }} />
+                  <MapPin
+                    className="h-4 w-4"
+                    style={{ color: theme.primary }}
+                  />
                   Endereço de entrega
                 </div>
 
@@ -649,7 +672,8 @@ export function CheckoutModal({
                   Observações do pedido (opcional)
                 </label>
                 <p className="mt-1 text-xs font-medium leading-relaxed text-slate-500">
-                  Informe remoções de ingredientes, preferências de preparo ou instruções para entrega.
+                  Informe remoções de ingredientes, preferências de preparo ou
+                  instruções para entrega.
                 </p>
               </div>
 
@@ -668,7 +692,9 @@ export function CheckoutModal({
           <div className="mb-4 space-y-2">
             <div className="flex items-center justify-between text-sm">
               <span className="text-slate-500">Subtotal</span>
-              <strong className="text-slate-800">{formatMoney(totalPrice)}</strong>
+              <strong className="text-slate-800">
+                {formatMoney(totalPrice)}
+              </strong>
             </div>
 
             {couponCode && discountAmount > 0 && (
@@ -686,7 +712,9 @@ export function CheckoutModal({
                 className="text-right"
                 style={{
                   color:
-                    deliveryType === 'DELIVERY' && hasDeliveryZones && !selectedDeliveryZone
+                    deliveryType === 'DELIVERY' &&
+                    hasDeliveryZones &&
+                    !selectedDeliveryZone
                       ? theme.primary
                       : '#334155',
                 }}
@@ -697,17 +725,15 @@ export function CheckoutModal({
 
             <div className="flex items-end justify-between border-t border-slate-100 pt-3">
               <span className="text-sm font-bold text-slate-500">Total</span>
-              <strong
-                className="text-2xl"
-                style={{ color: theme.primary }}
-              >
+              <strong className="text-2xl" style={{ color: theme.primary }}>
                 {formatMoney(orderTotal)}
               </strong>
             </div>
 
             {!ordersEnabled && (
               <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-xs font-bold text-red-700">
-                {closedMessage ?? 'O estabelecimento esta fora do horario de atendimento.'}
+                {closedMessage ??
+                  'O estabelecimento esta fora do horario de atendimento.'}
               </div>
             )}
           </div>

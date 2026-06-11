@@ -1,45 +1,39 @@
-'use client'
+"use client";
 
-import {
-  ArrowLeft,
-  Plus,
-  X,
-} from 'lucide-react'
-import {
-  useEffect,
-  useMemo,
-  useState,
-} from 'react'
+import { ArrowLeft, ImageIcon, Plus, X } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
 
-import { useCart } from './cart-context'
+import { useCart, type CartItem } from "./cart-context";
 import {
   PizzaConfiguratorDrinkSuggestion,
   PizzaConfiguratorDrinkSuggestionFooter,
-} from './pizza-configurator-drink-suggestion'
+} from "./pizza-configurator-drink-suggestion";
 import {
   getFlavorLimitLabel,
   getSizeFlavorDescription,
   normalizeMaxFlavors,
   toNumber,
-} from './pizza-configurator-helpers'
-import { OptionCard } from './pizza-configurator-option-card'
-import { PizzaConfiguratorSummary } from './pizza-configurator-summary'
+} from "./pizza-configurator-helpers";
+import { OptionCard } from "./pizza-configurator-option-card";
+import { PizzaConfiguratorSummary } from "./pizza-configurator-summary";
+import { getV2ContextualOptionPrice } from "./public-menu-mappers";
+import {
+  calculatePriceEngineShadow,
+  comparePriceEngineShadow,
+  type PriceEngineSelectedModifier,
+} from "./price-engine-shadow";
+import type { PublicMenuV2Option } from "./public-menu.types";
 import type {
   PizzaConfiguratorFlowProps,
-  PizzaFlavor,
   SelectionMode,
   Step,
-} from './pizza-configurator.types'
+} from "./pizza-configurator.types";
 
 export function PizzaConfiguratorFlow({
   open,
+  tenantSlug,
   product,
-  initialFlavorId,
-  sizes,
-  flavors,
-  flavorPrices,
-  borders,
-  borderPrices,
+  initialFlavorOptionId,
   additionalProducts = [],
   onClose,
   shouldOfferDrinkSuggestion = false,
@@ -48,181 +42,259 @@ export function PizzaConfiguratorFlow({
   onOpenCart,
   onItemAdded,
 }: PizzaConfiguratorFlowProps) {
-  const { addItem } = useCart()
+  const { addItem } = useCart();
 
-  const [step, setStep] = useState<Step>('size')
-  const [selectedSizeId, setSelectedSizeId] = useState('')
-  const [mode, setMode] = useState<SelectionMode>('whole')
-  const [firstFlavorId, setFirstFlavorId] = useState('')
-  const [extraFlavorIds, setExtraFlavorIds] = useState<string[]>([])
-  const [selectedBorderId, setSelectedBorderId] = useState('')
-  const [selectedAdditionalIds, setSelectedAdditionalIds] = useState<string[]>([])
-  const [notes, setNotes] = useState('')
+  const [step, setStep] = useState<Step>("size");
+  const [selectedSizeOptionId, setSelectedSizeOptionId] = useState("");
+  const [mode, setMode] = useState<SelectionMode>("whole");
+  const firstFlavorOptionId = initialFlavorOptionId ?? "";
+  const [extraFlavorOptionIds, setExtraFlavorOptionIds] = useState<string[]>(
+    [],
+  );
+  const [selectedBorderOptionId, setSelectedBorderOptionId] = useState("");
+  const [selectedAdditionalIds, setSelectedAdditionalIds] = useState<string[]>(
+    [],
+  );
+  const [notes, setNotes] = useState("");
 
-  useEffect(() => {
-    if (!open) return
-
-    setStep('size')
-    setSelectedSizeId('')
-    setMode('whole')
-    setFirstFlavorId(initialFlavorId ?? '')
-    setExtraFlavorIds([])
-    setSelectedBorderId('')
-    setSelectedAdditionalIds([])
-    setNotes('')
-  }, [initialFlavorId, open])
+  const sizeGroup = product?.modifierGroups.find(
+    (group) => group.code === SIZE_GROUP_CODE,
+  );
+  const flavorGroup = product?.modifierGroups.find(
+    (group) => group.code === FLAVOR_GROUP_CODE,
+  );
+  const borderGroup = product?.modifierGroups.find(
+    (group) => group.code === BORDER_GROUP_CODE,
+  );
 
   const productSizes = useMemo(() => {
-    if (!product) return []
+    if (!product || !sizeGroup || !flavorGroup) return [];
 
-    return sizes
-      .filter((size) => {
-        if (size.productId !== product.id) return false
+    const selectedFlavor = flavorGroup.options.find(
+      (option) => option.id === firstFlavorOptionId,
+    );
 
-        if (!firstFlavorId) return true
+    return sizeGroup.options
+      .filter((option) => {
+        if (!option.isActive) return false;
+        if (!selectedFlavor) return true;
 
-        return flavorPrices.some(
-          (price) =>
-            price.productId === product.id &&
-            price.sizeId === size.id &&
-            price.flavorId === firstFlavorId &&
-            toNumber(price.price) > 0,
-        )
+        return getV2ContextualOptionPrice(selectedFlavor, option.id) > 0;
       })
-      .map((size) => ({
-        ...size,
-        maxFlavors: normalizeMaxFlavors(size.maxFlavors),
+      .map((option) => ({
+        ...option,
+        maxFlavors: normalizeMaxFlavors(
+          option.rules.find((rule) => rule.targetGroupId === flavorGroup.id)
+            ?.maxSelections ?? flavorGroup.maxSelections,
+        ),
+        allowBorder: borderGroup
+          ? Boolean(
+              option.rules.find((rule) => rule.targetGroupId === borderGroup.id)
+                ?.isEnabled,
+            )
+          : false,
       }))
-      .slice(0, 4)
-  }, [firstFlavorId, flavorPrices, product, sizes])
+      .slice(0, 4);
+  }, [borderGroup, firstFlavorOptionId, flavorGroup, product, sizeGroup]);
 
   const selectedSize = productSizes.find(
-    (size) => size.id === selectedSizeId,
-  )
+    (option) => option.id === selectedSizeOptionId,
+  );
 
+  const activeFlavorOptions =
+    flavorGroup?.options.filter((option) => option.isActive) ?? [];
   const firstFlavor =
-    flavors.find((flavor) => flavor.id === firstFlavorId) ?? null
+    activeFlavorOptions.find((option) => option.id === firstFlavorOptionId) ??
+    null;
 
-  const extraFlavors = extraFlavorIds
-    .map((flavorId) => flavors.find((flavor) => flavor.id === flavorId))
-    .filter(Boolean) as PizzaFlavor[]
-
-  const availablePrices = useMemo(() => {
-    if (!product || !selectedSize) return []
-
-    return flavorPrices.filter(
-      (price) =>
-        price.productId === product.id &&
-        price.sizeId === selectedSize.id &&
-        toNumber(price.price) > 0,
+  const extraFlavors = extraFlavorOptionIds
+    .map((optionId) =>
+      activeFlavorOptions.find((option) => option.id === optionId),
     )
-  }, [flavorPrices, product, selectedSize])
+    .filter(Boolean) as PublicMenuV2Option[];
 
-  const availableFlavorIds = new Set(
-    availablePrices.map((price) => price.flavorId),
-  )
+  const availableFlavors = selectedSize
+    ? activeFlavorOptions.filter(
+        (option) => getV2ContextualOptionPrice(option, selectedSize.id) > 0,
+      )
+    : [];
 
-  const availableFlavors = flavors.filter((flavor) =>
-    availableFlavorIds.has(flavor.id),
-  )
+  function getFlavorPrice(flavorOptionId: string) {
+    const flavor = activeFlavorOptions.find(
+      (option) => option.id === flavorOptionId,
+    );
 
-  function getFlavorPrice(flavorId: string) {
-    return toNumber(
-      availablePrices.find((price) => price.flavorId === flavorId)
-        ?.price,
-    )
+    return flavor && selectedSize
+      ? getV2ContextualOptionPrice(flavor, selectedSize.id)
+      : 0;
   }
 
-  const selectedFlavorIds = [
-    firstFlavorId,
-    ...(mode === 'multi' ? extraFlavorIds : []),
-  ].filter(Boolean)
+  const selectedFlavorOptionIds = useMemo(
+    () =>
+      [
+        firstFlavorOptionId,
+        ...(mode === "multi" ? extraFlavorOptionIds : []),
+      ].filter(Boolean),
+    [extraFlavorOptionIds, firstFlavorOptionId, mode],
+  );
 
   const unitPrice =
-    selectedFlavorIds.length > 0
-      ? Math.max(...selectedFlavorIds.map(getFlavorPrice))
-      : 0
+    selectedFlavorOptionIds.length > 0
+      ? Math.max(...selectedFlavorOptionIds.map(getFlavorPrice))
+      : 0;
 
+  const activeBorderOptions =
+    borderGroup?.options.filter((option) => option.isActive) ?? [];
   const selectedBorder =
-    borders.find((border) => border.id === selectedBorderId) ?? null
+    activeBorderOptions.find(
+      (option) => option.id === selectedBorderOptionId,
+    ) ?? null;
 
   const selectedBorderPrice =
-    product && selectedSize && selectedBorder
-      ? toNumber(
-          borderPrices.find(
-            (price) =>
-              price.productId === product.id &&
-              price.sizeId === selectedSize.id &&
-              price.borderId === selectedBorder.id,
-          )?.price,
-        )
-      : 0
+    selectedSize && selectedBorder
+      ? getV2ContextualOptionPrice(selectedBorder, selectedSize.id)
+      : 0;
 
   const availableAdditionalProducts = additionalProducts.filter(
     (additional) => toNumber(additional.price) > 0,
-  )
+  );
 
   const selectedAdditionalItems = availableAdditionalProducts.filter(
     (additional) => selectedAdditionalIds.includes(additional.id),
-  )
+  );
 
   const selectedAdditionalTotal = selectedAdditionalItems.reduce(
     (total, additional) => total + toNumber(additional.price),
     0,
-  )
+  );
 
-  const totalPrice = unitPrice + selectedBorderPrice + selectedAdditionalTotal
+  const totalPrice = unitPrice + selectedBorderPrice + selectedAdditionalTotal;
+  const selectedModifierRequest =
+    product && selectedSize && selectedFlavorOptionIds.length > 0
+      ? buildSelectedModifierRequest({
+          productId: product.id,
+          sizeOptionId: selectedSize.id,
+          flavorOptionIds: selectedFlavorOptionIds,
+          borderOptionId: selectedBorder?.id,
+        })
+      : null;
 
-  const hasAdditionalProducts = availableAdditionalProducts.length > 0
+  useEffect(() => {
+    if (!open || !product || totalPrice <= 0) return;
+
+    if (!selectedModifierRequest) return;
+
+    let cancelled = false;
+
+    calculatePriceEngineShadow(tenantSlug, selectedModifierRequest)
+      .then((result) => {
+        if (cancelled) return;
+
+        const comparison = comparePriceEngineShadow({
+          configuredTotalPrice: totalPrice,
+          additionalTotalPrice: selectedAdditionalTotal,
+          priceEngineTotalPrice: result.totalPrice,
+        });
+
+        if (
+          process.env.NODE_ENV !== "production" &&
+          (comparison.diverged || result.validationErrors.length > 0)
+        ) {
+          console.warn("[PriceEngine shadow] divergence detected", {
+            productId: product.id,
+            configuredTotalPrice: totalPrice,
+            priceEngineTotalPrice: result.totalPrice,
+            comparison,
+            validationErrors: result.validationErrors,
+            request: selectedModifierRequest,
+          });
+        }
+      })
+      .catch((error) => {
+        if (process.env.NODE_ENV !== "production") {
+          console.warn("[PriceEngine shadow] price unavailable", error);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    open,
+    product,
+    selectedModifierRequest,
+    selectedAdditionalTotal,
+    selectedBorder?.id,
+    selectedFlavorOptionIds,
+    selectedSize?.id,
+    tenantSlug,
+    totalPrice,
+  ]);
+
+  const hasAdditionalProducts = availableAdditionalProducts.length > 0;
 
   function nextAfterFlavorChoice(size = selectedSize) {
     return size?.allowBorder
-      ? 'borderQuestion'
+      ? "borderQuestion"
       : hasAdditionalProducts
-        ? 'additionalQuestion'
-        : 'summary'
+        ? "additionalQuestion"
+        : "summary";
   }
 
   function nextAfterBorderChoice() {
-    return hasAdditionalProducts ? 'additionalQuestion' : 'summary'
+    return hasAdditionalProducts ? "additionalQuestion" : "summary";
   }
 
   function goBack() {
-    if (step === 'size') {
-      onClose()
-      return
+    if (step === "size") {
+      onClose();
+      return;
     }
 
-    if (step === 'mode') setStep('size')
-    if (step === 'secondFlavor') setStep('mode')
-    if (step === 'borderQuestion') {
-      setStep(mode === 'multi' ? 'secondFlavor' : 'mode')
+    if (step === "mode") setStep("size");
+    if (step === "secondFlavor") setStep("mode");
+    if (step === "borderQuestion") {
+      setStep(mode === "multi" ? "secondFlavor" : "mode");
     }
-    if (step === 'borderSelect') setStep('borderQuestion')
-    if (step === 'additionalQuestion') {
-      setStep(selectedSize?.allowBorder ? 'borderQuestion' : mode === 'multi' ? 'secondFlavor' : 'mode')
+    if (step === "borderSelect") setStep("borderQuestion");
+    if (step === "additionalQuestion") {
+      setStep(
+        selectedSize?.allowBorder
+          ? "borderQuestion"
+          : mode === "multi"
+            ? "secondFlavor"
+            : "mode",
+      );
     }
-    if (step === 'additionalSelect') setStep('additionalQuestion')
-    if (step === 'summary') {
-      setStep(hasAdditionalProducts ? 'additionalQuestion' : selectedSize?.allowBorder ? 'borderQuestion' : mode === 'multi' ? 'secondFlavor' : 'mode')
+    if (step === "additionalSelect") setStep("additionalQuestion");
+    if (step === "summary") {
+      setStep(
+        hasAdditionalProducts
+          ? "additionalQuestion"
+          : selectedSize?.allowBorder
+            ? "borderQuestion"
+            : mode === "multi"
+              ? "secondFlavor"
+              : "mode",
+      );
     }
-    if (step === 'drinkSuggestion') onClose()
+    if (step === "drinkSuggestion") onClose();
   }
 
   function toggleExtraFlavor(flavorId: string) {
-    const maxExtras = Math.max((selectedSize?.maxFlavors ?? 1) - 1, 0)
+    const maxExtras = Math.max((selectedSize?.maxFlavors ?? 1) - 1, 0);
 
-    setExtraFlavorIds((current) => {
+    setExtraFlavorOptionIds((current) => {
       if (current.includes(flavorId)) {
-        return current.filter((id) => id !== flavorId)
+        return current.filter((id) => id !== flavorId);
       }
 
       if (current.length >= maxExtras) {
-        return current
+        return current;
       }
 
-      return [...current, flavorId]
-    })
+      return [...current, flavorId];
+    });
   }
 
   function toggleAdditional(additionalId: string) {
@@ -230,29 +302,32 @@ export function PizzaConfiguratorFlow({
       current.includes(additionalId)
         ? current.filter((id) => id !== additionalId)
         : [...current, additionalId],
-    )
+    );
   }
 
   function addPizzaToCart() {
-    if (!product || !selectedSize || !firstFlavor || totalPrice <= 0) return false
+    if (!product || !selectedSize || !firstFlavor || totalPrice <= 0)
+      return false;
 
-    const flavorNames = [
-      firstFlavor.name,
-      ...(mode === 'multi' ? extraFlavors.map((flavor) => flavor.name) : []),
-    ]
+    if (!selectedModifierRequest) return false;
+
+    const selectedModifiers = withSelectedModifierDisplay(
+      selectedModifierRequest.selectedModifiers,
+      {
+        selectedSize,
+        selectedFlavors: [firstFlavor, ...extraFlavors],
+        selectedBorder: selectedBorder ?? undefined,
+        selectedBorderPrice,
+      },
+    );
 
     addItem({
       id: crypto.randomUUID(),
       productId: product.id,
       productName: product.name,
       imageUrl: heroImage,
-      sizeId: selectedSize.id,
-      sizeName: selectedSize.name,
-      flavorIds: selectedFlavorIds,
-      flavors: flavorNames,
-      borderId: selectedBorder?.id,
-      borderName: selectedBorder?.name,
-      borderPrice: selectedBorderPrice,
+      selectedModifiers,
+      displayGroups: buildCartDisplayGroups(selectedModifiers),
       additionalItems: selectedAdditionalItems.map((additional) => ({
         productId: additional.id,
         name: additional.name,
@@ -262,35 +337,33 @@ export function PizzaConfiguratorFlow({
       unitPrice,
       totalPrice,
       notes: notes.trim() || undefined,
-    })
+    });
 
-    return true
+    return true;
   }
 
   function handleFinish() {
-    const added = addPizzaToCart()
+    const added = addPizzaToCart();
 
     if (added) {
       onItemAdded?.({
-        name: firstFlavor?.name || product?.name || 'Item',
+        name: firstFlavor?.name || product?.name || "Item",
         imageUrl: heroImage,
-      })
+      });
 
       if (shouldOfferDrinkSuggestion) {
-        onDrinkSuggestionShown?.()
-        setStep('drinkSuggestion')
-        return
+        onDrinkSuggestionShown?.();
+        setStep("drinkSuggestion");
+        return;
       }
     }
 
-    onClose()
+    onClose();
   }
 
-  if (!open || !product) return null
+  if (!open || !product) return null;
 
-  const heroImage =
-    firstFlavor?.imageUrl ||
-    'https://images.unsplash.com/photo-1513104890138-7c749659a591?w=500&q=90'
+  const heroImage = firstFlavor?.imageUrl || product.imageUrl || undefined;
 
   return (
     <div className="fixed inset-0 z-[70] flex items-end justify-center bg-black/70 font-sans md:items-center">
@@ -307,10 +380,12 @@ export function PizzaConfiguratorFlow({
           <div className="min-w-0 px-3 text-center">
             <h2 className="truncate text-sm font-black text-slate-950">
               {firstFlavor?.name || product.name}
-              {selectedSize ? ` · ${selectedSize.name}` : ''}
+              {selectedSize ? ` · ${selectedSize.name}` : ""}
             </h2>
             <p className="truncate text-xs font-semibold text-slate-500">
-              {firstFlavor?.description || product.description || 'Monte seu pedido'}
+              {firstFlavor?.description ||
+                product.description ||
+                "Monte seu pedido"}
             </p>
           </div>
 
@@ -325,11 +400,17 @@ export function PizzaConfiguratorFlow({
 
         <div className="overflow-y-auto px-4 py-5">
           <div className="mb-5 flex items-center gap-3">
-            <img
-              src={heroImage}
-              alt={firstFlavor?.name || product.name}
-              className="h-20 w-20 rounded-2xl object-cover shadow-sm"
-            />
+            {heroImage ? (
+              <img
+                src={heroImage}
+                alt={firstFlavor?.name || product.name}
+                className="h-20 w-20 rounded-2xl object-cover shadow-sm"
+              />
+            ) : (
+              <div className="flex h-20 w-20 items-center justify-center rounded-2xl bg-slate-100 text-slate-400">
+                <ImageIcon className="h-7 w-7" aria-hidden="true" />
+              </div>
+            )}
             <div>
               <p className="text-lg font-black text-slate-950">
                 {firstFlavor?.name || product.name}
@@ -340,7 +421,7 @@ export function PizzaConfiguratorFlow({
             </div>
           </div>
 
-          {step === 'size' && (
+          {step === "size" && (
             <section>
               <h3 className="mb-4 text-lg font-black text-slate-950">
                 Qual tamanho deseja?
@@ -352,16 +433,9 @@ export function PizzaConfiguratorFlow({
               ) : (
                 <div className="grid gap-3">
                   {productSizes.map((size) => {
-                    const price = firstFlavorId
-                      ? toNumber(
-                          flavorPrices.find(
-                            (item) =>
-                              item.productId === product.id &&
-                              item.sizeId === size.id &&
-                              item.flavorId === firstFlavorId,
-                          )?.price,
-                        )
-                      : 0
+                    const price = firstFlavor
+                      ? getV2ContextualOptionPrice(firstFlavor, size.id)
+                      : 0;
 
                     return (
                       <OptionCard
@@ -369,37 +443,39 @@ export function PizzaConfiguratorFlow({
                         title={size.name}
                         description={getSizeFlavorDescription(size.maxFlavors)}
                         price={price}
-                        selected={selectedSizeId === size.id}
+                        selected={selectedSizeOptionId === size.id}
                         onClick={() => {
-                          setSelectedSizeId(size.id)
-                          setExtraFlavorIds([])
-                          setSelectedBorderId('')
-                          setStep('mode')
+                          setSelectedSizeOptionId(size.id);
+                          setExtraFlavorOptionIds([]);
+                          setSelectedBorderOptionId("");
+                          setStep("mode");
                         }}
                       />
-                    )
+                    );
                   })}
                 </div>
               )}
             </section>
           )}
 
-          {step === 'mode' && selectedSize && (
+          {step === "mode" && selectedSize && (
             <section>
               <h3 className="mb-4 text-lg font-black text-slate-950">
                 {selectedSize.maxFlavors > 1
-                  ? 'Como deseja montar?'
-                  : 'Pizza inteira'}
+                  ? "Como deseja montar?"
+                  : "Pizza inteira"}
               </h3>
-              <div className={`grid gap-3 ${selectedSize.maxFlavors > 1 ? 'grid-cols-2' : 'grid-cols-1'}`}>
+              <div
+                className={`grid gap-3 ${selectedSize.maxFlavors > 1 ? "grid-cols-2" : "grid-cols-1"}`}
+              >
                 <OptionCard
                   title="Inteira"
                   description="1 sabor"
-                  selected={mode === 'whole'}
+                  selected={mode === "whole"}
                   onClick={() => {
-                    setMode('whole')
-                    setExtraFlavorIds([])
-                    setStep(nextAfterFlavorChoice(selectedSize))
+                    setMode("whole");
+                    setExtraFlavorOptionIds([]);
+                    setStep(nextAfterFlavorChoice(selectedSize));
                   }}
                 />
 
@@ -407,10 +483,10 @@ export function PizzaConfiguratorFlow({
                   <OptionCard
                     title={getFlavorLimitLabel(selectedSize.maxFlavors)}
                     description={`Escolha ate ${selectedSize.maxFlavors} sabores`}
-                    selected={mode === 'multi'}
+                    selected={mode === "multi"}
                     onClick={() => {
-                      setMode('multi')
-                      setStep('secondFlavor')
+                      setMode("multi");
+                      setStep("secondFlavor");
                     }}
                   />
                 )}
@@ -418,33 +494,35 @@ export function PizzaConfiguratorFlow({
             </section>
           )}
 
-          {step === 'secondFlavor' && selectedSize && (
+          {step === "secondFlavor" && selectedSize && (
             <section>
               <h3 className="mb-4 text-lg font-black text-slate-950">
                 Escolha os sabores
               </h3>
               <p className="mb-4 text-sm font-semibold text-slate-500">
-                Voce pode escolher mais {selectedSize.maxFlavors - 1} sabor(es). Total selecionado: {selectedFlavorIds.length}/{selectedSize.maxFlavors}.
+                Voce pode escolher mais {selectedSize.maxFlavors - 1} sabor(es).
+                Total selecionado: {selectedFlavorOptionIds.length}/
+                {selectedSize.maxFlavors}.
               </p>
               <div className="grid gap-3">
                 {availableFlavors
-                  .filter((flavor) => flavor.id !== firstFlavorId)
+                  .filter((flavor) => flavor.id !== firstFlavorOptionId)
                   .map((flavor) => (
                     <OptionCard
                       key={flavor.id}
                       title={flavor.name}
                       description={flavor.description ?? undefined}
                       price={getFlavorPrice(flavor.id)}
-                      selected={extraFlavorIds.includes(flavor.id)}
+                      selected={extraFlavorOptionIds.includes(flavor.id)}
                       onClick={() => {
-                        toggleExtraFlavor(flavor.id)
+                        toggleExtraFlavor(flavor.id);
                       }}
                     />
                   ))}
               </div>
               <button
                 type="button"
-                disabled={extraFlavorIds.length === 0}
+                disabled={extraFlavorOptionIds.length === 0}
                 onClick={() => setStep(nextAfterFlavorChoice(selectedSize))}
                 className="mt-4 h-12 w-full rounded-2xl bg-red-700 text-sm font-black text-white shadow-lg disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-400"
               >
@@ -453,7 +531,7 @@ export function PizzaConfiguratorFlow({
             </section>
           )}
 
-          {step === 'borderQuestion' && (
+          {step === "borderQuestion" && (
             <section>
               <h3 className="mb-4 text-lg font-black text-slate-950">
                 Deseja borda recheada?
@@ -462,54 +540,55 @@ export function PizzaConfiguratorFlow({
                 <OptionCard
                   title="Sim, quero borda"
                   description="Escolher sabor da borda"
-                  onClick={() => setStep('borderSelect')}
+                  onClick={() => setStep("borderSelect")}
                 />
                 <OptionCard
                   title="Nao, obrigado"
                   description="Prefiro sem borda"
                   onClick={() => {
-                    setSelectedBorderId('')
-                    setStep(nextAfterBorderChoice())
+                    setSelectedBorderOptionId("");
+                    setStep(nextAfterBorderChoice());
                   }}
                 />
               </div>
             </section>
           )}
 
-          {step === 'borderSelect' && selectedSize && (
+          {step === "borderSelect" && selectedSize && (
             <section>
               <h3 className="mb-4 text-lg font-black text-slate-950">
                 Escolha sua borda recheada
               </h3>
               <div className="grid gap-3">
-                {borders.map((border) => {
-                  const price = toNumber(
-                    borderPrices.find(
-                      (item) =>
-                        item.productId === product.id &&
-                        item.sizeId === selectedSize.id &&
-                        item.borderId === border.id,
-                    )?.price,
+                {activeBorderOptions
+                  .filter(
+                    (border) =>
+                      getV2ContextualOptionPrice(border, selectedSize.id) > 0,
                   )
+                  .map((border) => {
+                    const price = getV2ContextualOptionPrice(
+                      border,
+                      selectedSize.id,
+                    );
 
-                  return (
-                    <OptionCard
-                      key={border.id}
-                      title={border.name}
-                      price={price}
-                      selected={selectedBorderId === border.id}
-                      onClick={() => {
-                        setSelectedBorderId(border.id)
-                        setStep(nextAfterBorderChoice())
-                      }}
-                    />
-                  )
-                })}
+                    return (
+                      <OptionCard
+                        key={border.id}
+                        title={border.name}
+                        price={price}
+                        selected={selectedBorderOptionId === border.id}
+                        onClick={() => {
+                          setSelectedBorderOptionId(border.id);
+                          setStep(nextAfterBorderChoice());
+                        }}
+                      />
+                    );
+                  })}
               </div>
             </section>
           )}
 
-          {step === 'additionalQuestion' && (
+          {step === "additionalQuestion" && (
             <section>
               <h3 className="mb-4 text-lg font-black text-slate-950">
                 Deseja adicionar algum extra?
@@ -518,21 +597,21 @@ export function PizzaConfiguratorFlow({
                 <OptionCard
                   title="Sim, quero adicionais"
                   description="Escolher bacon, cheddar e outros extras"
-                  onClick={() => setStep('additionalSelect')}
+                  onClick={() => setStep("additionalSelect")}
                 />
                 <OptionCard
                   title="Nao, obrigado"
                   description="Continuar sem adicionais"
                   onClick={() => {
-                    setSelectedAdditionalIds([])
-                    setStep('summary')
+                    setSelectedAdditionalIds([]);
+                    setStep("summary");
                   }}
                 />
               </div>
             </section>
           )}
 
-          {step === 'additionalSelect' && (
+          {step === "additionalSelect" && (
             <section>
               <h3 className="mb-4 text-lg font-black text-slate-950">
                 Escolha seus adicionais
@@ -552,7 +631,7 @@ export function PizzaConfiguratorFlow({
 
               <button
                 type="button"
-                onClick={() => setStep('summary')}
+                onClick={() => setStep("summary")}
                 className="mt-4 h-12 w-full rounded-2xl bg-red-700 text-sm font-black text-white shadow-lg"
               >
                 Continuar
@@ -560,31 +639,29 @@ export function PizzaConfiguratorFlow({
             </section>
           )}
 
-          {step === 'summary' && (
+          {step === "summary" && (
             <PizzaConfiguratorSummary
               productName={product.name}
-              sizeName={selectedSize?.name}
-              flavorNames={[
-                firstFlavor?.name ?? '',
+              sizeOptionLabel={selectedSize?.name}
+              flavorOptionLabels={[
+                firstFlavor?.name ?? "",
                 ...extraFlavors.map((flavor) => flavor.name),
               ]}
-              borderName={selectedBorder?.name}
+              borderOptionLabel={selectedBorder?.name}
               additionalNames={selectedAdditionalItems.map(
                 (additional) => additional.name,
               )}
-              isMulti={mode === 'multi'}
+              isMulti={mode === "multi"}
               notes={notes}
               onNotesChange={setNotes}
               totalPrice={totalPrice}
             />
           )}
 
-          {step === 'drinkSuggestion' && (
-            <PizzaConfiguratorDrinkSuggestion />
-          )}
+          {step === "drinkSuggestion" && <PizzaConfiguratorDrinkSuggestion />}
         </div>
 
-        {step === 'summary' && (
+        {step === "summary" && (
           <footer className="border-t border-slate-200 bg-white p-4">
             <button
               type="button"
@@ -597,20 +674,135 @@ export function PizzaConfiguratorFlow({
           </footer>
         )}
 
-        {step === 'drinkSuggestion' && (
+        {step === "drinkSuggestion" && (
           <PizzaConfiguratorDrinkSuggestionFooter
             onViewDrinks={() => {
-              onClose()
-              onViewDrinks()
+              onClose();
+              onViewDrinks();
             }}
             onOpenCart={() => {
-              onClose()
-              onOpenCart()
+              onClose();
+              onOpenCart();
             }}
           />
         )}
-
       </div>
     </div>
-  )
+  );
+}
+
+const SIZE_GROUP_CODE = "pizza_size";
+const FLAVOR_GROUP_CODE = "pizza_flavor";
+const BORDER_GROUP_CODE = "pizza_border";
+
+type ConfiguratorSizeOption = PublicMenuV2Option & {
+  maxFlavors: number;
+  allowBorder: boolean;
+};
+
+function buildSelectedModifierRequest(input: {
+  productId: string;
+  sizeOptionId: string;
+  flavorOptionIds: string[];
+  borderOptionId?: string;
+}) {
+  const fraction =
+    input.flavorOptionIds.length > 1 ? 1 / input.flavorOptionIds.length : 1;
+  const selectedModifiers: PriceEngineSelectedModifier[] = [
+    {
+      groupCode: SIZE_GROUP_CODE,
+      optionId: input.sizeOptionId,
+    },
+    ...input.flavorOptionIds.map((optionId) => ({
+      groupCode: FLAVOR_GROUP_CODE,
+      optionId,
+      dependsOnOptionId: input.sizeOptionId,
+      fraction,
+    })),
+  ];
+
+  if (input.borderOptionId) {
+    selectedModifiers.push({
+      groupCode: BORDER_GROUP_CODE,
+      optionId: input.borderOptionId,
+      dependsOnOptionId: input.sizeOptionId,
+    });
+  }
+
+  return {
+    productId: input.productId,
+    quantity: 1,
+    selectedModifiers,
+  };
+}
+
+function withSelectedModifierDisplay(
+  modifiers: PriceEngineSelectedModifier[],
+  input: {
+    selectedSize: ConfiguratorSizeOption;
+    selectedFlavors: PublicMenuV2Option[];
+    selectedBorder?: PublicMenuV2Option;
+    selectedBorderPrice: number;
+  },
+): CartItem["selectedModifiers"] {
+  let flavorIndex = -1;
+
+  return modifiers.map((modifier) => {
+    if (modifier.groupCode === SIZE_GROUP_CODE) {
+      return {
+        ...modifier,
+        groupName: "Tamanho",
+        optionName: input.selectedSize.name,
+      };
+    }
+
+    if (modifier.groupCode === FLAVOR_GROUP_CODE) {
+      flavorIndex += 1;
+      const flavor = input.selectedFlavors[flavorIndex];
+
+      return {
+        ...modifier,
+        groupName: "Sabores",
+        optionName: flavor?.name,
+      };
+    }
+
+    if (modifier.groupCode === BORDER_GROUP_CODE) {
+      return {
+        ...modifier,
+        groupName: "Borda",
+        optionName: input.selectedBorder?.name,
+        unitPriceDelta: input.selectedBorderPrice,
+        totalDelta: input.selectedBorderPrice,
+      };
+    }
+
+    return modifier;
+  });
+}
+
+function buildCartDisplayGroups(
+  modifiers: CartItem["selectedModifiers"],
+): CartItem["displayGroups"] {
+  const groups = new Map<
+    string,
+    NonNullable<CartItem["displayGroups"]>[number]
+  >();
+
+  for (const modifier of modifiers) {
+    const group = groups.get(modifier.groupCode) ?? {
+      code: modifier.groupCode,
+      name: modifier.groupName ?? modifier.groupCode,
+      options: [],
+    };
+
+    group.options.push({
+      name: modifier.optionName ?? "Opcao",
+      fraction: modifier.fraction,
+      price: modifier.totalDelta,
+    });
+    groups.set(modifier.groupCode, group);
+  }
+
+  return Array.from(groups.values());
 }

@@ -27,7 +27,7 @@ export function OptionCard({
           : 'border-slate-200 bg-white hover:border-red-200'
       }`}
     >
-      <div>
+      <div className="min-w-0 flex-1">
         <p className="text-sm font-black text-slate-950">{title}</p>
         {description && (
           <p className="mt-1 text-xs font-semibold text-slate-500">
@@ -36,13 +36,17 @@ export function OptionCard({
         )}
       </div>
 
-      {typeof price === 'number' && (
-        <span className="text-sm font-black text-red-700">
-          {formatMoney(price)}
-        </span>
-      )}
+      <div className="flex shrink-0 items-center justify-end gap-3">
+        {typeof price === 'number' && (
+          <span className="min-w-24 whitespace-nowrap text-right text-sm font-black text-red-700">
+            {formatMoney(price)}
+          </span>
+        )}
 
-      {selected && <Check className="h-5 w-5 text-red-700" />}
+        <span className="flex h-5 w-5 shrink-0 items-center justify-center">
+          {selected && <Check className="h-5 w-5 text-red-700" />}
+        </span>
+      </div>
     </button>
   )
 }

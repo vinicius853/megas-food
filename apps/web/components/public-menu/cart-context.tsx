@@ -14,15 +14,27 @@ export type CartItem = {
   productName: string
   imageUrl?: string
 
-  sizeId?: string
-  sizeName?: string
+  selectedModifiers: {
+    groupCode: string
+    groupName?: string
+    optionId: string
+    optionName?: string
+    dependsOnOptionId?: string
+    quantity?: number
+    fraction?: number
+    unitPriceDelta?: number
+    totalDelta?: number
+  }[]
 
-  flavorIds: string[]
-  flavors: string[]
-
-  borderId?: string
-  borderName?: string
-  borderPrice?: number
+  displayGroups: {
+    code: string
+    name: string
+    options: Array<{
+      name: string
+      fraction?: number
+      price?: number
+    }>
+  }[]
 
   additionalItems?: {
     productId: string
@@ -65,10 +77,14 @@ function recalculateItemTotal(item: CartItem) {
     (total, additional) => total + additional.price,
     0,
   )
+  const borderModifierTotal =
+    item.selectedModifiers
+      .filter((modifier) => modifier.groupCode === 'pizza_border')
+      .reduce((total, modifier) => total + (modifier.totalDelta ?? 0), 0)
 
   return {
     ...item,
-    totalPrice: item.unitPrice + (item.borderPrice ?? 0) + additionalTotal,
+    totalPrice: item.unitPrice + borderModifierTotal + additionalTotal,
   }
 }
 
@@ -130,11 +146,14 @@ export function CartProvider({
 
         return {
           ...item,
-          flavorIds: item.flavorIds.filter(
-            (_, index) => index !== flavorIndex,
+          selectedModifiers: removeFlavorModifier(
+            item.selectedModifiers,
+            flavorIndex,
           ),
-          flavors: item.flavors.filter(
-            (_, index) => index !== flavorIndex,
+          displayGroups: removeDisplayGroupOption(
+            item.displayGroups,
+            'pizza_flavor',
+            flavorIndex,
           ),
         }
       }),
@@ -147,9 +166,12 @@ export function CartProvider({
         item.id === itemId
           ? recalculateItemTotal({
               ...item,
-              borderId: undefined,
-              borderName: undefined,
-              borderPrice: 0,
+              selectedModifiers: item.selectedModifiers.filter(
+                (modifier) => modifier.groupCode !== 'pizza_border',
+              ),
+              displayGroups: item.displayGroups.filter(
+                (group) => group.code !== 'pizza_border',
+              ),
             })
           : item,
       ),
@@ -220,6 +242,40 @@ export function CartProvider({
       {children}
     </CartContext.Provider>
   )
+}
+
+function removeFlavorModifier(
+  modifiers: CartItem['selectedModifiers'],
+  flavorIndex: number,
+) {
+  let currentFlavorIndex = -1
+
+  return modifiers.filter((modifier) => {
+    if (modifier.groupCode !== 'pizza_flavor') {
+      return true
+    }
+
+    currentFlavorIndex += 1
+
+    return currentFlavorIndex !== flavorIndex
+  })
+}
+
+function removeDisplayGroupOption(
+  groups: CartItem['displayGroups'],
+  groupCode: string,
+  optionIndex: number,
+) {
+  return groups
+    .map((group) =>
+      group.code === groupCode
+        ? {
+            ...group,
+            options: group.options.filter((_, index) => index !== optionIndex),
+          }
+        : group,
+    )
+    .filter((group) => group.options.length > 0)
 }
 
 export function useCart() {

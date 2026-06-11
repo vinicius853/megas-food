@@ -5,63 +5,15 @@ import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 
 import { renderOrderActions } from './order-actions'
+import { normalizeOrderItemForDisplay } from './order-item-display'
 import { getOrderDisplayNumber } from './order-display-number'
-import {
-  formatDateTime,
-  formatMoney,
-  printOrder,
-} from './print-order'
-
-type OrderStatus =
-  | 'PENDING'
-  | 'CONFIRMED'
-  | 'READY'
-  | 'OUT_FOR_DELIVERY'
-  | 'DELIVERED'
-  | 'CANCELLED'
-
-type OrderType = 'ONLINE' | 'TAKEAWAY' | 'DELIVERY'
-
-type OrderItemFlavor = {
-  id: string
-  flavorName: string
-  fraction: string | number
-}
-
-type OrderItem = {
-  id: string
-  name: string
-  sizeName: string
-  borderName?: string | null
-  quantity: number
-  unitPrice: string | number
-  total: string | number
-  notes?: string | null
-  flavors: OrderItemFlavor[]
-}
-
-type Order = {
-  id: string
-  displayNumber?: string | number | null
-  customerName?: string | null
-  customerPhone?: string | null
-  type: OrderType
-  status: OrderStatus
-  subtotal: string | number
-  deliveryFee: string | number
-  total: string | number
-  notes?: string | null
-  createdAt: string
-  items: OrderItem[]
-}
+import { formatDateTime, formatMoney, printOrder } from './print-order'
+import type { Order, OrderItem, OrderStatus, OrderType } from './types'
 
 type OrderModalProps = {
   order: Order
   onClose: () => void
-  updateStatus: (
-    orderId: string,
-    status: OrderStatus,
-  ) => Promise<void>
+  updateStatus: (orderId: string, status: OrderStatus) => Promise<void>
   statusLabels: Record<OrderStatus, string>
   statusVariants: Record<
     OrderStatus,
@@ -151,14 +103,11 @@ export function OrderModal({
         <div className="flex-1 overflow-y-auto p-4 sm:p-5">
           <div className="grid gap-4 md:grid-cols-2">
             <Card className="p-4">
-              <h3 className="font-semibold text-slate-900">
-                Cliente
-              </h3>
+              <h3 className="font-semibold text-slate-900">Cliente</h3>
 
               <div className="mt-3 space-y-2 text-sm text-slate-600">
                 <p>
-                  <strong>Nome:</strong>{' '}
-                  {order.customerName || 'Nao informado'}
+                  <strong>Nome:</strong> {order.customerName || 'Nao informado'}
                 </p>
 
                 <p>
@@ -167,31 +116,25 @@ export function OrderModal({
                 </p>
 
                 <p>
-                  <strong>Canal:</strong>{' '}
-                  {typeLabels[order.type]}
+                  <strong>Canal:</strong> {typeLabels[order.type]}
                 </p>
               </div>
             </Card>
 
             <Card className="p-4">
-              <h3 className="font-semibold text-slate-900">
-                Valores
-              </h3>
+              <h3 className="font-semibold text-slate-900">Valores</h3>
 
               <div className="mt-3 space-y-2 text-sm text-slate-600">
                 <p>
-                  <strong>Subtotal:</strong>{' '}
-                  {formatMoney(order.subtotal)}
+                  <strong>Subtotal:</strong> {formatMoney(order.subtotal)}
                 </p>
 
                 <p>
-                  <strong>Entrega:</strong>{' '}
-                  {formatMoney(order.deliveryFee)}
+                  <strong>Entrega:</strong> {formatMoney(order.deliveryFee)}
                 </p>
 
                 <p className="text-base text-slate-900">
-                  <strong>Total:</strong>{' '}
-                  {formatMoney(order.total)}
+                  <strong>Total:</strong> {formatMoney(order.total)}
                 </p>
               </div>
             </Card>
@@ -210,9 +153,7 @@ export function OrderModal({
           )}
 
           <Card className="mt-4 p-4">
-            <h3 className="font-semibold text-slate-900">
-              Itens do pedido
-            </h3>
+            <h3 className="font-semibold text-slate-900">Itens do pedido</h3>
 
             <div className="mt-4 space-y-4">
               {order.items.map((item) => (
@@ -225,9 +166,7 @@ export function OrderModal({
         <div className="shrink-0 border-t border-slate-200 bg-white p-3 sm:p-5">
           <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
             <div>
-              <p className="text-sm text-slate-500">
-                Total do pedido
-              </p>
+              <p className="text-sm text-slate-500">Total do pedido</p>
 
               <strong className="text-xl text-slate-900 sm:text-2xl">
                 {formatMoney(order.total)}
@@ -270,54 +209,74 @@ export function OrderModal({
 }
 
 function OrderItemDetails({ item }: { item: OrderItem }) {
+  const normalized = normalizeOrderItemForDisplay(item)
   const parsedNotes = splitItemNotes(item.notes)
 
   return (
     <div className="rounded-2xl border border-slate-200 p-4">
-                  <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                    <div className="min-w-0">
-                      <h4 className="font-semibold text-slate-900">
-                        {item.quantity}x {item.name}
-                      </h4>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div className="min-w-0">
+          <h4 className="font-semibold text-slate-900">
+            {normalized.quantity}x {normalized.name}
+          </h4>
 
-                      {item.sizeName && (
-                        <p className="mt-1 text-sm text-slate-500">
-                          Tamanho: {item.sizeName}
-                        </p>
-                      )}
-
-                      {item.borderName && (
-                        <p className="mt-1 text-sm text-slate-500">
-                          Borda: {item.borderName}
-                        </p>
-                      )}
-
-                      {parsedNotes.additions.length > 0 && (
-                        <p className="mt-1 text-sm text-slate-500">
-                          Adicionais: {parsedNotes.additions.join(', ')}
-                        </p>
-                      )}
-
-                      {item.flavors.length > 0 && (
-                        <p className="mt-1 text-sm text-slate-500">
-                          Sabores:{' '}
-                          {item.flavors
-                            .map((flavor) => flavor.flavorName)
-                            .join(', ')}
-                        </p>
-                      )}
-
-                      {parsedNotes.observations && (
-                        <p className="mt-1 text-sm text-slate-500">
-                          Obs: {parsedNotes.observations}
-                        </p>
-                      )}
-                    </div>
-
-                    <strong className="shrink-0 text-right text-slate-900 sm:text-left">
-                      {formatMoney(item.total)}
-                    </strong>
-                  </div>
+          <div className="mt-2 space-y-2">
+            {normalized.groups.map((group) => (
+              <div
+                key={`${group.groupCode ?? group.groupName}-${group.groupName}`}
+              >
+                <p className="text-sm font-semibold text-slate-700">
+                  {group.groupName}:
+                </p>
+                <div className="mt-1 space-y-1">
+                  {group.options.map((option) => (
+                    <p
+                      key={`${option.id}-${option.optionName}`}
+                      className="text-sm text-slate-500"
+                    >
+                      * {formatFraction(option.fraction)}
+                      {option.optionName}
+                      {formatModifierDelta(option.totalDelta)}
+                    </p>
+                  ))}
                 </div>
+              </div>
+            ))}
+          </div>
+
+          {parsedNotes.additions.length > 0 && (
+            <p className="mt-2 text-sm text-slate-500">
+              Adicionais: {parsedNotes.additions.join(', ')}
+            </p>
+          )}
+
+          {parsedNotes.observations && (
+            <p className="mt-2 text-sm text-slate-500">
+              Obs: {parsedNotes.observations}
+            </p>
+          )}
+        </div>
+
+        <strong className="shrink-0 text-right text-slate-900 sm:text-left">
+          {formatMoney(normalized.total)}
+        </strong>
+      </div>
+    </div>
   )
+}
+
+function formatFraction(value?: number | null) {
+  if (!value || value === 1) return ''
+
+  if (value === 0.5) return '1/2 '
+  if (value === 0.33 || value === 0.333) return '1/3 '
+  if (value === 0.25) return '1/4 '
+
+  return `${value} `
+}
+
+function formatModifierDelta(value: number) {
+  if (value <= 0) return ''
+
+  return ` (+ ${formatMoney(value)})`
 }

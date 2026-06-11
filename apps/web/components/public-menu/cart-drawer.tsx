@@ -12,7 +12,7 @@ import {
 } from 'lucide-react'
 
 import { apiFetch } from '@/lib/api'
-import { useCart } from './cart-context'
+import { useCart, type CartItem } from './cart-context'
 import { CheckoutModal } from './checkout-modal'
 
 type CartDrawerProps = {
@@ -81,15 +81,88 @@ function formatMoney(value: unknown) {
 }
 
 function itemSubtitle(item: {
-  sizeName?: string
-  flavors: string[]
+  sizeOption?: string
+  flavorOptions: string[]
 }) {
   const details = [
-    item.sizeName,
-    item.flavors.length > 0 ? item.flavors.join(' / ') : '',
+    item.sizeOption,
+    item.flavorOptions.length > 0 ? item.flavorOptions.join(' / ') : '',
   ].filter(Boolean)
 
   return details.join(' · ')
+}
+
+type CartItemDisplay = {
+  sizeOption?: string
+  flavorOptions: Array<{
+    name: string
+    fraction?: number
+  }>
+  borderOption?: {
+    name: string
+    price?: number
+  }
+}
+
+function itemDisplaySubtitle(display: CartItemDisplay) {
+  return itemSubtitle({
+    sizeOption: display.sizeOption,
+    flavorOptions: display.flavorOptions.map((option) => option.name),
+  })
+}
+
+function buildCartItemDisplay(item: CartItem): CartItemDisplay {
+  const sizeGroup = item.displayGroups.find((group) => group.code === 'pizza_size')
+  const flavorGroup = item.displayGroups.find((group) => group.code === 'pizza_flavor')
+  const borderGroup = item.displayGroups.find((group) => group.code === 'pizza_border')
+
+  if (sizeGroup || flavorGroup || borderGroup) {
+    return {
+      sizeOption: sizeGroup?.options[0]?.name,
+      flavorOptions:
+        flavorGroup?.options.map((option) => ({
+          name: option.name,
+          fraction: option.fraction,
+        })) ?? [],
+      borderOption: borderGroup?.options[0]
+        ? {
+            name: borderGroup.options[0].name,
+            price: borderGroup.options[0].price,
+          }
+        : undefined,
+    }
+  }
+
+  const modifiers = item.selectedModifiers
+  const sizeModifier = modifiers.find((modifier) => modifier.groupCode === 'pizza_size')
+  const flavorModifiers = modifiers.filter((modifier) => modifier.groupCode === 'pizza_flavor')
+  const borderModifier = modifiers.find((modifier) => modifier.groupCode === 'pizza_border')
+
+  return {
+    sizeOption: sizeModifier?.optionName,
+    flavorOptions:
+      flavorModifiers.length > 0
+        ? flavorModifiers.map((modifier) => ({
+            name: modifier.optionName ?? 'Sabor',
+            fraction: modifier.fraction,
+          }))
+        : [],
+    borderOption:
+      borderModifier?.optionName
+        ? {
+            name: borderModifier.optionName,
+            price: borderModifier.totalDelta,
+          }
+        : undefined,
+  }
+}
+
+function formatFraction(fraction?: number) {
+  if (!fraction || fraction >= 1) return ''
+
+  const roundedDenominator = Math.round(1 / fraction)
+
+  return roundedDenominator > 1 ? `1/${roundedDenominator} ` : ''
 }
 
 function normalizeCouponMessage(message: string) {
@@ -319,7 +392,11 @@ export function CartDrawer({
               </div>
             ) : (
               <div className="space-y-2">
-                {items.map((item) => (
+                {items.map((item) => {
+                  const itemDisplay = buildCartItemDisplay(item)
+                  const subtitle = itemDisplaySubtitle(itemDisplay)
+
+                  return (
                   <article
                     key={item.id}
                     className="rounded-2xl border border-slate-200 bg-white p-3 shadow-sm"
@@ -354,9 +431,9 @@ export function CartDrawer({
                             <h3 className="truncate text-sm font-black leading-tight text-slate-950">
                               {item.productName}
                             </h3>
-                            {itemSubtitle(item) && (
+                            {subtitle && (
                               <p className="mt-0.5 line-clamp-1 text-xs font-semibold leading-relaxed text-slate-500">
-                                {itemSubtitle(item)}
+                                {subtitle}
                               </p>
                             )}
                           </div>
@@ -403,16 +480,16 @@ export function CartDrawer({
                       </div>
                     </div>
 
-                    {item.flavors.length > 0 && (
+                    {itemDisplay.flavorOptions.length > 0 && (
                       <div className="mt-3 border-t border-slate-100 pt-3">
                         <p className="mb-1.5 text-[11px] font-black uppercase tracking-wide text-slate-500">
-                          Sabores ({item.flavors.length})
+                          Sabores ({itemDisplay.flavorOptions.length})
                         </p>
 
                         <div className="space-y-1.5">
-                          {item.flavors.map((flavor, index) => (
+                          {itemDisplay.flavorOptions.map((option, index) => (
                             <div
-                              key={`${item.id}-${flavor}-${index}`}
+                              key={`${item.id}-${option.name}-${index}`}
                               className="flex items-center justify-between gap-3 text-sm"
                             >
                               <span className="flex items-center gap-2 font-semibold text-slate-700">
@@ -420,10 +497,10 @@ export function CartDrawer({
                                   className="h-1.5 w-1.5 rounded-full"
                                   style={{ backgroundColor: theme.primary }}
                                 />
-                                {flavor}
+                                {formatFraction(option.fraction)}{option.name}
                               </span>
 
-                              {item.flavors.length > 1 && (
+                              {itemDisplay.flavorOptions.length > 1 && (
                                 <button
                                   type="button"
                                   onClick={() => removeFlavor(item.id, index)}
@@ -438,7 +515,7 @@ export function CartDrawer({
                       </div>
                     )}
 
-                    {item.borderName && (
+                    {itemDisplay.borderOption && (
                       <div className="mt-3 border-t border-slate-100 pt-3">
                         <p className="mb-1.5 text-[11px] font-black uppercase tracking-wide text-slate-500">
                           Borda
@@ -447,13 +524,13 @@ export function CartDrawer({
                         <div className="flex items-center justify-between gap-3 text-sm">
                           <div>
                             <p className="font-semibold text-slate-700">
-                              {item.borderName}
+                              {itemDisplay.borderOption.name}
                             </p>
                             <p
                               className="mt-1 text-xs font-bold"
                               style={{ color: theme.primary }}
                             >
-                              + {formatMoney(item.borderPrice)}
+                              + {formatMoney(itemDisplay.borderOption.price)}
                             </p>
                           </div>
 
@@ -518,7 +595,8 @@ export function CartDrawer({
                       </div>
                     )}
                   </article>
-                ))}
+                  )
+                })}
               </div>
             )}
           </div>

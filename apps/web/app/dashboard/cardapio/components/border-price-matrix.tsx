@@ -1,18 +1,16 @@
-import {
-  Plus,
-  Trash2,
-} from 'lucide-react'
+import { Plus, Trash2 } from "lucide-react";
 
-import { Button } from '@/components/ui/button'
+import { Button } from "@/components/ui/button";
 
 import {
   type BorderPrice,
-  type PizzaBorder,
-  type PizzaSizeConfig,
+  type BorderOptionMatrixRow,
+  type SizeOptionMatrixRow,
   findBorderPrice,
-} from '../types/menu-management'
+} from "../types/menu-management";
 
-import { MoneyInput } from './money-input'
+import { MoneyInput } from "./money-input";
+import { isNewBorderDraft } from "../hooks/menu-management-drafts";
 
 export function BorderPriceMatrix({
   borders,
@@ -20,20 +18,22 @@ export function BorderPriceMatrix({
   borderPrices,
   onAddBorder,
   onRemoveBorder,
+  onUpdateBorderActive,
   onUpdateBorderName,
   onUpdateBorderPrice,
 }: {
-  borders: PizzaBorder[]
-  sizes: PizzaSizeConfig[]
-  borderPrices: BorderPrice[]
-  onAddBorder: () => void
-  onRemoveBorder: (id: string) => void
-  onUpdateBorderName: (id: string, value: string) => void
+  borders: BorderOptionMatrixRow[];
+  sizes: SizeOptionMatrixRow[];
+  borderPrices: BorderPrice[];
+  onAddBorder: () => void;
+  onRemoveBorder: (id: string) => void;
+  onUpdateBorderActive: (id: string, isActive: boolean) => void;
+  onUpdateBorderName: (id: string, value: string) => void;
   onUpdateBorderPrice: (
     borderId: string,
-    size: PizzaSizeConfig,
+    size: SizeOptionMatrixRow,
     value: string,
-  ) => void
+  ) => void;
 }) {
   return (
     <div>
@@ -48,11 +48,7 @@ export function BorderPriceMatrix({
           </p>
         </div>
 
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={onAddBorder}
-        >
+        <Button type="button" variant="outline" size="sm" onClick={onAddBorder}>
           <Plus className="h-4 w-4" />
           Nova borda
         </Button>
@@ -65,12 +61,13 @@ export function BorderPriceMatrix({
           </h3>
 
           <p className="mt-2 text-sm text-orange-700">
-            Ative a opção “Aceita borda” nos tamanhos da pizza para montar esta matriz.
+            Ative a opção “Aceita borda” nos tamanhos da pizza para montar esta
+            matriz.
           </p>
         </div>
       ) : (
         <div className="overflow-x-auto rounded-3xl border border-slate-200">
-          <table className="w-full min-w-[860px] border-collapse bg-white">
+          <table className="w-full min-w-[980px] border-collapse bg-white">
             <thead>
               <tr className="border-b border-slate-200 bg-slate-50">
                 <th className="w-[260px] px-5 py-4 text-left text-xs font-black uppercase tracking-wide text-slate-500">
@@ -86,7 +83,7 @@ export function BorderPriceMatrix({
                   </th>
                 ))}
 
-                <th className="w-[80px] px-4 py-4 text-right text-xs font-black uppercase tracking-wide text-slate-500">
+                <th className="w-[200px] min-w-[200px] px-4 py-4 text-right text-xs font-black uppercase tracking-wide text-slate-500">
                   Ações
                 </th>
               </tr>
@@ -96,26 +93,23 @@ export function BorderPriceMatrix({
               {borders.map((border) => (
                 <tr
                   key={border.id}
-                  className="border-b border-slate-100 transition hover:bg-orange-50/40"
+                  className={`border-b border-slate-100 transition hover:bg-orange-50/40 ${
+                    border.isActive ? "" : "bg-slate-50 opacity-60"
+                  }`}
                 >
                   <td className="px-5 py-4">
                     <input
+                      autoFocus={isNewBorderDraft(border)}
                       value={border.name}
                       onChange={(event) =>
-                        onUpdateBorderName(
-                          border.id,
-                          event.target.value,
-                        )
+                        onUpdateBorderName(border.id, event.target.value)
                       }
                       className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-black text-slate-950 outline-none transition focus:border-orange-500 focus:ring-4 focus:ring-orange-500/15"
                     />
                   </td>
 
                   {sizes.map((size) => (
-                    <td
-                      key={size.id}
-                      className="px-4 py-4"
-                    >
+                    <td key={size.id} className="px-4 py-4">
                       <MoneyInput
                         value={findBorderPrice(
                           borderPrices,
@@ -124,24 +118,37 @@ export function BorderPriceMatrix({
                           border.id,
                         )}
                         onChange={(value) =>
-                          onUpdateBorderPrice(
-                            border.id,
-                            size,
-                            value,
-                          )
+                          onUpdateBorderPrice(border.id, size, value)
                         }
                       />
                     </td>
                   ))}
 
                   <td className="px-4 py-4 text-right">
-                    <button
-                      type="button"
-                      onClick={() => onRemoveBorder(border.id)}
-                      className="inline-flex h-10 w-10 items-center justify-center rounded-2xl text-slate-400 transition hover:bg-red-50 hover:text-red-600"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </button>
+                    <div className="flex items-center justify-end gap-2">
+                      <label className="flex cursor-pointer items-center gap-2 rounded-xl px-2 py-2 text-xs font-bold text-slate-500 hover:bg-slate-100">
+                        <input
+                          type="checkbox"
+                          checked={border.isActive}
+                          onChange={(event) =>
+                            onUpdateBorderActive(
+                              border.id,
+                              event.target.checked,
+                            )
+                          }
+                        />
+                        {border.isActive ? "Ativa" : "Inativa"}
+                      </label>
+
+                      <button
+                        type="button"
+                        title="Excluir borda"
+                        onClick={() => onRemoveBorder(border.id)}
+                        className="inline-flex h-10 w-10 items-center justify-center rounded-2xl text-slate-400 transition hover:bg-red-50 hover:text-red-600"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -150,6 +157,5 @@ export function BorderPriceMatrix({
         </div>
       )}
     </div>
-  )
+  );
 }
-

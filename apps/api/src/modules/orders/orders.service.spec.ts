@@ -1,18 +1,48 @@
-import { Test, TestingModule } from '@nestjs/testing';
 import { OrdersService } from './orders.service';
 
 describe('OrdersService', () => {
-  let service: OrdersService;
+  it('nao oferece mais criacao de pedidos V1', () => {
+    const service = new OrdersService(
+      {
+        order: {},
+      } as never,
+      {} as never,
+    );
 
-  beforeEach(async () => {
-    const module: TestingModule = await Test.createTestingModule({
-      providers: [OrdersService],
-    }).compile();
-
-    service = module.get<OrdersService>(OrdersService);
+    expect(service).not.toHaveProperty('create');
   });
 
-  it('should be defined', () => {
-    expect(service).toBeDefined();
+  it('preserva leitura de pedidos V1 e V2 para o dashboard', async () => {
+    const prisma = {
+      order: {
+        findFirst: jest.fn().mockResolvedValue({
+          id: 'order-1',
+          items: [
+            {
+              modifiers: [{ id: 'modifier-1' }],
+            },
+          ],
+        }),
+      },
+    };
+    const service = new OrdersService(prisma as never, {} as never);
+
+    await service.findOne('tenant-1', 'order-1');
+
+    expect(prisma.order.findFirst).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          id: 'order-1',
+          tenantId: 'tenant-1',
+        },
+        include: {
+          items: {
+            include: {
+              modifiers: true,
+            },
+          },
+        },
+      }),
+    );
   });
 });
