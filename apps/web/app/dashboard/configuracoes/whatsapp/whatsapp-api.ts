@@ -1,0 +1,24 @@
+import { apiFetch } from "@/lib/api";
+
+import type { WhatsAppEvent, WhatsAppSettings } from "./types";
+
+export function getWhatsAppSettings() {
+  return apiFetch<WhatsAppSettings>("/whatsapp/settings");
+}
+
+export function updateWhatsAppSettings(input: {
+  automationEnabled: boolean;
+  enabledEvents: WhatsAppEvent[];
+}) {
+  return apiFetch<WhatsAppSettings>("/whatsapp/settings", {
+    method: "PUT",
+    body: JSON.stringify(input),
+  });
+}
+
+export function testWhatsAppConnection() {
+  return apiFetch<{ status: string; error?: string | null }>("/whatsapp/test", {
+    method: "POST",
+    body: JSON.stringify({}),
+  });
+}

@@ -392,6 +392,23 @@ export function CheckoutModal({
         ),
       })
 
+      let whatsappAutomationEnabled = false
+      try {
+        const status = await apiFetch<{
+          automationEnabled: boolean
+        }>(`/whatsapp/public/${tenantSlug}/status`)
+        whatsappAutomationEnabled = status.automationEnabled
+      } catch {
+        // Falha de status preserva o fallback manual existente.
+      }
+
+      if (whatsappAutomationEnabled) {
+        setPrivacyAccepted(false)
+        onOrderFinished?.()
+        onClose()
+        return
+      }
+
       if (!whatsapp) {
         alert('WhatsApp da pizzaria não configurado.')
         onOrderFinished?.()
@@ -668,7 +685,9 @@ export function CheckoutModal({
 
                     <div
                       className="flex min-h-12 min-w-36 flex-col justify-center rounded-2xl px-4 text-right"
-                      style={{ backgroundColor: theme.soft }}
+                      style={{
+                        backgroundColor: theme.soft,
+                      }}
                     >
                       <span className="text-xs font-semibold text-slate-500">
                         Troco

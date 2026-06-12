@@ -2,11 +2,7 @@
 
 import { useEffect, useState } from 'react'
 
-import {
-  Bell,
-  Plus,
-  RefreshCw,
-} from 'lucide-react'
+import { Bell, Plus, RefreshCw } from 'lucide-react'
 
 import {
   PageContainer,
@@ -23,11 +19,7 @@ import { OrdersTable } from './orders-table'
 
 import { useOrders } from './use-orders'
 
-import type {
-  Order,
-  OrderStatus,
-  OrderType,
-} from './types'
+import type { Order, OrderStatus, OrderType } from './types'
 import type { OrdersPeriod } from './use-orders'
 
 const statusLabels: Record<OrderStatus, string> = {
@@ -87,13 +79,12 @@ export default function PedidosPage() {
     loadOrders,
     setPeriod,
     updateStatus,
+    openManualWhatsApp,
+    whatsappAutomationEnabled,
   } = useOrders()
 
-  const {
-    soundEnabled,
-    enableSound,
-    playNewOrderSound,
-  } = useOrderSound()
+  const { soundEnabled, enableSound, playNewOrderSound } =
+    useOrderSound()
 
   useEffect(() => {
     loadOrders()
@@ -112,20 +103,14 @@ export default function PedidosPage() {
         actions={
           <div className="grid w-full grid-cols-1 gap-2 sm:w-auto sm:grid-cols-3">
             <Button
-              variant={
-                soundEnabled
-                  ? 'primary'
-                  : 'outline'
-              }
+              variant={soundEnabled ? 'primary' : 'outline'}
               size="sm"
               onClick={enableSound}
               className="w-full sm:w-auto"
             >
               <Bell className="h-4 w-4" />
 
-              {soundEnabled
-                ? 'Som ativo'
-                : 'Ativar som'}
+              {soundEnabled ? 'Som ativo' : 'Ativar som'}
             </Button>
 
             <Button
@@ -163,7 +148,11 @@ export default function PedidosPage() {
             key={option.value}
             type="button"
             size="sm"
-            variant={period === option.value ? 'primary' : 'outline'}
+            variant={
+              period === option.value
+                ? 'primary'
+                : 'outline'
+            }
             onClick={() => setPeriod(option.value)}
             disabled={loading && period === option.value}
           >
@@ -179,16 +168,22 @@ export default function PedidosPage() {
         statusLabels={statusLabels}
         statusVariants={statusVariants}
         updateStatus={updateStatus}
+        openManualWhatsApp={openManualWhatsApp}
+        whatsappAutomationEnabled={
+          whatsappAutomationEnabled
+        }
         onOpenOrder={setSelectedOrder}
       />
 
       {selectedOrder && (
         <OrderModal
           order={selectedOrder}
-          onClose={() =>
-            setSelectedOrder(null)
-          }
+          onClose={() => setSelectedOrder(null)}
           updateStatus={updateStatus}
+          openManualWhatsApp={openManualWhatsApp}
+          whatsappAutomationEnabled={
+            whatsappAutomationEnabled
+          }
           statusLabels={statusLabels}
           statusVariants={statusVariants}
           typeLabels={typeLabels}

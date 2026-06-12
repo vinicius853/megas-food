@@ -34,6 +34,8 @@ type OrdersTableProps = {
     | 'outline'
   >
   updateStatus: (orderId: string, status: OrderStatus) => Promise<void>
+  openManualWhatsApp: (orderId: string, status: OrderStatus) => Promise<void>
+  whatsappAutomationEnabled: boolean
   onOpenOrder: (order: Order) => void
 }
 
@@ -49,7 +51,10 @@ function getOrderForDetails(orders: Order[], index: number) {
 
   return {
     ...order,
-    displayNumber: getOrderDisplayNumber(order, { orders, index }),
+    displayNumber: getOrderDisplayNumber(order, {
+      orders,
+      index,
+    }),
   }
 }
 
@@ -81,6 +86,8 @@ export function OrdersTable({
   statusLabels,
   statusVariants,
   updateStatus,
+  openManualWhatsApp,
+  whatsappAutomationEnabled,
   onOpenOrder,
 }: OrdersTableProps) {
   return (
@@ -124,7 +131,10 @@ export function OrdersTable({
               orders.map((order, index) => (
                 <TableRow key={order.id}>
                   <TableCell className="font-semibold text-slate-900">
-                    {getOrderDisplayNumber(order, { orders, index })}
+                    {getOrderDisplayNumber(order, {
+                      orders,
+                      index,
+                    })}
                   </TableCell>
 
                   <TableCell>{typeLabels[order.type] ?? order.type}</TableCell>
@@ -153,6 +163,8 @@ export function OrdersTable({
                     {renderOrderActions({
                       order,
                       updateStatus,
+                      openManualWhatsApp,
+                      whatsappAutomationEnabled,
                     })}
                   </TableCell>
 
@@ -191,7 +203,10 @@ export function OrdersTable({
                 <div className="min-w-0">
                   <div className="flex flex-wrap items-center gap-2">
                     <span className="text-sm font-black text-slate-950">
-                      {getOrderDisplayNumber(order, { orders, index })}
+                      {getOrderDisplayNumber(order, {
+                        orders,
+                        index,
+                      })}
                     </span>
 
                     <Badge variant={statusVariants[order.status]}>
@@ -239,6 +254,8 @@ export function OrdersTable({
                   {renderOrderActions({
                     order,
                     updateStatus,
+                    openManualWhatsApp,
+                    whatsappAutomationEnabled,
                   })}
                 </div>
 

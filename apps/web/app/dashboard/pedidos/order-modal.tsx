@@ -14,6 +14,8 @@ type OrderModalProps = {
   order: Order
   onClose: () => void
   updateStatus: (orderId: string, status: OrderStatus) => Promise<void>
+  openManualWhatsApp: (orderId: string, status: OrderStatus) => Promise<void>
+  whatsappAutomationEnabled: boolean
   statusLabels: Record<OrderStatus, string>
   statusVariants: Record<
     OrderStatus,
@@ -61,6 +63,8 @@ export function OrderModal({
   order,
   onClose,
   updateStatus,
+  openManualWhatsApp,
+  whatsappAutomationEnabled,
   statusLabels,
   statusVariants,
   typeLabels,
@@ -190,6 +194,8 @@ export function OrderModal({
                 {renderOrderActions({
                   order,
                   updateStatus,
+                  openManualWhatsApp,
+                  whatsappAutomationEnabled,
                 })}
               </div>
 

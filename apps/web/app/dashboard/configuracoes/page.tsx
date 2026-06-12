@@ -318,6 +318,23 @@ export default function ConfiguracoesPizzariaPage() {
 
         <Card>
           <CardHeader>
+            <CardTitle>WhatsApp</CardTitle>
+            <CardDescription>
+              Configure automações de status e acompanhe a conexão.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="flex items-center justify-between gap-4">
+            <p className="text-sm text-slate-600">
+              O envio manual permanece disponível como fallback.
+            </p>
+            <Button asChild variant="outline">
+              <Link href="/dashboard/configuracoes/whatsapp">Configurar</Link>
+            </Button>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
             <div className="flex items-start justify-between">
               <div>
                 <CardTitle>Horários de funcionamento</CardTitle>

@@ -72,6 +72,8 @@ export function useOrders() {
   const [loading, setLoading] = useState(true);
 
   const [error, setError] = useState("");
+  const [whatsappAutomationEnabled, setWhatsappAutomationEnabled] =
+    useState(false);
 
   const periodLabel = useMemo(() => periodLabels[period], [period]);
 
@@ -81,9 +83,25 @@ export function useOrders() {
 
       setError("");
 
-      const data = await apiFetch<Order[]>(buildOrdersUrl(period));
+      const [data, whatsappSettings] = await Promise.all([
+        apiFetch<Order[]>(buildOrdersUrl(period)),
+        apiFetch<{
+          automationEnabled: boolean;
+          providerConfigured: boolean;
+          status: string;
+        }>("/whatsapp/settings").catch(() => ({
+          automationEnabled: false,
+          providerConfigured: false,
+          status: "DISCONNECTED",
+        })),
+      ]);
 
       setOrders(data);
+      setWhatsappAutomationEnabled(
+        whatsappSettings.automationEnabled &&
+          whatsappSettings.providerConfigured &&
+          whatsappSettings.status === "CONNECTED",
+      );
     } catch (err: any) {
       setError(err.message || "Erro ao carregar pedidos.");
     } finally {
@@ -118,6 +136,27 @@ export function useOrders() {
     }
   }
 
+  async function openManualWhatsApp(orderId: string, status: OrderStatus) {
+    const events: Partial<Record<OrderStatus, string>> = {
+      CONFIRMED: "ORDER_CONFIRMED",
+      CANCELLED: "ORDER_CANCELLED",
+      READY: "ORDER_READY",
+      OUT_FOR_DELIVERY: "ORDER_OUT_FOR_DELIVERY",
+      DELIVERED: "ORDER_DELIVERED",
+    };
+    const event = events[status];
+    if (!event) return;
+
+    try {
+      const result = await apiFetch<{ url: string }>(
+        `/whatsapp/orders/${orderId}/manual-link?event=${event}`,
+      );
+      window.open(result.url, "_blank", "noopener,noreferrer");
+    } catch (err: any) {
+      alert(err.message || "Erro ao preparar mensagem do WhatsApp.");
+    }
+  }
+
   return {
     orders,
     loading,
@@ -128,5 +167,7 @@ export function useOrders() {
     loadOrders,
     setPeriod,
     updateStatus,
+    openManualWhatsApp,
+    whatsappAutomationEnabled,
   };
 }
