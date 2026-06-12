@@ -13,31 +13,26 @@ import {
 
 import { PageContainer, PageHeader } from "@/components/layout/page-container";
 import { SegmentConfiguratorGate } from "@/components/segments/segment-configurator-gate";
-
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 
 import { BorderPriceMatrix } from "./components/border-price-matrix";
 import { MiniStat } from "./components/mini-stat";
-import { PizzaConfigurationStatus } from "./components/pizza-configuration-status";
-import { PizzaPriceMatrix } from "./components/pizza-price-matrix";
 import { ProductSectionList } from "./components/product-section-list";
 import {
   SimpleCategoryList,
   SimpleProductList,
 } from "./components/simple-list";
-import { SizeGroup } from "./components/size-group";
 import { TabButton } from "./components/tab-button";
-import { pizzaModes, useMenuManagement } from "./hooks/use-menu-management";
+import { useMenuManagement } from "./hooks/use-menu-management";
+import { PizzaPricingModule } from "./pizza-pricing/pizza-pricing-module";
 import type { ProductSectionTab } from "./types/menu-management";
 
 export default function CardapioPage() {
   return (
     <SegmentConfiguratorGate
-      adapters={{
-        PIZZARIA: <PizzariaMenuConfigurator />,
-      }}
+      adapters={{ PIZZARIA: <PizzariaMenuConfigurator /> }}
     />
   );
 }
@@ -61,7 +56,6 @@ function PizzariaMenuConfigurator() {
               <Eye className="h-4 w-4" />
               Ver cardápio público
             </Button>
-
             <Button
               type="button"
               variant="primary"
@@ -70,7 +64,7 @@ function PizzariaMenuConfigurator() {
               disabled={menu.saving || menu.loading}
             >
               <Save className="h-4 w-4" />
-              {menu.saving ? "Salvando..." : "Salvar agora"}
+              {menu.saving ? "Salvando..." : "Salvar alterações"}
             </Button>
           </div>
         }
@@ -95,141 +89,52 @@ function PizzariaMenuConfigurator() {
           </CardContent>
         </Card>
       ) : (
-        <div className="grid min-w-0 gap-5 xl:grid-cols-[minmax(0,1fr)_minmax(320px,400px)]">
+        <div
+          className={`grid min-w-0 gap-5 ${
+            menu.activeTab === "pizzas"
+              ? "grid-cols-1"
+              : "xl:grid-cols-[minmax(0,1fr)_minmax(320px,400px)]"
+          }`}
+        >
           <div className="min-w-0 space-y-5">
             <Card className="min-w-0 overflow-hidden border-orange-100">
               <CardContent className="p-0">
                 <div className="border-b border-slate-100 p-5">
-                  <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
-                    <div>
-                      <Badge variant="warning">Central do cardápio</Badge>
-
-                      <h2 className="mt-3 text-2xl font-black tracking-tight text-slate-950">
-                        Configuração operacional da pizzaria
-                      </h2>
-
-                      <p className="mt-1 text-sm text-slate-500">
-                        Tudo que aparece no cardápio público é carregado do
-                        banco e salvo automaticamente.
-                      </p>
-                    </div>
-                  </div>
+                  <Badge variant="warning">Central do cardápio</Badge>
+                  <h2 className="mt-3 text-2xl font-black tracking-tight text-slate-950">
+                    Configuração operacional da pizzaria
+                  </h2>
+                  <p className="mt-1 text-sm text-slate-500">
+                    Gerencie produtos, disponibilidade e preços em um só lugar.
+                  </p>
                 </div>
 
-                <div className="flex min-w-0 gap-2 overflow-x-auto border-b border-slate-100 px-5 py-4">
-                  <TabButton
-                    active={menu.activeTab === "pizzas"}
-                    onClick={() => menu.setActiveTab("pizzas")}
-                    icon={Grid3X3}
-                  >
-                    Pizzas e preços
-                  </TabButton>
+                <MenuTabs menu={menu} />
 
-                  <TabButton
-                    active={menu.activeTab === "bebidas"}
-                    onClick={() => menu.setActiveTab("bebidas")}
-                    icon={Utensils}
-                  >
-                    Bebidas
-                  </TabButton>
-
-                  <TabButton
-                    active={menu.activeTab === "bordas"}
-                    onClick={() => menu.setActiveTab("bordas")}
-                    icon={Wheat}
-                  >
-                    Bordas
-                  </TabButton>
-
-                  <TabButton
-                    active={menu.activeTab === "adicionais"}
-                    onClick={() => menu.setActiveTab("adicionais")}
-                    icon={BadgePlus}
-                  >
-                    Adicionais
-                  </TabButton>
-
-                  {menu.customProductSections.map((section) => {
-                    const tabId = `section:${section.id}` as ProductSectionTab;
-
-                    return (
-                      <TabButton
-                        key={section.id}
-                        active={menu.activeTab === tabId}
-                        onClick={() => menu.setActiveTab(tabId)}
-                        icon={ShoppingBag}
-                      >
-                        {section.name}
-                      </TabButton>
-                    );
-                  })}
-
-                  <TabButton
-                    active={menu.activeTab === "categorias"}
-                    onClick={() => menu.setActiveTab("categorias")}
-                    icon={PackagePlus}
-                  >
-                    Categorias
-                  </TabButton>
-                </div>
-
-                <div className="min-w-0 p-5">
+                <div className="min-w-0 p-4 sm:p-5">
                   {menu.activeTab === "pizzas" && (
-                    <>
-                      <PizzaConfigurationStatus
-                        products={menu.products}
-                        sizes={menu.sizes}
-                        flavorPrices={menu.flavorPrices}
-                        onAddPizza={menu.addProduct}
-                        onUpdateProduct={menu.updateProduct}
-                      />
-
-                      <div className="mb-5 rounded-3xl border border-slate-200 bg-slate-50 p-4">
-                        <p className="text-sm font-black text-slate-900">
-                          Como sua pizzaria vende pizza?
-                        </p>
-
-                        <p className="mt-1 text-sm leading-relaxed text-slate-500">
-                          Defina tamanhos redondos por centímetros, quadrados
-                          por fatias ou os dois modelos.
-                        </p>
-
-                        <div className="mt-4 flex flex-wrap gap-2">
-                          {pizzaModes.map((mode) => (
-                            <button
-                              key={mode.id}
-                              type="button"
-                              onClick={() => menu.setPizzaMode(mode.id)}
-                              className={`rounded-2xl px-4 py-3 text-sm font-black transition ${
-                                menu.pizzaMode === mode.id
-                                  ? "bg-orange-600 text-white shadow-lg"
-                                  : "bg-white text-slate-600 hover:bg-orange-50 hover:text-orange-600"
-                              }`}
-                            >
-                              {mode.label}
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-
-                      <PizzaPriceMatrix
-                        pizzaMode={menu.pizzaMode}
-                        search={menu.search}
-                        flavors={menu.filteredFlavors}
-                        flavorPrices={menu.flavorPrices}
-                        flavorGroups={menu.flavorDisplayGroups}
-                        visibleSizes={menu.visibleSizes}
-                        onAddFlavor={menu.addFlavor}
-                        onRemoveFlavor={menu.removeFlavor}
-                        onSearchChange={menu.setSearch}
-                        onUpdateFlavorCategory={menu.updateFlavorCategory}
-                        onUpdateFlavorDescription={menu.updateFlavorDescription}
-                        onUpdateFlavorImage={menu.updateFlavorImage}
-                        onUpdateFlavorName={menu.updateFlavorName}
-                        onUpdateFlavorActive={menu.updateFlavorActive}
-                        onUpdatePizzaPrice={menu.updatePizzaPrice}
-                      />
-                    </>
+                    <PizzaPricingModule
+                      flavorGroups={menu.flavorDisplayGroups}
+                      flavorPrices={menu.flavorPrices}
+                      flavors={menu.flavors}
+                      search={menu.search}
+                      sizes={menu.sizes}
+                      setSearch={menu.setSearch}
+                      onAddFlavor={menu.addFlavor}
+                      onAddSize={menu.addSize}
+                      onRemoveFlavor={menu.removeFlavor}
+                      onRemoveSize={menu.removeSize}
+                      onSetFlavorSizeAvailability={
+                        menu.setFlavorSizeAvailability
+                      }
+                      onUpdateFlavorActive={menu.updateFlavorActive}
+                      onUpdateFlavorCategory={menu.updateFlavorCategory}
+                      onUpdateFlavorDescription={menu.updateFlavorDescription}
+                      onUpdateFlavorImage={menu.updateFlavorImage}
+                      onUpdateFlavorName={menu.updateFlavorName}
+                      onUpdatePizzaPrice={menu.updatePizzaPrice}
+                      onUpdateSize={menu.updateSize}
+                    />
                   )}
 
                   {menu.activeTab === "bebidas" && (
@@ -290,97 +195,101 @@ function PizzariaMenuConfigurator() {
             </Card>
           </div>
 
-          <aside className="min-w-0 space-y-5">
-            {menu.activeTab === "pizzas" && (
-              <>
-                <Card>
-                  <CardContent className="p-5">
-                    <h3 className="text-lg font-black text-slate-950">
-                      Tamanhos da pizzaria
-                    </h3>
-
-                    <p className="mt-1 text-sm leading-relaxed text-slate-500">
-                      Cadastre tamanhos por centímetros ou por quantidade de
-                      fatias.
-                    </p>
-
-                    <div className="mt-5 space-y-5">
-                      <SizeGroup
-                        title="Pizzas redondas"
-                        description="Use para tamanhos por centímetros."
-                        sizes={menu.roundSizes}
-                        setSizes={menu.setSizes}
-                        onAdd={() => menu.addSize("round")}
-                        onRemove={menu.removeSize}
-                      />
-
-                      <SizeGroup
-                        title="Pizzas quadradas"
-                        description="Use para tamanhos por quantidade de fatias."
-                        sizes={menu.squareSizes}
-                        setSizes={menu.setSizes}
-                        onAdd={() => menu.addSize("square")}
-                        onRemove={menu.removeSize}
-                      />
-                    </div>
-                  </CardContent>
-                </Card>
-
-                <Card>
-                  <CardContent className="p-5">
-                    <h3 className="text-lg font-black text-slate-950">
-                      Cálculo de preço
-                    </h3>
-
-                    <p className="mt-2 text-sm leading-relaxed text-slate-500">
-                      Em pizzas com múltiplos sabores, o sistema usa o maior
-                      preço entre os sabores selecionados.
-                    </p>
-
-                    <div className="mt-4 rounded-2xl bg-orange-50 p-4">
-                      <p className="text-sm font-black text-orange-700">
-                        Regra atual: maior preço
-                      </p>
-                    </div>
-                  </CardContent>
-                </Card>
-              </>
-            )}
-
-            {menu.activeTab !== "pizzas" && (
-              <Card>
-                <CardContent className="p-5">
-                  <h3 className="text-lg font-black text-slate-950">
-                    Resumo do cardápio
-                  </h3>
-
-                  <p className="mt-1 text-sm leading-relaxed text-slate-500">
-                    As seções de produtos viram abas próprias no cardápio, como
-                    Esfirras, Porções ou Sobremesas.
-                  </p>
-
-                  <div className="mt-5 space-y-3">
-                    <MiniStat
-                      label="Seções do cardápio"
-                      value={String(menu.productSections.length)}
-                    />
-
-                    <MiniStat
-                      label="Seções personalizadas"
-                      value={String(menu.customProductSections.length)}
-                    />
-
-                    <MiniStat
-                      label="Grupos de sabores"
-                      value={String(menu.flavorDisplayGroups.length)}
-                    />
-                  </div>
-                </CardContent>
-              </Card>
-            )}
-          </aside>
+          {menu.activeTab !== "pizzas" && <MenuSummary menu={menu} />}
         </div>
       )}
     </PageContainer>
+  );
+}
+
+function MenuTabs({ menu }: { menu: ReturnType<typeof useMenuManagement> }) {
+  return (
+    <div className="flex min-w-0 gap-2 overflow-x-auto border-b border-slate-100 px-5 py-4">
+      <TabButton
+        active={menu.activeTab === "pizzas"}
+        onClick={() => menu.setActiveTab("pizzas")}
+        icon={Grid3X3}
+      >
+        Pizzas e preços
+      </TabButton>
+      <TabButton
+        active={menu.activeTab === "bebidas"}
+        onClick={() => menu.setActiveTab("bebidas")}
+        icon={Utensils}
+      >
+        Bebidas
+      </TabButton>
+      <TabButton
+        active={menu.activeTab === "bordas"}
+        onClick={() => menu.setActiveTab("bordas")}
+        icon={Wheat}
+      >
+        Bordas
+      </TabButton>
+      <TabButton
+        active={menu.activeTab === "adicionais"}
+        onClick={() => menu.setActiveTab("adicionais")}
+        icon={BadgePlus}
+      >
+        Adicionais
+      </TabButton>
+
+      {menu.customProductSections.map((section) => {
+        const tabId = `section:${section.id}` as ProductSectionTab;
+        return (
+          <TabButton
+            key={section.id}
+            active={menu.activeTab === tabId}
+            onClick={() => menu.setActiveTab(tabId)}
+            icon={ShoppingBag}
+          >
+            {section.name}
+          </TabButton>
+        );
+      })}
+
+      <TabButton
+        active={menu.activeTab === "categorias"}
+        onClick={() => menu.setActiveTab("categorias")}
+        icon={PackagePlus}
+      >
+        Categorias
+      </TabButton>
+    </div>
+  );
+}
+
+function MenuSummary({
+  menu,
+}: {
+  menu: ReturnType<typeof useMenuManagement>;
+}) {
+  return (
+    <aside className="min-w-0 space-y-5">
+      <Card>
+        <CardContent className="p-5">
+          <h3 className="text-lg font-black text-slate-950">
+            Resumo do cardápio
+          </h3>
+          <p className="mt-1 text-sm leading-relaxed text-slate-500">
+            Seções de produtos viram abas próprias no cardápio público.
+          </p>
+          <div className="mt-5 space-y-3">
+            <MiniStat
+              label="Seções do cardápio"
+              value={String(menu.productSections.length)}
+            />
+            <MiniStat
+              label="Seções personalizadas"
+              value={String(menu.customProductSections.length)}
+            />
+            <MiniStat
+              label="Grupos de sabores"
+              value={String(menu.flavorDisplayGroups.length)}
+            />
+          </div>
+        </CardContent>
+      </Card>
+    </aside>
   );
 }

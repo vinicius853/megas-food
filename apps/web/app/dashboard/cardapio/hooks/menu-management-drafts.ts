@@ -56,11 +56,10 @@ export function isEmptySizeDraft(
 
 export function validateSizeDrafts(
   sizes: SizeOptionMatrixRow[],
-  flavors: FlavorOptionMatrixRow[],
-  flavorPrices: FlavorPrice[],
+  _flavors: FlavorOptionMatrixRow[],
+  _flavorPrices: FlavorPrice[],
 ) {
   const drafts = sizes.filter(isNewSizeDraft);
-  const activeFlavors = flavors.filter((flavor) => flavor.isActive);
 
   for (const size of drafts) {
     if (!size.name.trim()) {
@@ -71,22 +70,6 @@ export function validateSizeDrafts(
       return `Informe quantos sabores o tamanho ${size.name.trim()} aceita.`;
     }
 
-    if (activeFlavors.length === 0) continue;
-
-    const missingPrice = activeFlavors.some((flavor) => {
-      const price = flavorPrices.find(
-        (item) =>
-          item.productId === size.productId &&
-          item.sizeId === size.id &&
-          item.flavorId === flavor.id,
-      );
-
-      return !price || parseMoney(price.price) <= 0;
-    });
-
-    if (missingPrice) {
-      return `Preencha os preços dos sabores para o tamanho ${size.name.trim()} antes de salvar.`;
-    }
   }
 
   return null;
@@ -121,7 +104,7 @@ export function validateFlavorDrafts(
 
     if (activeSizes.length === 0) continue;
 
-    const missingPrice = activeSizes.some((size) => {
+    const hasAvailableSize = activeSizes.some((size) => {
       const price = flavorPrices.find(
         (item) =>
           item.productId === size.productId &&
@@ -129,11 +112,11 @@ export function validateFlavorDrafts(
           item.flavorId === flavor.id,
       );
 
-      return !price || parseMoney(price.price) <= 0;
+      return Boolean(price) && parseMoney(price?.price) > 0;
     });
 
-    if (missingPrice) {
-      return `Preencha os preços do sabor ${flavor.name.trim()} antes de salvar.`;
+    if (!hasAvailableSize) {
+      return `Informe ao menos um preço disponível para o sabor ${flavor.name.trim()} antes de salvar.`;
     }
   }
 
