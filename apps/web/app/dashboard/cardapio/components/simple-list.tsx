@@ -1,4 +1,4 @@
-import { Plus, Trash2 } from "lucide-react";
+import { ArrowDown, ArrowUp, Plus, Trash2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 
@@ -16,6 +16,7 @@ import {
   isNewCategoryDraft,
   isNewProductDraft,
 } from "../hooks/menu-management-drafts";
+import { getCategoryMoveAvailability } from "../hooks/category-order";
 
 const protectedCategorySlugs = ["pizzas", "bebidas", "adicionais"];
 
@@ -119,11 +120,13 @@ export function SimpleCategoryList({
   onAdd,
   onUpdate,
   onRemove,
+  onMove,
 }: {
   categories: Category[];
   onAdd: (type?: CategoryType) => void;
   onUpdate: CategoryUpdater;
   onRemove: (id: string) => void;
+  onMove: (id: string, direction: "up" | "down") => void;
 }) {
   return (
     <div>
@@ -162,6 +165,10 @@ export function SimpleCategoryList({
       <div className="space-y-3">
         {categories.map((category) => {
           const protectedCategory = isProtectedCategory(category);
+          const { canMoveUp, canMoveDown } = getCategoryMoveAvailability(
+            categories,
+            category.id,
+          );
 
           return (
             <div
@@ -207,6 +214,29 @@ export function SimpleCategoryList({
               )}
 
               <div className="flex flex-wrap gap-2">
+                <div className="flex h-11 items-center rounded-2xl border border-slate-200 bg-slate-50 p-1">
+                  <button
+                    type="button"
+                    title="Mover para cima"
+                    aria-label={`Mover ${category.name || "categoria"} para cima`}
+                    disabled={!canMoveUp}
+                    onClick={() => onMove(category.id, "up")}
+                    className="flex h-8 w-8 items-center justify-center rounded-xl text-slate-500 transition hover:bg-white hover:text-slate-950 disabled:cursor-not-allowed disabled:opacity-30"
+                  >
+                    <ArrowUp className="h-4 w-4" />
+                  </button>
+                  <button
+                    type="button"
+                    title="Mover para baixo"
+                    aria-label={`Mover ${category.name || "categoria"} para baixo`}
+                    disabled={!canMoveDown}
+                    onClick={() => onMove(category.id, "down")}
+                    className="flex h-8 w-8 items-center justify-center rounded-xl text-slate-500 transition hover:bg-white hover:text-slate-950 disabled:cursor-not-allowed disabled:opacity-30"
+                  >
+                    <ArrowDown className="h-4 w-4" />
+                  </button>
+                </div>
+
                 <label className="flex h-11 items-center gap-2 rounded-2xl border border-slate-200 px-3 text-xs font-bold text-slate-500">
                   <input
                     type="checkbox"

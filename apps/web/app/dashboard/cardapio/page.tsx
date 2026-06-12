@@ -184,10 +184,11 @@ function PizzariaMenuConfigurator() {
 
                   {menu.activeTab === "categorias" && (
                     <SimpleCategoryList
-                      categories={menu.categories}
+                      categories={menu.orderedCategories}
                       onAdd={menu.addCategory}
                       onUpdate={menu.updateCategory}
                       onRemove={menu.removeCategory}
+                      onMove={menu.moveCategory}
                     />
                   )}
                 </div>

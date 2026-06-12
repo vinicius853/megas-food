@@ -1,5 +1,4 @@
 import {
-  compareCategoryOrder,
   normalizeCategoryLabel,
   parseMoney,
 } from "./public-menu-formatters";
@@ -210,46 +209,95 @@ export function buildMenuSections(
   const productSections = groupByCategory(products).map((section) => ({
     id: `products-${section.title}`,
     title: section.title,
-    sortOrder: section.sortOrder + 100,
+    sortOrder: section.sortOrder,
     type: "products" as const,
     items: section.items,
   }));
 
-  return [...flavorSections, ...productSections].sort((a, b) =>
-    compareCategoryOrder(a.title, a.sortOrder, b.title, b.sortOrder),
-  );
+  return [...flavorSections, ...productSections].sort(compareMenuSection);
 }
 
 export function buildCategoryTabs(
   flavors: FlavorCard[],
   products: FixedProductCard[],
 ) {
-  const tabs = new Map<string, number>();
+  const tabs = new Map<
+    string,
+    {
+      sortOrder: number;
+      type: MenuSection["type"];
+    }
+  >();
 
   for (const flavor of flavors) {
-    tabs.set(
-      flavor.categoryName,
-      Math.min(
-        tabs.get(flavor.categoryName) ?? flavor.categorySortOrder,
+    const current = tabs.get(flavor.categoryName);
+    tabs.set(flavor.categoryName, {
+      sortOrder: Math.min(
+        current?.sortOrder ?? flavor.categorySortOrder,
         flavor.categorySortOrder,
       ),
-    );
+      type: "flavors",
+    });
   }
 
   for (const product of products) {
-    tabs.set(
-      product.categoryName,
-      Math.min(
-        tabs.get(product.categoryName) ?? product.categorySortOrder + 100,
-        product.categorySortOrder + 100,
+    const current = tabs.get(product.categoryName);
+    tabs.set(product.categoryName, {
+      sortOrder: Math.min(
+        current?.sortOrder ?? product.categorySortOrder,
+        product.categorySortOrder,
       ),
-    );
+      type: current?.type === "flavors" ? "flavors" : "products",
+    });
   }
 
   return [
     "Todos",
     ...Array.from(tabs.entries())
-      .sort((a, b) => compareCategoryOrder(a[0], a[1], b[0], b[1]))
+      .sort(([firstName, first], [secondName, second]) =>
+        compareTypedCategory(
+          firstName,
+          first.sortOrder,
+          first.type,
+          secondName,
+          second.sortOrder,
+          second.type,
+        ),
+      )
       .map(([name]) => name),
   ];
+}
+
+function compareMenuSection(first: MenuSection, second: MenuSection) {
+  return compareTypedCategory(
+    first.title,
+    first.sortOrder,
+    first.type,
+    second.title,
+    second.sortOrder,
+    second.type,
+  );
+}
+
+function compareTypedCategory(
+  firstName: string,
+  firstSortOrder: number,
+  firstType: MenuSection["type"],
+  secondName: string,
+  secondSortOrder: number,
+  secondType: MenuSection["type"],
+) {
+  const typeOrder = {
+    flavors: 0,
+    products: 1,
+  } satisfies Record<MenuSection["type"], number>;
+  const typeDifference = typeOrder[firstType] - typeOrder[secondType];
+
+  if (typeDifference !== 0) return typeDifference;
+
+  const sortDifference = firstSortOrder - secondSortOrder;
+
+  if (sortDifference !== 0) return sortDifference;
+
+  return firstName.localeCompare(secondName, "pt-BR");
 }

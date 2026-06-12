@@ -62,6 +62,10 @@ import {
   validateUniqueMenuPrices,
 } from "./menu-management-prices";
 import { usePizzaPricingState } from "./use-pizza-pricing-state";
+import {
+  moveCategory as reorderCategory,
+  orderCategories,
+} from "./category-order";
 
 export function useMenuManagement() {
   const [activeTab, setActiveTabState] = useState<Tab>("pizzas");
@@ -336,6 +340,10 @@ export function useMenuManagement() {
           : item,
       ),
     );
+  }
+
+  function moveCategory(id: string, direction: "up" | "down") {
+    setCategories((current) => reorderCategory(current, id, direction));
   }
 
   function removeCategory(id: string) {
@@ -706,6 +714,7 @@ export function useMenuManagement() {
     borders,
     borderSizes,
     categories,
+    orderedCategories: orderCategories(categories),
     customProductSections,
     drinks,
     error,
@@ -719,6 +728,7 @@ export function useMenuManagement() {
     products,
     removeBorder,
     removeCategory,
+    moveCategory,
     removeFlavor: pizzaPricing.removeFlavor,
     removeProduct,
     removeSize: pizzaPricing.removeSize,
