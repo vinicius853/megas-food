@@ -63,6 +63,8 @@ describe('PublicOrdersV2Service', () => {
     expect(prisma.order.create).toHaveBeenCalledWith(
       expect.objectContaining({
         data: expect.objectContaining({
+          privacyAcceptedAt: expect.any(Date),
+          privacyPolicyVersion: '2026-06-12',
           items: expect.objectContaining({
             create: [
               expect.objectContaining({
@@ -295,6 +297,41 @@ describe('PublicOrdersV2Service', () => {
     ).rejects.toBeInstanceOf(NotFoundException);
   });
 
+  it('rejeita pedido sem aceite de privacidade antes de escrever no banco', async () => {
+    mockTenant();
+
+    await expect(
+      service.createByTenantSlug('tenant-slug', {
+        ...orderDto(['size-30']),
+        privacyAccepted: false,
+      }),
+    ).rejects.toBeInstanceOf(BadRequestException);
+
+    expect(prisma.order.create).not.toHaveBeenCalled();
+    expect(priceEngineService.calculate).not.toHaveBeenCalled();
+  });
+
+  it('salva IP e user-agent sanitizados quando informados pelo controller', async () => {
+    mockTenant();
+    mockProduct();
+    mockPriceResult(40, []);
+    mockOrderCreate();
+
+    await service.createByTenantSlug('tenant-slug', orderDto(['size-30']), {
+      ip: ' 127.0.0.1 ',
+      userAgent: 'Megas Food Browser',
+    });
+
+    expect(prisma.order.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          privacyAcceptedIp: '127.0.0.1',
+          privacyAcceptedUserAgent: 'Megas Food Browser',
+        }),
+      }),
+    );
+  });
+
   function mockTenant() {
     prisma.tenant.findUnique.mockResolvedValue({
       id: 'tenant-1',
@@ -344,6 +381,8 @@ describe('PublicOrdersV2Service', () => {
 
 function orderDto(optionIds: string[]) {
   return {
+    privacyAccepted: true,
+    privacyPolicyVersion: '2026-06-12',
     customer: {
       name: 'Cliente V2',
       phone: '11999999999',

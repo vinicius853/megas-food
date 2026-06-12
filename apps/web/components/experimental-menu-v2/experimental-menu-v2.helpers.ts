@@ -6,6 +6,7 @@ import type {
   PublicMenuV2Option,
   PublicMenuV2Product,
 } from './experimental-menu-v2.types'
+import { PRIVACY_POLICY_VERSION } from '../../lib/legal'
 
 export function formatMoney(value: number | null | undefined) {
   if (value === null || value === undefined) {
@@ -154,6 +155,8 @@ export function buildPublicOrderV2Payload({
   selections: ExperimentalMenuV2Selections
 }): ExperimentalOrderV2Payload {
   return {
+    privacyAccepted: true,
+    privacyPolicyVersion: PRIVACY_POLICY_VERSION,
     customer,
     type: 'DELIVERY',
     paymentType: 'PIX',

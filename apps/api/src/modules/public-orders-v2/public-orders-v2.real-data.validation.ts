@@ -6,6 +6,7 @@ import { OrdersService } from '../orders/orders.service';
 import { PriceEngineService } from '../price-engine/price-engine.service';
 
 import { PublicOrdersV2Service } from './public-orders-v2.service';
+import { PRIVACY_POLICY_VERSION } from './privacy-consent';
 
 const ALLOWED_DATABASES = new Set([
   'pizzaria_saas_phase24_copy2_20260603',
@@ -36,6 +37,8 @@ async function main() {
     const countsBefore = await creationCounts(prisma);
 
     const order = await publicOrders.createByTenantSlug(TENANT_SLUG, {
+      privacyAccepted: true,
+      privacyPolicyVersion: PRIVACY_POLICY_VERSION,
       customer: {
         name: `Validacao V2 ${new Date().toISOString()}`,
         phone: '11999999999',

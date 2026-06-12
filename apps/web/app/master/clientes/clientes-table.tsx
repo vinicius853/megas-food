@@ -52,7 +52,7 @@ export function ClientesTable({
         <TableHeader>
           <TableRow>
             <TableHead>Codigo</TableHead>
-            <TableHead>Pizzaria</TableHead>
+            <TableHead>Cliente</TableHead>
             <TableHead>Cidade/UF</TableHead>
             <TableHead>Responsavel</TableHead>
             <TableHead>WhatsApp</TableHead>
@@ -180,7 +180,7 @@ export function ClientesTable({
           ) : (
             <TableRow>
               <TableCell colSpan={9} className="py-8 text-center text-slate-500">
-                Nenhuma pizzaria cadastrada ainda.
+                Nenhum cliente cadastrado ainda.
               </TableCell>
             </TableRow>
           )}

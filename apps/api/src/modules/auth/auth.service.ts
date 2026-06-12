@@ -62,6 +62,7 @@ export class AuthService {
         id: tenant.id,
         name: tenant.name,
         slug: tenant.slug,
+        enabledSegments: tenant.enabledSegments,
       },
     }
   }
@@ -113,6 +114,7 @@ export class AuthService {
         id: user.tenant.id,
         name: user.tenant.name,
         slug: user.tenant.slug,
+        enabledSegments: user.tenant.enabledSegments,
       },
     }
   }

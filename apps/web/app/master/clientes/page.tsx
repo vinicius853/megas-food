@@ -18,6 +18,7 @@ import { apiFetch } from '@/lib/api'
 import { canViewFinancialData, getStoredPermissions, hasPermission } from '../components/master-permissions'
 import { ClienteCreateModal } from './cliente-create-modal'
 import { ClienteDetailsModal } from './cliente-details-modal'
+import { ClienteEditModal } from './cliente-edit-modal'
 import {
   formatCep,
   formatCpfCnpj,
@@ -45,6 +46,7 @@ import {
   initialForm,
   initialResetPasswordForm,
 } from './clientes.types'
+import type { TenantSegment } from '@/lib/segments/segment-types'
 
 export default function ClientesPage() {
   const [tenants, setTenants] = React.useState<Tenant[]>([])
@@ -115,17 +117,29 @@ export default function ClientesPage() {
     }
   }, [loadPlans, loadTenants])
 
-  function updateForm(field: keyof TenantForm, value: string) {
+  function updateForm(
+    field: keyof TenantForm,
+    value: string | TenantSegment[],
+  ) {
+    if (field === 'enabledSegments') {
+      setForm((current) => ({
+        ...current,
+        enabledSegments: value as TenantSegment[],
+      }))
+      return
+    }
+
+    const textValue = value as string
     const nextValue =
       field === 'document'
-        ? formatDocumentInput(value)
+        ? formatDocumentInput(textValue)
         : field === 'zipCode'
-          ? formatZipInput(value)
+          ? formatZipInput(textValue)
           : field === 'whatsapp' || field === 'phone'
-            ? formatWhatsappInput(value)
+            ? formatWhatsappInput(textValue)
             : field === 'state'
-              ? value.toUpperCase().slice(0, 2)
-              : value
+              ? textValue.toUpperCase().slice(0, 2)
+              : textValue
 
     setForm((current) => ({
       ...current,
@@ -138,17 +152,29 @@ export default function ClientesPage() {
     }))
   }
 
-  function updateEditForm(field: keyof TenantEditForm, value: string) {
+  function updateEditForm(
+    field: keyof TenantEditForm,
+    value: string | TenantSegment[],
+  ) {
+    if (field === 'enabledSegments') {
+      setEditForm((current) => ({
+        ...current,
+        enabledSegments: value as TenantSegment[],
+      }))
+      return
+    }
+
+    const textValue = value as string
     const nextValue =
       field === 'document'
-        ? formatDocumentInput(value)
+        ? formatDocumentInput(textValue)
         : field === 'zipCode'
-          ? formatZipInput(value)
+          ? formatZipInput(textValue)
           : field === 'whatsapp' || field === 'phone'
-            ? formatWhatsappInput(value)
+            ? formatWhatsappInput(textValue)
             : field === 'state'
-              ? value.toUpperCase().slice(0, 2)
-              : value
+              ? textValue.toUpperCase().slice(0, 2)
+              : textValue
 
     setEditForm((current) => ({
       ...current,
@@ -185,10 +211,11 @@ export default function ClientesPage() {
           zipCode: form.zipCode || undefined,
           internalNotes: form.internalNotes || undefined,
           isActive: true,
+          enabledSegments: form.enabledSegments,
         }),
       })
 
-      setSuccess('Pizzaria criada com sucesso.')
+      setSuccess('Cliente criado com sucesso.')
       setForm(initialForm)
       setIsModalOpen(false)
       await loadTenants()
@@ -218,6 +245,7 @@ export default function ClientesPage() {
       address: tenant.address || '',
       zipCode: tenant.zipCode ? formatCep(tenant.zipCode) : '',
       internalNotes: tenant.internalNotes || '',
+      enabledSegments: tenant.enabledSegments || ['PIZZARIA'],
     })
   }
 
@@ -245,6 +273,7 @@ export default function ClientesPage() {
           address: editForm.address || undefined,
           zipCode: editForm.zipCode || undefined,
           internalNotes: editForm.internalNotes || undefined,
+          enabledSegments: editForm.enabledSegments,
         }),
       })
 
@@ -297,7 +326,7 @@ export default function ClientesPage() {
 
   async function removeTenant(tenant: Tenant) {
     const confirmed = window.confirm(
-      `Excluir ${tenant.name}? Esta acao remove a pizzaria e seus dados vinculados.`,
+      `Excluir ${tenant.name}? Esta acao remove o cliente e seus dados vinculados.`,
     )
 
     if (!confirmed) {
@@ -443,7 +472,7 @@ export default function ClientesPage() {
     <PageContainer>
       <PageHeader
         title="Clientes"
-        description="Pizzarias cadastradas na plataforma."
+        description="Operacoes cadastradas na plataforma e seus segmentos habilitados."
         actions={
           <div className="flex flex-wrap gap-2">
             <Button variant="outline" size="sm" onClick={loadTenants}>
@@ -453,7 +482,7 @@ export default function ClientesPage() {
             {canCreateClients ? (
               <Button variant="primary" size="sm" onClick={() => setIsModalOpen(true)}>
                 <Plus className="h-4 w-4" />
-                Nova pizzaria
+                Novo cliente
               </Button>
             ) : null}
           </div>
@@ -498,97 +527,14 @@ export default function ClientesPage() {
         onClose={() => setIsModalOpen(false)}
       />
 
-      <Modal open={Boolean(editTenant)} onOpenChange={(open) => !open && setEditTenant(null)}>
-        <ModalContent className="max-w-2xl">
-          <form onSubmit={updateTenant}>
-            <ModalHeader>
-              <ModalTitle>Editar pizzaria</ModalTitle>
-              <ModalDescription>
-                Atualize dados administrativos internos do cliente.
-              </ModalDescription>
-            </ModalHeader>
-
-            <div className="mb-4 rounded-2xl border border-orange-100 bg-orange-50 px-4 py-3">
-              <p className="text-xs font-black uppercase tracking-[0.2em] text-orange-700">
-                Codigo interno
-              </p>
-              <p className="mt-1 text-lg font-black text-slate-900">
-                {editTenant?.internalCode || 'Sem codigo'}
-              </p>
-            </div>
-
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div className="grid gap-1.5">
-                <label className="text-sm font-bold text-slate-700">Nome da pizzaria</label>
-                <Input value={editForm.name} onChange={(event) => updateEditForm('name', event.target.value)} required />
-              </div>
-
-              <div className="grid gap-1.5">
-                <label className="text-sm font-bold text-slate-700">Slug publico</label>
-                <Input value={editForm.slug} onChange={(event) => updateEditForm('slug', slugify(event.target.value))} required />
-              </div>
-
-              <div className="grid gap-1.5">
-                <label className="text-sm font-bold text-slate-700">Responsavel</label>
-                <Input value={editForm.responsibleName} onChange={(event) => updateEditForm('responsibleName', event.target.value)} required />
-              </div>
-
-              <div className="grid gap-1.5">
-                <label className="text-sm font-bold text-slate-700">CPF ou CNPJ</label>
-                <Input value={editForm.document} onChange={(event) => updateEditForm('document', event.target.value)} required />
-              </div>
-
-              <div className="grid gap-1.5">
-                <label className="text-sm font-bold text-slate-700">WhatsApp</label>
-                <Input value={editForm.whatsapp} onChange={(event) => updateEditForm('whatsapp', event.target.value)} required />
-              </div>
-
-              <div className="grid gap-1.5">
-                <label className="text-sm font-bold text-slate-700">Telefone</label>
-                <Input value={editForm.phone} onChange={(event) => updateEditForm('phone', event.target.value)} />
-              </div>
-
-              <div className="grid gap-1.5">
-                <label className="text-sm font-bold text-slate-700">Cidade</label>
-                <Input value={editForm.city} onChange={(event) => updateEditForm('city', event.target.value)} required />
-              </div>
-
-              <div className="grid gap-1.5">
-                <label className="text-sm font-bold text-slate-700">Estado</label>
-                <Input value={editForm.state} onChange={(event) => updateEditForm('state', event.target.value)} required maxLength={2} />
-              </div>
-
-              <div className="grid gap-1.5">
-                <label className="text-sm font-bold text-slate-700">CEP</label>
-                <Input value={editForm.zipCode} onChange={(event) => updateEditForm('zipCode', event.target.value)} />
-              </div>
-
-              <div className="grid gap-1.5 sm:col-span-2">
-                <label className="text-sm font-bold text-slate-700">Endereco completo</label>
-                <Input value={editForm.address} onChange={(event) => updateEditForm('address', event.target.value)} />
-              </div>
-
-              <div className="grid gap-1.5 sm:col-span-2">
-                <label className="text-sm font-bold text-slate-700">Observacoes internas</label>
-                <textarea
-                  value={editForm.internalNotes}
-                  onChange={(event) => updateEditForm('internalNotes', event.target.value)}
-                  className="min-h-24 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-700 shadow-sm outline-none focus:border-orange-500"
-                />
-              </div>
-            </div>
-
-            <ModalFooter>
-              <Button type="button" variant="outline" onClick={() => setEditTenant(null)}>
-                Cancelar
-              </Button>
-              <Button type="submit" variant="primary" disabled={isSaving}>
-                {isSaving ? 'Salvando...' : 'Salvar alteracoes'}
-              </Button>
-            </ModalFooter>
-          </form>
-        </ModalContent>
-      </Modal>
+      <ClienteEditModal
+        tenant={editTenant}
+        form={editForm}
+        isSaving={isSaving}
+        onClose={() => setEditTenant(null)}
+        onChange={updateEditForm}
+        onSubmit={updateTenant}
+      />
 
       <ClienteDetailsModal
         tenant={detailsTenant}
@@ -605,7 +551,7 @@ export default function ClientesPage() {
             <ModalHeader>
               <ModalTitle>Redefinir senha do cliente</ModalTitle>
               <ModalDescription>
-                Crie uma senha nova para o dono da pizzaria. A senha sera valida imediatamente e esta acao ficara registrada na auditoria.
+                Crie uma senha nova para o responsavel principal. A senha sera valida imediatamente e esta acao ficara registrada na auditoria.
               </ModalDescription>
             </ModalHeader>
 
@@ -676,7 +622,7 @@ export default function ClientesPage() {
             <ModalHeader>
               <ModalTitle>Alterar plano</ModalTitle>
               <ModalDescription>
-                Defina o plano e o valor contratado desta pizzaria. Alterar a tabela de planos depois nao muda este contrato automaticamente.
+                Defina o plano e o valor contratado deste cliente. Alterar a tabela de planos depois nao muda este contrato automaticamente.
               </ModalDescription>
             </ModalHeader>
 

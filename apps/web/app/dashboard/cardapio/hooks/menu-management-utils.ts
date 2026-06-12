@@ -15,5 +15,19 @@ export function getErrorMessage(
   error: unknown,
   fallback: string,
 ) {
-  return error instanceof Error ? error.message : fallback
+  if (!(error instanceof Error)) return fallback
+
+  try {
+    const parsed = JSON.parse(error.message) as {
+      message?: string | string[]
+    }
+
+    if (Array.isArray(parsed.message)) {
+      return parsed.message.join(', ')
+    }
+
+    return parsed.message || error.message
+  } catch {
+    return error.message || fallback
+  }
 }

@@ -11,6 +11,12 @@ import { OrdersGateway } from '../orders/gateways/orders.gateway';
 import { PriceEngineService } from '../price-engine/price-engine.service';
 
 import { CreatePublicOrderV2Dto } from './dto/create-public-order-v2.dto';
+import {
+  assertCurrentPrivacyConsent,
+  PRIVACY_POLICY_VERSION,
+  PrivacyRequestContext,
+  sanitizePrivacyContext,
+} from './privacy-consent';
 
 @Injectable()
 export class PublicOrdersV2Service {
@@ -21,7 +27,11 @@ export class PublicOrdersV2Service {
     private readonly ordersGateway: OrdersGateway,
   ) {}
 
-  async createByTenantSlug(tenantSlug: string, dto: CreatePublicOrderV2Dto) {
+  async createByTenantSlug(
+    tenantSlug: string,
+    dto: CreatePublicOrderV2Dto,
+    privacyContext?: PrivacyRequestContext,
+  ) {
     const tenant = await this.prisma.tenant.findUnique({
       where: {
         slug: tenantSlug,
@@ -36,10 +46,16 @@ export class PublicOrdersV2Service {
       throw new NotFoundException('Cardapio nao encontrado.');
     }
 
-    return this.create(tenant.id, dto);
+    return this.create(tenant.id, dto, privacyContext);
   }
 
-  async create(tenantId: string, dto: CreatePublicOrderV2Dto) {
+  async create(
+    tenantId: string,
+    dto: CreatePublicOrderV2Dto,
+    privacyContext?: PrivacyRequestContext,
+  ) {
+    assertCurrentPrivacyConsent(dto.privacyAccepted, dto.privacyPolicyVersion);
+
     if (!dto.items?.length) {
       throw new BadRequestException('O pedido precisa ter pelo menos 1 item.');
     }
@@ -122,6 +138,7 @@ export class PublicOrdersV2Service {
       : null;
     const discountAmount = coupon?.discountAmount ?? 0;
     const total = Math.max(totalBeforeDiscount - discountAmount, 0);
+    const sanitizedPrivacyContext = sanitizePrivacyContext(privacyContext);
 
     const order = await this.prisma.order.create({
       data: {
@@ -138,6 +155,10 @@ export class PublicOrdersV2Service {
         couponCode: coupon?.code,
         total,
         notes: dto.notes,
+        privacyAcceptedAt: new Date(),
+        privacyPolicyVersion: PRIVACY_POLICY_VERSION,
+        privacyAcceptedIp: sanitizedPrivacyContext.ip,
+        privacyAcceptedUserAgent: sanitizedPrivacyContext.userAgent,
         items: {
           create: itemsData,
         },

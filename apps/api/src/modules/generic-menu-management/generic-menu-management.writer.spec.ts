@@ -25,6 +25,55 @@ describe('GenericMenuManagementWriter', () => {
       }),
     });
   });
+
+  it('resolve grupo criado na mesma transacao pelo codigo', async () => {
+    const tx = createTransactionMock();
+    const writer = new GenericMenuManagementWriter();
+    const input = payload();
+    input.products[0].modifierGroups[0].options[0].rules = [
+      {
+        targetGroupCode: 'pizza_flavor',
+        isEnabled: true,
+        minSelections: 1,
+        maxSelections: 2,
+      },
+    ];
+
+    await writer.write(tx as never, 'tenant-1', input as never);
+
+    expect(tx.productModifierOptionRule.upsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        create: expect.objectContaining({
+          targetGroupId: 'group-flavor',
+        }),
+      }),
+    );
+  });
+
+  it('cria produto novo e vincula grupos no fluxo generico', async () => {
+    const tx = createTransactionMock();
+    const writer = new GenericMenuManagementWriter();
+    const input = payload();
+    (input.products[0] as { id?: string }).id = undefined;
+
+    await writer.write(tx as never, 'tenant-1', input as never);
+
+    expect(tx.product.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        tenantId: 'tenant-1',
+        name: 'Pizza',
+        type: ProductType.PIZZA_ROUND,
+        pricingMode: ProductPricingMode.FROM_MODIFIERS,
+      }),
+    });
+    expect(tx.productModifierGroup.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          productId: 'product-created',
+        }),
+      }),
+    );
+  });
 });
 
 function createTransactionMock() {
@@ -34,6 +83,7 @@ function createTransactionMock() {
     },
     product: {
       update: jest.fn().mockResolvedValue({ id: 'product-pizza' }),
+      create: jest.fn().mockResolvedValue({ id: 'product-created' }),
     },
     modifierGroup: {
       update: jest

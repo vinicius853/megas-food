@@ -68,6 +68,9 @@ export class GenericMenuManagementValidator {
         product.modifierGroups.map((group) => group.code),
         `codigo de grupo do produto ${product.name}`,
       );
+      const productGroupCodes = new Set(
+        product.modifierGroups.map((group) => group.code),
+      );
 
       for (const group of product.modifierGroups) {
         if (group.maxSelections < group.minSelections) {
@@ -101,11 +104,31 @@ export class GenericMenuManagementValidator {
             `preco contextual da opcao ${option.name}`,
           );
           assertUnique(
-            option.rules.map((rule) => rule.targetGroupId),
+            option.rules.map(
+              (rule) =>
+                rule.targetGroupId ??
+                `code:${rule.targetGroupCode ?? '__missing__'}`,
+            ),
             `regra condicional da opcao ${option.name}`,
           );
 
           for (const rule of option.rules) {
+            if (
+              (!rule.targetGroupId && !rule.targetGroupCode) ||
+              (rule.targetGroupId && rule.targetGroupCode)
+            ) {
+              throw new BadRequestException(
+                `Regra da opcao ${option.name} deve possuir uma unica referencia de grupo alvo.`,
+              );
+            }
+            if (
+              rule.targetGroupCode &&
+              !productGroupCodes.has(rule.targetGroupCode)
+            ) {
+              throw new BadRequestException(
+                `Codigo de grupo alvo invalido na opcao ${option.name}.`,
+              );
+            }
             if (
               rule.minSelections !== undefined &&
               rule.maxSelections !== undefined &&
@@ -399,7 +422,10 @@ function validateRelationOwnership(
             throw invalidRelation('regra/opcao origem', option.name);
           }
 
-          if (!productGroupKeys.has(`${product.id}:${rule.targetGroupId}`)) {
+          if (
+            rule.targetGroupId &&
+            !productGroupKeys.has(`${product.id}:${rule.targetGroupId}`)
+          ) {
             throw invalidRelation('targetGroupId/produto', rule.targetGroupId);
           }
         }
@@ -456,7 +482,7 @@ function collectReferences(payload: UpdateGenericMenuDto) {
 
         for (const rule of option.rules) {
           if (rule.id) ruleIds.add(rule.id);
-          groupIds.add(rule.targetGroupId);
+          if (rule.targetGroupId) groupIds.add(rule.targetGroupId);
         }
       }
     }

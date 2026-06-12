@@ -60,6 +60,20 @@ export function formatCpfCnpj(value?: string | null) {
   return value || '-'
 }
 
+export function maskCpfCnpj(value?: string | null) {
+  const digits = onlyDigits(value || '')
+
+  if (digits.length === 11) {
+    return `${digits.slice(0, 3)}.***.***-${digits.slice(-2)}`
+  }
+
+  if (digits.length === 14) {
+    return `${digits.slice(0, 2)}.***.***/${digits.slice(8, 12)}-**`
+  }
+
+  return value ? 'Documento protegido' : '-'
+}
+
 export function formatPhone(value?: string | null) {
   const digits = onlyDigits(value || '')
 
@@ -102,21 +116,19 @@ export function formatDocumentInput(value: string) {
 }
 
 export function formatZipInput(value: string) {
-  return onlyDigits(value).slice(0, 8).replace(/(\d{5})(\d{1,3})$/, '$1-$2')
+  return onlyDigits(value)
+    .slice(0, 8)
+    .replace(/(\d{5})(\d{1,3})$/, '$1-$2')
 }
 
 export function formatWhatsappInput(value: string) {
   const digits = onlyDigits(value).slice(0, 13)
 
   if (digits.length <= 10) {
-    return digits.replace(/(\d{2})(\d{4})(\d{0,4})/, (_, ddd, first, last) =>
-      last ? `(${ddd}) ${first}-${last}` : `(${ddd}) ${first}`,
-    )
+    return digits.replace(/(\d{2})(\d{4})(\d{0,4})/, (_, ddd, first, last) => (last ? `(${ddd}) ${first}-${last}` : `(${ddd}) ${first}`))
   }
 
-  return digits.replace(/(\d{2})(\d{5})(\d{0,4})/, (_, ddd, first, last) =>
-    last ? `(${ddd}) ${first}-${last}` : `(${ddd}) ${first}`,
-  )
+  return digits.replace(/(\d{2})(\d{5})(\d{0,4})/, (_, ddd, first, last) => (last ? `(${ddd}) ${first}-${last}` : `(${ddd}) ${first}`))
 }
 
 export function getPlanName(tenant: Tenant) {
@@ -134,9 +146,7 @@ export function getErrorMessage(error: unknown) {
 
   try {
     const parsed = JSON.parse(error.message)
-    return Array.isArray(parsed.message)
-      ? parsed.message.join(', ')
-      : parsed.message || error.message
+    return Array.isArray(parsed.message) ? parsed.message.join(', ') : parsed.message || error.message
   } catch {
     return error.message
   }

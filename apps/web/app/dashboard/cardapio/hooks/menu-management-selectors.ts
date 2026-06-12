@@ -13,7 +13,9 @@ export function getPizzaProduct(
   products: Product[],
   type: 'PIZZA_ROUND' | 'PIZZA_SQUARE',
 ) {
-  return products.find((product) => product.type === type)
+  return products.find(
+    (product) => product.type === type && product.isActive,
+  )
 }
 
 export function getProductSections(

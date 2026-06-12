@@ -1,3 +1,5 @@
+import { clearAuthSession } from './auth-session'
+
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? ''
 
 function buildUrl(endpoint: string) {
@@ -6,7 +8,9 @@ function buildUrl(endpoint: string) {
   }
 
   const baseUrl = API_URL.replace(/\/$/, '')
-  const normalizedEndpoint = endpoint.startsWith('/') ? endpoint : `/${endpoint}`
+  const normalizedEndpoint = endpoint.startsWith('/')
+    ? endpoint
+    : `/${endpoint}`
 
   return `${baseUrl}${normalizedEndpoint}`
 }
@@ -16,16 +20,13 @@ export async function apiFetch<T = unknown>(
   options: RequestInit = {},
 ): Promise<T> {
   const token =
-    typeof window !== 'undefined'
-      ? localStorage.getItem('token')
-      : null
+    typeof window !== 'undefined' ? localStorage.getItem('token') : null
 
   let response: Response
 
   try {
     const isFormData =
-      typeof FormData !== 'undefined' &&
-      options.body instanceof FormData
+      typeof FormData !== 'undefined' && options.body instanceof FormData
 
     response = await fetch(buildUrl(endpoint), {
       ...options,
@@ -50,6 +51,11 @@ export async function apiFetch<T = unknown>(
   if (!response.ok) {
     const errorText = await response.text()
     const isHtmlResponse = errorText.trim().startsWith('<!DOCTYPE')
+
+    if (response.status === 401 && token) {
+      clearAuthSession()
+      window.location.replace('/login')
+    }
 
     throw new Error(
       isHtmlResponse

@@ -22,6 +22,8 @@ import {
   formatModifierFraction,
 } from './cart-item-display'
 import { buildPublicOrderV2Payload } from './public-order-v2-payload'
+import { CheckoutPrivacyConsent } from './checkout-privacy-consent'
+import { PRIVACY_POLICY_VERSION } from '@/lib/legal'
 
 export function CheckoutModal({
   open,
@@ -57,6 +59,8 @@ export function CheckoutModal({
   const [loadingCep, setLoadingCep] = useState(false)
   const [cepError, setCepError] = useState('')
   const [submitting, setSubmitting] = useState(false)
+  const [privacyAccepted, setPrivacyAccepted] = useState(false)
+  const [privacyError, setPrivacyError] = useState('')
   const theme = palette ?? {
     primary: '#C40012',
     secondary: '#FF4A00',
@@ -211,7 +215,10 @@ export function CheckoutModal({
       if (itemDisplay.flavorOptions.length > 0) {
         lines.push(
           `Sabores: ${itemDisplay.flavorOptions
-            .map((option) => `${formatModifierFraction(option.fraction)}${option.name}`)
+            .map(
+              (option) =>
+                `${formatModifierFraction(option.fraction)}${option.name}`,
+            )
             .join(', ')}`,
         )
       }
@@ -290,6 +297,15 @@ export function CheckoutModal({
 
   async function handleFinishOrder() {
     try {
+      if (!privacyAccepted) {
+        setPrivacyError(
+          'Aceite a Política de Privacidade para finalizar o pedido.',
+        )
+        return
+      }
+
+      setPrivacyError('')
+
       if (!customerName.trim() || !customerWhatsapp.trim()) {
         alert('Informe seu nome e WhatsApp.')
         return
@@ -369,6 +385,8 @@ export function CheckoutModal({
             ]
               .filter(Boolean)
               .join('\n'),
+            privacyAccepted,
+            privacyPolicyVersion: PRIVACY_POLICY_VERSION,
             items,
           }),
         ),
@@ -384,6 +402,7 @@ export function CheckoutModal({
       const url = `https://wa.me/${cleanPhone}?text=${whatsappMessage}`
 
       window.open(url, '_blank')
+      setPrivacyAccepted(false)
       onOrderFinished?.()
       onClose()
     } catch (error: unknown) {
@@ -685,6 +704,15 @@ export function CheckoutModal({
                 className="w-full resize-none rounded-2xl border border-slate-200 px-4 py-3 outline-none focus:border-red-600"
               />
             </div>
+
+            <CheckoutPrivacyConsent
+              accepted={privacyAccepted}
+              error={privacyError}
+              onChange={(accepted) => {
+                setPrivacyAccepted(accepted)
+                if (accepted) setPrivacyError('')
+              }}
+            />
           </div>
         </div>
 

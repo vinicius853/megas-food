@@ -1,3 +1,5 @@
+import type { TenantSegment } from '@/lib/segments/segment-types'
+
 export type TenantUser = {
   id: string
   name: string
@@ -23,6 +25,7 @@ export type Tenant = {
   internalNotes?: string | null
   logoUrl?: string | null
   isActive: boolean
+  enabledSegments: TenantSegment[]
   createdAt: string
   users?: TenantUser[]
   subscriptions?: Array<{
@@ -71,6 +74,7 @@ export type TenantForm = {
   address: string
   zipCode: string
   internalNotes: string
+  enabledSegments: TenantSegment[]
 }
 
 export type TenantEditForm = {
@@ -85,6 +89,7 @@ export type TenantEditForm = {
   address: string
   zipCode: string
   internalNotes: string
+  enabledSegments: TenantSegment[]
 }
 
 export type ResetPasswordForm = {
@@ -114,6 +119,7 @@ export const initialForm: TenantForm = {
   address: '',
   zipCode: '',
   internalNotes: '',
+  enabledSegments: ['PIZZARIA'],
 }
 
 export const initialEditForm: TenantEditForm = {
@@ -128,6 +134,7 @@ export const initialEditForm: TenantEditForm = {
   address: '',
   zipCode: '',
   internalNotes: '',
+  enabledSegments: ['PIZZARIA'],
 }
 
 export const initialResetPasswordForm: ResetPasswordForm = {

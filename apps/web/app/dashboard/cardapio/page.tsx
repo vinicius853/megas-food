@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 
 import { PageContainer, PageHeader } from "@/components/layout/page-container";
+import { SegmentConfiguratorGate } from "@/components/segments/segment-configurator-gate";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -19,6 +20,7 @@ import { Card, CardContent } from "@/components/ui/card";
 
 import { BorderPriceMatrix } from "./components/border-price-matrix";
 import { MiniStat } from "./components/mini-stat";
+import { PizzaConfigurationStatus } from "./components/pizza-configuration-status";
 import { PizzaPriceMatrix } from "./components/pizza-price-matrix";
 import { ProductSectionList } from "./components/product-section-list";
 import {
@@ -31,6 +33,16 @@ import { pizzaModes, useMenuManagement } from "./hooks/use-menu-management";
 import type { ProductSectionTab } from "./types/menu-management";
 
 export default function CardapioPage() {
+  return (
+    <SegmentConfiguratorGate
+      adapters={{
+        PIZZARIA: <PizzariaMenuConfigurator />,
+      }}
+    />
+  );
+}
+
+function PizzariaMenuConfigurator() {
   const menu = useMenuManagement();
 
   return (
@@ -164,6 +176,14 @@ export default function CardapioPage() {
                 <div className="min-w-0 p-5">
                   {menu.activeTab === "pizzas" && (
                     <>
+                      <PizzaConfigurationStatus
+                        products={menu.products}
+                        sizes={menu.sizes}
+                        flavorPrices={menu.flavorPrices}
+                        onAddPizza={menu.addProduct}
+                        onUpdateProduct={menu.updateProduct}
+                      />
+
                       <div className="mb-5 rounded-3xl border border-slate-200 bg-slate-50 p-4">
                         <p className="text-sm font-black text-slate-900">
                           Como sua pizzaria vende pizza?

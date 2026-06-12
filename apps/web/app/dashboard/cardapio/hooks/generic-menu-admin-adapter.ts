@@ -13,6 +13,11 @@ import {
   parseMoney,
   parsePositiveInteger,
 } from "../types/menu-management";
+import {
+  dedupeBorderPrices,
+  dedupeFlavorPrices,
+  normalizeMenuPrices,
+} from "./menu-management-prices";
 
 type MatrixState = MenuManagementResponse;
 
@@ -22,10 +27,45 @@ const GROUP_CODES = {
   border: "pizza_border",
 } as const;
 
+const BASE_PIZZA_GROUPS = [
+  {
+    code: GROUP_CODES.size,
+    name: "Tamanhos",
+    selectionType: "SINGLE" as const,
+    pricingMode: "INCLUDED" as const,
+    isRequired: true,
+    minSelections: 1,
+    maxSelections: 1,
+    sortOrder: 0,
+  },
+  {
+    code: GROUP_CODES.flavor,
+    name: "Sabores",
+    selectionType: "MULTIPLE" as const,
+    pricingMode: "HIGHEST_SELECTED" as const,
+    isRequired: true,
+    minSelections: 1,
+    maxSelections: 4,
+    sortOrder: 1,
+  },
+  {
+    code: GROUP_CODES.border,
+    name: "Bordas",
+    selectionType: "SINGLE" as const,
+    pricingMode: "ADDITIVE" as const,
+    isRequired: false,
+    minSelections: 0,
+    maxSelections: 1,
+    sortOrder: 2,
+  },
+] as const;
+
 export function genericMenuToMatrix(
   response: GenericMenuManagementResponse,
 ): MatrixState {
-  const pizzaProducts = response.products.filter(isPizza);
+  const pizzaProducts = response.products.filter(
+    (product) => isPizza(product) && product.isActive,
+  );
   const sizes: SizeOptionMatrixRow[] = [];
   const flavors = new Map<string, FlavorOptionMatrixRow>();
   const borders = new Map<string, BorderOptionMatrixRow>();
@@ -94,15 +134,15 @@ export function genericMenuToMatrix(
     }
   }
 
-  return {
+  return normalizeMenuPrices({
     categories: response.categories,
     products: response.products.map(toMatrixProduct),
     sizeOptions: sizes,
     flavorOptions: [...flavors.values()],
-    flavorPrices,
+    flavorPrices: dedupeFlavorPrices(flavorPrices),
     borderOptions: [...borders.values()],
-    borderPrices,
-  };
+    borderPrices: dedupeBorderPrices(borderPrices),
+  });
 }
 
 export function matrixToGenericUpdate(
@@ -143,7 +183,9 @@ export function matrixToGenericUpdate(
           description: product.description ?? undefined,
           imageUrl: product.imageUrl ?? undefined,
           type: product.type,
-          pricingMode: baselineProduct.pricingMode,
+          pricingMode: isPizza(baselineProduct)
+            ? ("FROM_MODIFIERS" as const)
+            : baselineProduct.pricingMode,
           basePrice: baselineProduct.basePrice ?? undefined,
           price:
             product.type === "DRINK" || product.type === "OTHER"
@@ -157,29 +199,69 @@ export function matrixToGenericUpdate(
         };
       }),
       ...state.products
-        .filter(
-          (product) =>
-            !baselineIds.has(product.id) &&
-            (product.type === "DRINK" || product.type === "OTHER"),
-        )
-        .map((product, index) => ({
-          ...categoryReference(product.categoryId, baseline),
-          name: product.name,
-          description: product.description ?? undefined,
-          imageUrl: product.imageUrl ?? undefined,
-          type: product.type,
-          pricingMode: "FIXED" as const,
-          price: parseMoney(product.price),
-          isActive: product.isActive,
-          sortOrder: product.sortOrder ?? baseline.products.length + index,
-          modifierGroups: [],
-        })),
+        .filter((product) => !baselineIds.has(product.id))
+        .map((product, index) => {
+          const sortOrder =
+            product.sortOrder ?? baseline.products.length + index;
+
+          if (isPizza(product)) {
+            const genericProduct = toNewGenericPizza(product, sortOrder);
+
+            return {
+              ...categoryReference(product.categoryId, baseline),
+              name: product.name,
+              description: product.description ?? undefined,
+              imageUrl: product.imageUrl ?? undefined,
+              type: product.type,
+              pricingMode: "FROM_MODIFIERS" as const,
+              isActive: product.isActive,
+              sortOrder,
+              modifierGroups: buildPizzaGroups(state, genericProduct),
+            };
+          }
+
+          return {
+            ...categoryReference(product.categoryId, baseline),
+            name: product.name,
+            description: product.description ?? undefined,
+            imageUrl: product.imageUrl ?? undefined,
+            type: product.type,
+            pricingMode: "FIXED" as const,
+            price: parseMoney(product.price),
+            isActive: product.isActive,
+            sortOrder,
+            modifierGroups: [],
+          };
+        }),
     ],
   };
 }
 
 function buildPizzaGroups(state: MatrixState, product: GenericMenuProduct) {
-  return product.modifierGroups.map((group) => {
+  const hasLocalConfiguration =
+    product.modifierGroups.length > 0 ||
+    state.sizeOptions.some((size) => size.productId === product.id) ||
+    state.flavorPrices.some((price) => price.productId === product.id) ||
+    state.borderPrices.some((price) => price.productId === product.id);
+
+  if (!hasLocalConfiguration) {
+    return [];
+  }
+
+  const baseGroups = BASE_PIZZA_GROUPS.map((definition) => {
+    return (
+      groupByCode(product, definition.code) ?? createBaseGroup(definition)
+    );
+  });
+  const groups = [
+    ...baseGroups,
+    ...product.modifierGroups.filter(
+      (group) =>
+        !BASE_PIZZA_GROUPS.some((definition) => definition.code === group.code),
+    ),
+  ];
+
+  return groups.map((group) => {
     if (group.code === GROUP_CODES.size) {
       return {
         ...toUpdateGroup(group),
@@ -203,11 +285,14 @@ function buildPizzaGroups(state: MatrixState, product: GenericMenuProduct) {
               priceDelta: baseline?.priceDelta ?? 0,
               sortOrder: index,
               isActive: size.isActive,
-              prices: baseline?.prices.map(toUpdatePrice) ?? [],
+              prices: dedupeContextualPrices(
+                baseline?.prices.map(toUpdatePrice) ?? [],
+              ),
               rules: [
                 buildRule(
                   baseline,
                   flavorGroup,
+                  GROUP_CODES.flavor,
                   true,
                   1,
                   parsePositiveInteger(size.maxFlavors),
@@ -215,6 +300,7 @@ function buildPizzaGroups(state: MatrixState, product: GenericMenuProduct) {
                 buildRule(
                   baseline,
                   borderGroup,
+                  GROUP_CODES.border,
                   size.allowBorder,
                   0,
                   size.allowBorder ? 1 : 0,
@@ -244,17 +330,19 @@ function buildPizzaGroups(state: MatrixState, product: GenericMenuProduct) {
             priceDelta: baseline?.priceDelta ?? 0,
             sortOrder: index,
             isActive: flavor.isActive,
-            prices: state.flavorPrices
-              .filter(
-                (price) =>
-                  price.productId === product.id &&
-                  price.flavorId === flavor.id,
-              )
-              .map((price) => ({
-                id: price.id,
-                ...contextualOptionReference(price.sizeId, product),
-                price: parseMoney(price.price),
-              })),
+            prices: dedupeContextualPrices(
+              dedupeFlavorPrices(state.flavorPrices)
+                .filter(
+                  (price) =>
+                    price.productId === product.id &&
+                    price.flavorId === flavor.id,
+                )
+                .map((price) => ({
+                  id: price.id,
+                  ...contextualOptionReference(price.sizeId, product),
+                  price: parseMoney(price.price),
+                })),
+            ),
             rules: baseline?.rules.map(toUpdateRule) ?? [],
           };
         }),
@@ -280,17 +368,19 @@ function buildPizzaGroups(state: MatrixState, product: GenericMenuProduct) {
             priceDelta: baseline?.priceDelta ?? 0,
             sortOrder: index,
             isActive: border.isActive,
-            prices: state.borderPrices
-              .filter(
-                (price) =>
-                  price.productId === product.id &&
-                  price.borderId === border.id,
-              )
-              .map((price) => ({
-                id: price.id,
-                ...contextualOptionReference(price.sizeId, product),
-                price: parseMoney(price.price),
-              })),
+            prices: dedupeContextualPrices(
+              dedupeBorderPrices(state.borderPrices)
+                .filter(
+                  (price) =>
+                    price.productId === product.id &&
+                    price.borderId === border.id,
+                )
+                .map((price) => ({
+                  id: price.id,
+                  ...contextualOptionReference(price.sizeId, product),
+                  price: parseMoney(price.price),
+                })),
+            ),
             rules: baseline?.rules.map(toUpdateRule) ?? [],
           };
         }),
@@ -303,8 +393,8 @@ function buildPizzaGroups(state: MatrixState, product: GenericMenuProduct) {
 
 function toUpdateGroup(group: GenericModifierGroup) {
   return {
-    productModifierGroupId: group.productModifierGroupId,
-    modifierGroupId: group.id,
+    productModifierGroupId: group.productModifierGroupId || undefined,
+    modifierGroupId: group.id || undefined,
     code: group.code,
     name: group.name,
     selectionType: group.selectionType,
@@ -324,7 +414,7 @@ function toUpdateGroup(group: GenericModifierGroup) {
       priceDelta: option.priceDelta,
       sortOrder: option.sortOrder,
       isActive: option.isActive,
-      prices: option.prices.map(toUpdatePrice),
+      prices: dedupeContextualPrices(option.prices.map(toUpdatePrice)),
       rules: option.rules.map(toUpdateRule),
     })),
   };
@@ -333,22 +423,46 @@ function toUpdateGroup(group: GenericModifierGroup) {
 function buildRule(
   option: GenericModifierOption | undefined,
   targetGroup: GenericModifierGroup | undefined,
+  targetGroupCode: string,
   isEnabled: boolean,
   minSelections: number,
   maxSelections: number,
 ) {
-  if (!targetGroup) return undefined;
   const existing = option?.rules.find(
-    (rule) => rule.targetGroupId === targetGroup.id,
+    (rule) =>
+      rule.targetGroupCode === targetGroupCode ||
+      rule.targetGroupId === targetGroup?.id,
   );
 
   return {
     id: existing?.id,
-    targetGroupId: targetGroup.id,
+    ...(targetGroup?.id
+      ? { targetGroupId: targetGroup.id }
+      : { targetGroupCode }),
     isEnabled,
     minSelections,
     maxSelections,
     metadata: isRecord(existing?.metadata) ? existing.metadata : undefined,
+  };
+}
+
+function createBaseGroup(
+  definition: (typeof BASE_PIZZA_GROUPS)[number],
+): GenericModifierGroup {
+  return {
+    id: "",
+    productModifierGroupId: "",
+    code: definition.code,
+    name: definition.name,
+    description: null,
+    selectionType: definition.selectionType,
+    pricingMode: definition.pricingMode,
+    isRequired: definition.isRequired,
+    minSelections: definition.minSelections,
+    maxSelections: definition.maxSelections,
+    sortOrder: definition.sortOrder,
+    isActive: true,
+    options: [],
   };
 }
 
@@ -400,6 +514,32 @@ function toUpdatePrice(price: GenericModifierOption["prices"][number]) {
   };
 }
 
+function dedupeContextualPrices<
+  T extends {
+    id?: string;
+    dependsOnOptionId?: string;
+    dependsOnOptionClientId?: string;
+  },
+>(prices: T[]) {
+  const unique = new Map<string, T>();
+
+  for (const price of prices) {
+    const key =
+      price.dependsOnOptionId ??
+      price.dependsOnOptionClientId ??
+      "__base_price__";
+    const current = unique.get(key);
+
+    unique.set(key, {
+      ...current,
+      ...price,
+      id: current?.id ?? price.id,
+    });
+  }
+
+  return [...unique.values()];
+}
+
 function toUpdateRule(rule: GenericModifierOption["rules"][number]) {
   return {
     id: rule.id,
@@ -422,6 +562,26 @@ function toMatrixProduct(product: GenericMenuProduct): Product {
     price: product.price,
     sortOrder: product.sortOrder,
     isActive: product.isActive,
+  };
+}
+
+function toNewGenericPizza(
+  product: Product,
+  sortOrder: number,
+): GenericMenuProduct {
+  return {
+    id: product.id,
+    categoryId: product.categoryId,
+    name: product.name,
+    description: product.description ?? null,
+    imageUrl: product.imageUrl ?? null,
+    type: product.type,
+    pricingMode: "FROM_MODIFIERS",
+    basePrice: null,
+    price: null,
+    isActive: product.isActive,
+    sortOrder,
+    modifierGroups: [],
   };
 }
 
@@ -454,7 +614,7 @@ function groupByCode(product: GenericMenuProduct, code: string) {
   return product.modifierGroups.find((group) => group.code === code);
 }
 
-function isPizza(product: GenericMenuProduct) {
+function isPizza(product: Pick<Product, "type">) {
   return product.type === "PIZZA_ROUND" || product.type === "PIZZA_SQUARE";
 }
 

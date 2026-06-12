@@ -16,6 +16,7 @@ import { AuditLogsService } from '../audit-logs/audit-logs.service'
 import { CreateTenantDto } from './dto/create-tenant.dto'
 import { ResetOwnerPasswordDto } from './dto/reset-owner-password.dto'
 import { UpdateTenantDto } from './dto/update-tenant.dto'
+import { normalizeTenantSegments } from './tenant-segments'
 
 @Injectable()
 export class TenantsService {
@@ -33,7 +34,7 @@ export class TenantsService {
 
     if (alreadyExists) {
       throw new BadRequestException(
-        'Já existe uma pizzaria com este slug.',
+        'Ja existe um cliente com este slug.',
       )
     }
 
@@ -74,6 +75,7 @@ export class TenantsService {
           internalNotes: dto.internalNotes,
           logoUrl: dto.logoUrl,
           isActive: dto.isActive ?? true,
+          enabledSegments: normalizeTenantSegments(dto.enabledSegments),
 
           users: {
             create: {
@@ -92,7 +94,7 @@ export class TenantsService {
 
     await this.auditLogsService.create({
       actor,
-      action: 'Criou pizzaria',
+      action: 'Criou cliente',
       target: tenant.name,
       level: AuditLogLevel.INFO,
       metadata: {
@@ -127,7 +129,7 @@ export class TenantsService {
 
     if (!tenant) {
       throw new NotFoundException(
-        'Pizzaria não encontrada.',
+        'Cliente nao encontrado.',
       )
     }
 
@@ -198,6 +200,9 @@ export class TenantsService {
         internalNotes: dto.internalNotes,
         logoUrl: dto.logoUrl,
         isActive: dto.isActive,
+        enabledSegments: dto.enabledSegments
+          ? normalizeTenantSegments(dto.enabledSegments)
+          : undefined,
       },
       include: this.tenantInclude(),
     })
@@ -207,7 +212,7 @@ export class TenantsService {
         ? dto.isActive
           ? 'Ativou cliente'
           : 'Desativou cliente'
-        : 'Alterou pizzaria'
+        : 'Alterou cliente'
 
     await this.auditLogsService.create({
       actor,
@@ -246,7 +251,7 @@ export class TenantsService {
 
     if (!owner) {
       throw new NotFoundException(
-        'Dono da pizzaria nao encontrado para este cliente.',
+        'Responsavel principal nao encontrado para este cliente.',
       )
     }
 
@@ -281,7 +286,7 @@ export class TenantsService {
     })
 
     return {
-      message: 'Senha do dono da pizzaria redefinida.',
+      message: 'Senha do responsavel principal redefinida.',
       owner: updatedOwner,
     }
   }

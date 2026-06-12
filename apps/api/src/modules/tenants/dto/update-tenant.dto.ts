@@ -1,9 +1,14 @@
 import {
+  ArrayNotEmpty,
+  ArrayUnique,
+  IsArray,
   IsBoolean,
+  IsEnum,
   IsOptional,
   IsString,
   Matches,
 } from 'class-validator'
+import { TenantSegment } from '@prisma/client'
 
 export class UpdateTenantDto {
   @IsOptional()
@@ -69,6 +74,13 @@ export class UpdateTenantDto {
   @IsOptional()
   @IsBoolean()
   isActive?: boolean
+
+  @IsOptional()
+  @IsArray()
+  @ArrayNotEmpty()
+  @ArrayUnique()
+  @IsEnum(TenantSegment, { each: true })
+  enabledSegments?: TenantSegment[]
 
   @IsOptional()
   @IsString()

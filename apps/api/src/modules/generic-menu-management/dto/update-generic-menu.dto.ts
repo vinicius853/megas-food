@@ -68,8 +68,13 @@ export class UpdateConditionalRuleDto {
   @IsString()
   id?: string;
 
+  @IsOptional()
   @IsString()
-  targetGroupId: string;
+  targetGroupId?: string;
+
+  @IsOptional()
+  @IsString()
+  targetGroupCode?: string;
 
   @IsBoolean()
   isEnabled: boolean;

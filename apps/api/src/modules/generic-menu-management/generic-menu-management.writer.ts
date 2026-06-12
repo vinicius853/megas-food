@@ -60,9 +60,11 @@ export class GenericMenuManagementWriter {
         optionId: string;
       }> = [];
       const optionIdsByClientId = new Map<string, string>();
+      const groupIdsByCode = new Map<string, string>();
 
       for (const groupDto of productDto.modifierGroups) {
         const group = await this.upsertGroup(tx, tenantId, groupDto);
+        groupIdsByCode.set(groupDto.code, group.id);
 
         await this.upsertProductGroup(
           tx,
@@ -120,6 +122,7 @@ export class GenericMenuManagementWriter {
             product.id,
             prepared.optionId,
             ruleDto,
+            groupIdsByCode,
           );
           result.rules += 1;
         }
@@ -474,9 +477,22 @@ export class GenericMenuManagementWriter {
     productId: string,
     sourceOptionId: string,
     dto: UpdateConditionalRuleDto,
+    groupIdsByCode: Map<string, string>,
   ) {
+    const targetGroupId =
+      dto.targetGroupId ??
+      (dto.targetGroupCode
+        ? groupIdsByCode.get(dto.targetGroupCode)
+        : undefined);
+
+    if (!targetGroupId) {
+      throw new Error(
+        `Grupo alvo nao encontrado: ${dto.targetGroupCode ?? 'sem referencia'}.`,
+      );
+    }
+
     const data = {
-      targetGroupId: dto.targetGroupId,
+      targetGroupId,
       isEnabled: dto.isEnabled,
       minSelections: dto.minSelections ?? null,
       maxSelections: dto.maxSelections ?? null,
@@ -503,7 +519,7 @@ export class GenericMenuManagementWriter {
           tenantId,
           productId,
           sourceOptionId,
-          targetGroupId: dto.targetGroupId,
+          targetGroupId,
         },
       },
       create: {

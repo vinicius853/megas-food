@@ -3,6 +3,11 @@
 import { useEffect, useState } from 'react'
 import { usePathname, useRouter } from 'next/navigation'
 
+import {
+  AUTH_SESSION_CHANGED_EVENT,
+  hasValidAuthSession,
+} from '@/lib/auth-session'
+
 type RouteGuardProps = {
   area: 'master' | 'dashboard'
   children: React.ReactNode
@@ -16,27 +21,40 @@ export function RouteGuard({ area, children }: RouteGuardProps) {
   const [allowed, setAllowed] = useState(false)
 
   useEffect(() => {
-    const token = localStorage.getItem('token')
-    const role = localStorage.getItem('userRole')
+    function validateAccess() {
+      setAllowed(false)
 
-    if (!token || !role) {
-      router.replace('/login')
-      return
+      if (!hasValidAuthSession()) {
+        router.replace('/login')
+        return
+      }
+
+      const role = localStorage.getItem('userRole')
+      const isMaster = role ? MASTER_ROLES.includes(role) : false
+
+      if (area === 'master' && !isMaster) {
+        router.replace('/dashboard')
+        return
+      }
+
+      if (area === 'dashboard' && isMaster) {
+        router.replace('/master')
+        return
+      }
+
+      setAllowed(true)
     }
 
-    const isMaster = MASTER_ROLES.includes(role)
+    validateAccess()
+    window.addEventListener('pageshow', validateAccess)
+    window.addEventListener('storage', validateAccess)
+    window.addEventListener(AUTH_SESSION_CHANGED_EVENT, validateAccess)
 
-    if (area === 'master' && !isMaster) {
-      router.replace('/dashboard')
-      return
+    return () => {
+      window.removeEventListener('pageshow', validateAccess)
+      window.removeEventListener('storage', validateAccess)
+      window.removeEventListener(AUTH_SESSION_CHANGED_EVENT, validateAccess)
     }
-
-    if (area === 'dashboard' && isMaster) {
-      router.replace('/master')
-      return
-    }
-
-    setAllowed(true)
   }, [area, pathname, router])
 
   if (!allowed) {

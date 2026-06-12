@@ -4,6 +4,11 @@ import {
   genericMenuToMatrix,
   matrixToGenericUpdate,
 } from "./generic-menu-admin-adapter";
+import {
+  dedupeFlavorPrices,
+  normalizeMenuPrices,
+  validateUniqueMenuPrices,
+} from "./menu-management-prices";
 import type {
   GenericMenuManagementResponse,
   GenericModifierGroup,
@@ -128,12 +133,18 @@ function run() {
   assert.equal(flavor.prices[0].price, 43);
   assert.equal(border.prices[0].price, 9);
   assert.equal(
-    size.rules.find((item) => item.targetGroupId === "flavor-group")
+    size.rules.find(
+      (item) =>
+        "targetGroupId" in item && item.targetGroupId === "flavor-group",
+    )
       ?.maxSelections,
     3,
   );
   assert.equal(
-    size.rules.find((item) => item.targetGroupId === "border-group")?.isEnabled,
+    size.rules.find(
+      (item) =>
+        "targetGroupId" in item && item.targetGroupId === "border-group",
+    )?.isEnabled,
     false,
   );
   assert.equal(unknown.options[0].name, "Ignorado pela matriz");
@@ -157,7 +168,150 @@ function run() {
     "size-11111111-1111-4111-8111-111111111111",
   );
 
+  validatesIncompletePizzaBootstrap();
+  validatesNewGenericPizza();
+  validatesArchivedPizzaIsNotLoaded();
+  validatesDuplicateContextualPrices();
+
   console.log("Generic menu admin adapter validation passed.");
+}
+
+function validatesDuplicateContextualPrices() {
+  const matrix = genericMenuToMatrix(response);
+  matrix.flavorPrices.push({
+    ...matrix.flavorPrices[0],
+    id: undefined,
+    price: 45,
+  });
+
+  assert.match(
+    validateUniqueMenuPrices(matrix) ?? "",
+    /precos de sabor duplicados/,
+  );
+
+  const normalized = normalizeMenuPrices(matrix);
+  assert.equal(validateUniqueMenuPrices(normalized), null);
+  assert.equal(normalized.flavorPrices.length, 1);
+  assert.equal(normalized.flavorPrices[0].id, "flavor-price");
+  assert.equal(normalized.flavorPrices[0].price, 45);
+  assert.equal(dedupeFlavorPrices(normalized.flavorPrices).length, 1);
+  assert.deepEqual(normalizeMenuPrices(normalized), normalized);
+
+  const payload = matrixToGenericUpdate(matrix, response);
+  const flavor = findGroup(
+    payload.products[0].modifierGroups,
+    "pizza_flavor",
+  ).options[0];
+
+  assert.equal(flavor.prices.length, 1);
+  assert.equal(flavor.prices[0].price, 45);
+}
+
+function validatesArchivedPizzaIsNotLoaded() {
+  const archived: GenericMenuManagementResponse = {
+    categories: response.categories,
+    products: [
+      {
+        ...response.products[0],
+        isActive: false,
+      },
+    ],
+  };
+
+  const matrix = genericMenuToMatrix(archived);
+
+  assert.equal(matrix.products.length, 1);
+  assert.equal(matrix.products[0].isActive, false);
+  assert.deepEqual(matrix.sizeOptions, []);
+  assert.deepEqual(matrix.flavorOptions, []);
+  assert.deepEqual(matrix.borderOptions, []);
+}
+
+function validatesIncompletePizzaBootstrap() {
+  const incomplete: GenericMenuManagementResponse = {
+    categories: response.categories,
+    products: [
+      {
+        ...response.products[0],
+        id: "pizza-incomplete",
+        pricingMode: "FIXED",
+        modifierGroups: [],
+      },
+      {
+        ...response.products[0],
+        id: "pizza-untouched",
+        type: "PIZZA_SQUARE",
+        pricingMode: "FIXED",
+        modifierGroups: [],
+      },
+    ],
+  };
+  const matrix = genericMenuToMatrix(incomplete);
+  matrix.sizeOptions.push({
+    id: "size-draft",
+    productId: "pizza-incomplete",
+    name: "30cm",
+    type: "CM",
+    maxFlavors: 2,
+    allowBorder: true,
+    isActive: true,
+  });
+
+  const payload = matrixToGenericUpdate(matrix, incomplete);
+  const configured = payload.products[0];
+  const untouched = payload.products[1];
+
+  assert.equal(configured?.pricingMode, "FROM_MODIFIERS");
+  assert.deepEqual(
+    configured?.modifierGroups.map((group) => group.code),
+    ["pizza_size", "pizza_flavor", "pizza_border"],
+  );
+  const size = configured?.modifierGroups[0].options[0];
+  assert.ok(size && "clientId" in size);
+  assert.equal(size.clientId, "size-draft");
+  assert.deepEqual(
+    size.rules.map((rule) =>
+      "targetGroupCode" in rule ? rule.targetGroupCode : undefined,
+    ),
+    ["pizza_flavor", "pizza_border"],
+  );
+  assert.deepEqual(untouched?.modifierGroups, []);
+}
+
+function validatesNewGenericPizza() {
+  const baseline: GenericMenuManagementResponse = {
+    categories: response.categories,
+    products: [],
+  };
+  const matrix = genericMenuToMatrix(baseline);
+  matrix.products.push({
+    id: "product-draft",
+    categoryId: "category-pizzas",
+    name: "Pizza artesanal",
+    type: "PIZZA_ROUND",
+    isActive: true,
+  });
+  matrix.sizeOptions.push({
+    id: "size-draft-new-product",
+    productId: "product-draft",
+    name: "30cm",
+    type: "CM",
+    maxFlavors: 2,
+    allowBorder: true,
+    isActive: true,
+  });
+
+  const payload = matrixToGenericUpdate(matrix, baseline);
+  const pizza = payload.products[0];
+
+  assert.equal("id" in pizza, false);
+  assert.equal(pizza.name, "Pizza artesanal");
+  assert.equal(pizza.pricingMode, "FROM_MODIFIERS");
+  assert.deepEqual(
+    pizza.modifierGroups.map((group) => group.code),
+    ["pizza_size", "pizza_flavor", "pizza_border"],
+  );
+  assert.equal(pizza.modifierGroups[0].options[0].name, "30cm");
 }
 
 function group(

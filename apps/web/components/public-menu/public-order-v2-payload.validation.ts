@@ -2,6 +2,7 @@ import assert from 'node:assert/strict'
 
 import type { CartItem } from './cart-context'
 import { buildPublicOrderV2Payload } from './public-order-v2-payload'
+import { PRIVACY_POLICY_VERSION } from '../../lib/legal'
 
 function run() {
   validatesWholePizza()
@@ -101,13 +102,13 @@ function buildPayload(items: CartItem[]) {
     deliveryFee: 5,
     couponCode: 'PROMO10',
     notes: 'Obs',
+    privacyAccepted: true,
+    privacyPolicyVersion: PRIVACY_POLICY_VERSION,
     items,
   })
 }
 
-function pizzaItem(
-  selectedModifiers: CartItem['selectedModifiers'],
-): CartItem {
+function pizzaItem(selectedModifiers: CartItem['selectedModifiers']): CartItem {
   return {
     id: 'pizza-cart-item',
     productId: 'pizza-1',

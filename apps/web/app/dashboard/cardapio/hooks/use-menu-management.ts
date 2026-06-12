@@ -61,6 +61,14 @@ import {
   validateProductDrafts,
   validateSizeDrafts,
 } from "./menu-management-drafts";
+import {
+  dedupeBorderPrices,
+  dedupeFlavorPrices,
+  normalizeMenuPrices,
+  upsertBorderPrice,
+  upsertFlavorPrice,
+  validateUniqueMenuPrices,
+} from "./menu-management-prices";
 
 export { pizzaModes };
 
@@ -163,9 +171,9 @@ export function useMenuManagement() {
     setProducts(data.products);
     setSizes(data.sizeOptions);
     setFlavors(data.flavorOptions);
-    setFlavorPrices(data.flavorPrices);
+    setFlavorPrices(dedupeFlavorPrices(data.flavorPrices));
     setBorders(data.borderOptions);
-    setBorderPrices(data.borderPrices);
+    setBorderPrices(dedupeBorderPrices(data.borderPrices));
   }
 
   function currentMenuState(): MenuManagementResponse {
@@ -221,35 +229,14 @@ export function useMenuManagement() {
     sizeId: string,
     value: string,
   ) {
-    setFlavorPrices((prev) => {
-      const existing = prev.find(
-        (price) =>
-          price.productId === productId &&
-          price.flavorId === flavorId &&
-          price.sizeId === sizeId,
-      );
-
-      if (existing) {
-        return prev.map((price) =>
-          price === existing
-            ? {
-                ...price,
-                price: value,
-              }
-            : price,
-        );
-      }
-
-      return [
-        ...prev,
-        {
-          productId,
-          sizeId,
-          flavorId,
-          price: value,
-        },
-      ];
-    });
+    setFlavorPrices((prev) =>
+      upsertFlavorPrice(prev, {
+        productId,
+        sizeId,
+        flavorId,
+        price: value,
+      }),
+    );
   }
 
   function addFlavor() {
@@ -268,15 +255,17 @@ export function useMenuManagement() {
       },
     ]);
 
-    setFlavorPrices((prev) => [
-      ...prev,
-      ...sizes.map((size) => ({
-        productId: size.productId,
-        sizeId: size.id,
-        flavorId,
-        price: "",
-      })),
-    ]);
+    setFlavorPrices((prev) =>
+      dedupeFlavorPrices([
+        ...prev,
+        ...sizes.map((size) => ({
+          productId: size.productId,
+          sizeId: size.id,
+          flavorId,
+          price: "",
+        })),
+      ]),
+    );
   }
 
   function removeFlavor(id: string) {
@@ -385,15 +374,17 @@ export function useMenuManagement() {
 
     setSizes((prev) => [...prev, newSize]);
 
-    setFlavorPrices((prev) => [
-      ...prev,
-      ...flavors.map((flavor) => ({
-        productId: product.id,
-        sizeId,
-        flavorId: flavor.id,
-        price: "",
-      })),
-    ]);
+    setFlavorPrices((prev) =>
+      dedupeFlavorPrices([
+        ...prev,
+        ...flavors.map((flavor) => ({
+          productId: product.id,
+          sizeId,
+          flavorId: flavor.id,
+          price: "",
+        })),
+      ]),
+    );
   }
 
   function removeSize(sizeId: string) {
@@ -413,21 +404,31 @@ export function useMenuManagement() {
     setBorderPrices((prev) => prev.filter((price) => price.sizeId !== sizeId));
   }
 
-  function addProduct(type: "DRINK" | "OTHER", categoryId?: string) {
+  function addProduct(type: Product["type"], categoryId?: string) {
     const category = categoryId
       ? categories.find((item) => item.id === categoryId)
       : type === "DRINK"
         ? categories.find((item) => item.slug === "bebidas")
-        : categories.find((item) => item.slug === "adicionais");
+        : type === "PIZZA_ROUND" || type === "PIZZA_SQUARE"
+          ? categories.find((item) => item.slug === "pizzas")
+          : categories.find((item) => item.slug === "adicionais");
 
-    if (!category) return;
+    if (!category) {
+      setError("Categoria necessária não encontrada para o novo produto.");
+      return;
+    }
 
     setProducts((prev) => [
       ...prev,
       {
         id: temporaryId("product"),
         categoryId: category.id,
-        name: "",
+        name:
+          type === "PIZZA_ROUND"
+            ? "Nova pizza redonda"
+            : type === "PIZZA_SQUARE"
+              ? "Nova pizza quadrada"
+              : "",
         type,
         price: "",
         isActive: true,
@@ -550,17 +551,19 @@ export function useMenuManagement() {
       },
     ]);
 
-    setBorderPrices((prev) => [
-      ...prev,
-      ...sizes
-        .filter((size) => size.allowBorder)
-        .map((size) => ({
-          productId: size.productId,
-          sizeId: size.id,
-          borderId,
-          price: "",
-        })),
-    ]);
+    setBorderPrices((prev) =>
+      dedupeBorderPrices([
+        ...prev,
+        ...sizes
+          .filter((size) => size.allowBorder)
+          .map((size) => ({
+            productId: size.productId,
+            sizeId: size.id,
+            borderId,
+            price: "",
+          })),
+      ]),
+    );
   }
 
   function updateBorderName(id: string, value: string) {
@@ -594,35 +597,14 @@ export function useMenuManagement() {
     size: SizeOptionMatrixRow,
     value: string,
   ) {
-    setBorderPrices((prev) => {
-      const existing = prev.find(
-        (price) =>
-          price.borderId === borderId &&
-          price.sizeId === size.id &&
-          price.productId === size.productId,
-      );
-
-      if (existing) {
-        return prev.map((price) =>
-          price === existing
-            ? {
-                ...price,
-                price: value,
-              }
-            : price,
-        );
-      }
-
-      return [
-        ...prev,
-        {
-          productId: size.productId,
-          sizeId: size.id,
-          borderId,
-          price: value,
-        },
-      ];
-    });
+    setBorderPrices((prev) =>
+      upsertBorderPrice(prev, {
+        productId: size.productId,
+        sizeId: size.id,
+        borderId,
+        price: value,
+      }),
+    );
   }
 
   function removeBorder(id: string) {
@@ -641,8 +623,11 @@ export function useMenuManagement() {
     stateOverride?: MenuManagementResponse,
   ) {
     try {
-      const menuState = stateOverride ?? currentMenuState();
+      const menuState = normalizeMenuPrices(
+        stateOverride ?? currentMenuState(),
+      );
       const draftError =
+        validateUniqueMenuPrices(menuState) ??
         validateSizeDrafts(
           menuState.sizeOptions,
           menuState.flavorOptions,

@@ -4,6 +4,8 @@ import { useEffect, useMemo, useState } from "react";
 import { Search, ShoppingCart } from "lucide-react";
 
 import { apiFetch } from "@/lib/api";
+import { CookieBanner } from "@/components/legal/cookie-banner";
+import { PublicLegalFooter } from "@/components/legal/public-legal-footer";
 
 import { CartDrawer } from "./cart-drawer";
 import { CartProvider, useCart } from "./cart-context";
@@ -287,19 +289,28 @@ function PublicMenuContent({ slug }: { slug: string }) {
       className="min-h-screen bg-slate-200 font-sans text-slate-950"
     >
       <div className="mx-auto min-h-screen w-full max-w-[860px] bg-slate-50 shadow-2xl">
-        <div className="h-3" style={{ backgroundColor: palette.primary }} />
-
         <header
-          className="relative min-h-[190px] overflow-hidden px-4 pb-16 pt-5 text-white shadow-sm sm:min-h-[230px] sm:px-8"
-          style={{
-            backgroundColor: palette.primary,
-            backgroundImage: menuCover
-              ? `linear-gradient(180deg, #00000099, ${palette.primary}55), url(${menuCover})`
-              : undefined,
-            backgroundPosition: "center",
-            backgroundSize: "cover",
-          }}
+          className="relative min-h-[190px] w-full overflow-hidden bg-slate-900 px-4 pb-16 pt-5 text-white shadow-sm sm:min-h-[230px] sm:px-8"
+          style={{ backgroundColor: palette.primary }}
         >
+          {menuCover && (
+            <>
+              <img
+                src={menuCover}
+                alt=""
+                aria-hidden="true"
+                className="absolute inset-0 block h-full w-full object-cover object-center"
+              />
+              <div
+                aria-hidden="true"
+                className="absolute inset-0"
+                style={{
+                  background: `linear-gradient(180deg, #00000099, ${palette.primary}55)`,
+                }}
+              />
+            </>
+          )}
+
           <div className="relative z-10 flex items-start justify-between gap-4">
             <div className="flex min-w-0 items-center">
               <div className="flex min-h-14 max-w-[190px] items-center justify-center overflow-hidden">
@@ -326,6 +337,7 @@ function PublicMenuContent({ slug }: { slug: string }) {
             </div>
 
             <button
+              type="button"
               onClick={() => setCartOpen(true)}
               className="relative flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-black text-white shadow-lg transition active:scale-95"
             >
@@ -446,6 +458,7 @@ function PublicMenuContent({ slug }: { slug: string }) {
             )}
           </div>
         </section>
+        <PublicLegalFooter />
       </div>
 
       <BottomCartBar
@@ -488,6 +501,7 @@ function PublicMenuContent({ slug }: { slug: string }) {
         ordersEnabled={storeStatus.isOpen}
         closedMessage={storeStatus.message}
       />
+      <CookieBanner />
     </main>
   );
 }

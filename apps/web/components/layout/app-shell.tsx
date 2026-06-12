@@ -7,7 +7,10 @@ import { Pizza, X } from 'lucide-react'
 
 import { Sidebar } from './sidebar'
 import { Header } from './header'
+import { LogoutButton } from '@/components/auth/logout-button'
 import { apiFetch } from '@/lib/api'
+import { getDashboardSegmentLabel } from '@/lib/segments/segment-registry'
+import type { TenantSegment } from '@/lib/segments/segment-types'
 
 import {
   type NavSection,
@@ -31,6 +34,7 @@ export type DashboardBrand = {
   subtitle: string
   logoUrl: string
   slug: string
+  segments: TenantSegment[]
 }
 
 export function AppShell({
@@ -59,6 +63,7 @@ export function AppShell({
           name?: string
           slug?: string
           logoUrl?: string | null
+          enabledSegments?: TenantSegment[]
         }>('/tenants/me'),
       ])
 
@@ -67,13 +72,19 @@ export function AppShell({
           tenant.name ||
           customization.brandName ||
           meta.title,
-        subtitle: meta.subtitle,
+        subtitle: getDashboardSegmentLabel(tenant.enabledSegments),
         logoUrl:
           customization.logoUrl ||
           tenant.logoUrl ||
           '',
         slug: tenant.slug || 'parada-pizza',
+        segments: tenant.enabledSegments || ['PIZZARIA'],
       })
+
+      localStorage.setItem(
+        'tenantSegments',
+        JSON.stringify(tenant.enabledSegments || ['PIZZARIA']),
+      )
     } catch {
       setDashboardBrand(null)
     }
@@ -120,6 +131,7 @@ export function AppShell({
           brand={workspace === 'dashboard' ? dashboardBrand : null}
           workspace={workspace}
           onToggleMobileNav={() => setMobileOpen(true)}
+          rightSlot={<LogoutButton />}
         />
 
         <main className="min-w-0 flex-1 overflow-x-hidden">

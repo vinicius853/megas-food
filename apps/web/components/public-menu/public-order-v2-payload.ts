@@ -8,6 +8,8 @@ type PublicOrderV2PayloadInput = {
   deliveryFee: number
   couponCode?: string
   notes?: string
+  privacyAccepted: boolean
+  privacyPolicyVersion: string
   items: CartItem[]
 }
 
@@ -37,6 +39,8 @@ export function buildPublicOrderV2Payload(input: PublicOrderV2PayloadInput) {
     deliveryFee: input.deliveryFee,
     couponCode: input.couponCode,
     notes: input.notes,
+    privacyAccepted: input.privacyAccepted,
+    privacyPolicyVersion: input.privacyPolicyVersion,
     items: input.items.flatMap(buildPublicOrderV2ItemsForCartItem),
   }
 }

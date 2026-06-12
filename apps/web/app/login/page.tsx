@@ -2,24 +2,15 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import {
-  ArrowRight,
-  BarChart3,
-  Eye,
-  EyeOff,
-  Headphones,
-  Lock,
-  ShieldCheck,
-  ShoppingBag,
-  TrendingUp,
-  User,
-  Zap,
-} from 'lucide-react'
+import Link from 'next/link'
+import { ArrowRight, BarChart3, Eye, EyeOff, Headphones, Lock, ShieldCheck, ShoppingBag, TrendingUp, User, Zap } from 'lucide-react'
 
 import { apiFetch } from '@/lib/api'
 
 import logoImage from './imagens/megas-food-logo.png'
 import restaurantImage from './imagens/login-restaurante-bg.png'
+import { clearAuthSession } from '@/lib/auth-session'
+import type { TenantSegment } from '@/lib/segments/segment-types'
 
 type LoginResponse = {
   accessToken: string
@@ -34,6 +25,7 @@ type LoginResponse = {
     id: string
     name: string
     slug: string
+    enabledSegments?: TenantSegment[]
   }
 }
 
@@ -92,7 +84,7 @@ export default function LoginPage() {
       setLoading(true)
       setError('')
 
-      localStorage.clear()
+      clearAuthSession()
 
       const response = await apiFetch<LoginResponse>('/auth/login', {
         method: 'POST',
@@ -112,17 +104,15 @@ export default function LoginPage() {
       localStorage.setItem('tenantId', response.tenant.id)
       localStorage.setItem('tenantSlug', response.tenant.slug)
       localStorage.setItem('tenantName', response.tenant.name)
+      localStorage.setItem(
+        'tenantSegments',
+        JSON.stringify(response.tenant.enabledSegments || ['PIZZARIA']),
+      )
       localStorage.setItem('userName', response.user.name)
       localStorage.setItem('userRole', response.user.role)
-      localStorage.setItem(
-        'userPermissions',
-        JSON.stringify(response.user.permissions || []),
-      )
+      localStorage.setItem('userPermissions', JSON.stringify(response.user.permissions || []))
 
-      if (
-        response.user.role === 'MASTER_OWNER' ||
-        response.user.role === 'MASTER_ADMIN'
-      ) {
+      if (response.user.role === 'MASTER_OWNER' || response.user.role === 'MASTER_ADMIN') {
         router.push('/master')
         return
       }
@@ -153,19 +143,12 @@ export default function LoginPage() {
       <section className="relative z-10 mx-auto flex min-h-[calc(100vh-4rem)] w-full max-w-6xl flex-col justify-center gap-8">
         <div className="grid items-center gap-10 lg:grid-cols-[1fr_430px]">
           <div className="mx-auto w-full max-w-lg text-center lg:mx-0 lg:text-left">
-            <img
-              src={logoImage.src}
-              alt="Megas Food"
-              className="mx-auto h-auto w-64 max-w-full lg:mx-0 lg:w-72"
-            />
+            <img src={logoImage.src} alt="Megas Food" className="mx-auto h-auto w-64 max-w-full lg:mx-0 lg:w-72" />
 
             <div className="mx-auto mt-6 h-px w-72 max-w-full bg-gradient-to-r from-transparent via-orange-500/60 to-transparent lg:mx-0" />
 
             <h1 className="mt-8 max-w-md text-3xl font-semibold leading-tight text-white sm:text-4xl">
-              Cardápio digital, pedidos online e gestão completa para{' '}
-              <span className="font-black text-orange-500">
-                pizzarias e restaurantes.
-              </span>
+              Cardápio digital, pedidos online e gestão completa para <span className="font-black text-orange-500">pizzarias e restaurantes.</span>
             </h1>
 
             <div className="mt-6 grid grid-cols-3 gap-3">
@@ -173,16 +156,11 @@ export default function LoginPage() {
                 const Icon = item.icon
 
                 return (
-                  <div
-                    key={item.title}
-                    className="rounded-2xl border border-orange-500/30 bg-white/[0.03] p-3 text-center shadow-[0_0_30px_rgba(255,106,0,0.08)]"
-                  >
+                  <div key={item.title} className="rounded-2xl border border-orange-500/30 bg-white/[0.03] p-3 text-center shadow-[0_0_30px_rgba(255,106,0,0.08)]">
                     <div className="mx-auto flex h-10 w-10 items-center justify-center rounded-xl border border-orange-500/40 text-orange-500">
                       <Icon className="h-5 w-5" />
                     </div>
-                    <p className="mt-3 text-[11px] font-semibold leading-snug text-slate-200">
-                      {item.title}
-                    </p>
+                    <p className="mt-3 text-[11px] font-semibold leading-snug text-slate-200">{item.title}</p>
                   </div>
                 )
               })}
@@ -194,77 +172,39 @@ export default function LoginPage() {
               <h2 className="text-3xl font-black tracking-tight text-white">
                 Bem-<span className="text-orange-500">vindo!</span>
               </h2>
-              <p className="mt-2 text-sm text-slate-400">
-                Faça login para acessar sua conta
-              </p>
+              <p className="mt-2 text-sm text-slate-400">Faça login para acessar sua conta</p>
             </div>
 
             <form onSubmit={handleLogin} className="mt-9 space-y-5">
               <div>
-                <label className="text-sm font-medium text-slate-300">
-                  E-mail ou usuário
-                </label>
+                <label className="text-sm font-medium text-slate-300">E-mail ou usuário</label>
                 <div className="mt-2 flex h-14 items-center gap-3 rounded-2xl border border-white/10 bg-black/30 px-4 transition focus-within:border-orange-500/70">
                   <User className="h-5 w-5 text-orange-500" />
-                  <input
-                    type="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    className="min-w-0 flex-1 bg-transparent text-sm text-white outline-none placeholder:text-slate-500"
-                    placeholder="seu@email.com"
-                    required
-                  />
+                  <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} className="min-w-0 flex-1 bg-transparent text-sm text-white outline-none placeholder:text-slate-500" placeholder="seu@email.com" required />
                 </div>
               </div>
 
               <div>
-                <label className="text-sm font-medium text-slate-300">
-                  Senha
-                </label>
+                <label className="text-sm font-medium text-slate-300">Senha</label>
                 <div className="mt-2 flex h-14 items-center gap-3 rounded-2xl border border-white/10 bg-black/30 px-4 transition focus-within:border-orange-500/70">
                   <Lock className="h-5 w-5 text-orange-500" />
-                  <input
-                    type={showPassword ? 'text' : 'password'}
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    className="min-w-0 flex-1 bg-transparent text-sm text-white outline-none placeholder:text-slate-500"
-                    placeholder="••••••••"
-                    required
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword((current) => !current)}
-                    className="text-orange-500 transition hover:text-orange-300"
-                    aria-label={showPassword ? 'Ocultar senha' : 'Mostrar senha'}
-                  >
-                    {showPassword ? (
-                      <EyeOff className="h-5 w-5" />
-                    ) : (
-                      <Eye className="h-5 w-5" />
-                    )}
+                  <input type={showPassword ? 'text' : 'password'} value={password} onChange={(e) => setPassword(e.target.value)} className="min-w-0 flex-1 bg-transparent text-sm text-white outline-none placeholder:text-slate-500" placeholder="••••••••" required />
+                  <button type="button" onClick={() => setShowPassword((current) => !current)} className="text-orange-500 transition hover:text-orange-300" aria-label={showPassword ? 'Ocultar senha' : 'Mostrar senha'}>
+                    {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
                   </button>
                 </div>
               </div>
 
               <div className="flex items-center justify-between gap-4 text-xs">
                 <label className="flex cursor-pointer items-center gap-2 text-slate-300">
-                  <input
-                    type="checkbox"
-                    checked={remember}
-                    onChange={(event) => setRemember(event.target.checked)}
-                    className="h-4 w-4 rounded border-orange-500 bg-transparent accent-orange-600"
-                  />
+                  <input type="checkbox" checked={remember} onChange={(event) => setRemember(event.target.checked)} className="h-4 w-4 rounded border-orange-500 bg-transparent accent-orange-600" />
                   Lembrar de mim
                 </label>
 
                 <span className="text-slate-500">Acesso seguro</span>
               </div>
 
-              {error && (
-                <div className="rounded-2xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm font-medium text-red-200">
-                  {error}
-                </div>
-              )}
+              {error && <div className="rounded-2xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm font-medium text-red-200">{error}</div>}
 
               <button
                 type="submit"
@@ -283,12 +223,7 @@ export default function LoginPage() {
 
               <p className="text-center text-xs text-slate-400">
                 Deseja contratar o sistema?{' '}
-                <a
-                  href="https://wa.me/5524998522102?text=Ol%C3%A1!%20Tenho%20interesse%20em%20contratar%20o%20Megas%20Food."
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="font-semibold text-orange-500 transition hover:text-orange-300"
-                >
+                <a href="https://wa.me/5524998522102?text=Ol%C3%A1!%20Tenho%20interesse%20em%20contratar%20o%20Megas%20Food." target="_blank" rel="noopener noreferrer" className="font-semibold text-orange-500 transition hover:text-orange-300">
                   Fale conosco
                 </a>
               </p>
@@ -307,18 +242,22 @@ export default function LoginPage() {
                 </div>
                 <div>
                   <p className="text-sm font-black text-white">{benefit.title}</p>
-                  <p className="mt-1 text-xs leading-relaxed text-slate-400">
-                    {benefit.description}
-                  </p>
+                  <p className="mt-1 text-xs leading-relaxed text-slate-400">{benefit.description}</p>
                 </div>
               </div>
             )
           })}
         </div>
 
-        <p className="text-center text-xs text-slate-500">
-          © 2026 Megas Food. Pedidos • Gestão • Crescimento.
-        </p>
+        <p className="text-center text-xs text-slate-500">© 2026 Megas Food. Pedidos • Gestão • Crescimento.</p>
+        <nav className="flex justify-center gap-5 text-xs font-semibold text-slate-400">
+          <Link href="/privacidade" className="hover:text-white">
+            Política de Privacidade
+          </Link>
+          <Link href="/termos" className="hover:text-white">
+            Termos de Uso
+          </Link>
+        </nav>
       </section>
     </main>
   )

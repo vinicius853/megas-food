@@ -191,7 +191,11 @@ export function validateProductDrafts(products: Product[]) {
     if (!product.name.trim()) {
       return "Informe o nome do novo produto antes de salvar.";
     }
-    if (parseMoney(product.price) <= 0) {
+    if (
+      product.type !== "PIZZA_ROUND" &&
+      product.type !== "PIZZA_SQUARE" &&
+      parseMoney(product.price) <= 0
+    ) {
       return `Informe o preço do produto ${product.name.trim()} antes de salvar.`;
     }
   }

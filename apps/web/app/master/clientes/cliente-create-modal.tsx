@@ -10,14 +10,19 @@ import {
   ModalHeader,
   ModalTitle,
 } from '@/components/ui/modal'
+import { TenantSegmentSelector } from '@/components/segments/tenant-segment-selector'
 import type { TenantForm } from './clientes.types'
+import type { TenantSegment } from '@/lib/segments/segment-types'
 
 type ClienteCreateModalProps = {
   isOpen: boolean
   form: TenantForm
   isSaving: boolean
   onOpenChange: (open: boolean) => void
-  onChange: (field: keyof TenantForm, value: string) => void
+  onChange: (
+    field: keyof TenantForm,
+    value: string | TenantSegment[],
+  ) => void
   onSubmit: (event: FormEvent<HTMLFormElement>) => void
   onClose: () => void
 }
@@ -36,25 +41,25 @@ export function ClienteCreateModal({
       <ModalContent className="max-w-2xl">
         <form onSubmit={onSubmit}>
           <ModalHeader>
-            <ModalTitle>Nova pizzaria</ModalTitle>
+            <ModalTitle>Novo cliente</ModalTitle>
             <ModalDescription>
-              Crie o cliente e o primeiro acesso do dono da pizzaria.
+              Crie a operacao, habilite os segmentos e defina o primeiro acesso.
             </ModalDescription>
           </ModalHeader>
 
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="grid gap-1.5">
-              <label className="text-sm font-bold text-slate-700">Nome da pizzaria</label>
+              <label className="text-sm font-bold text-slate-700">Nome da operacao</label>
               <Input value={form.name} onChange={(event) => onChange('name', event.target.value)} required />
             </div>
 
             <div className="grid gap-1.5">
               <label className="text-sm font-bold text-slate-700">URL publica gerada</label>
               <div className="flex h-12 items-center rounded-2xl border border-slate-200 bg-slate-50 px-4 text-sm font-bold text-slate-700 shadow-sm">
-                /c/{form.slug || 'nome-da-pizzaria'}
+                /c/{form.slug || 'nome-da-operacao'}
               </div>
               <p className="text-xs font-medium text-slate-500">
-                O sistema gera automaticamente pelo nome da pizzaria.
+                O sistema gera automaticamente pelo nome da operacao.
               </p>
             </div>
 
@@ -103,6 +108,11 @@ export function ClienteCreateModal({
               <Input value={form.address} onChange={(event) => onChange('address', event.target.value)} placeholder="Rua, numero, bairro" />
             </div>
 
+            <TenantSegmentSelector
+              value={form.enabledSegments}
+              onChange={(segments) => onChange('enabledSegments', segments)}
+            />
+
             <div className="grid gap-1.5 sm:col-span-2">
               <label className="text-sm font-bold text-slate-700">Observacoes internas</label>
               <textarea
@@ -119,7 +129,7 @@ export function ClienteCreateModal({
               Cancelar
             </Button>
             <Button type="submit" variant="primary" disabled={isSaving}>
-              {isSaving ? 'Criando...' : 'Criar pizzaria'}
+              {isSaving ? 'Criando...' : 'Criar cliente'}
             </Button>
           </ModalFooter>
         </form>

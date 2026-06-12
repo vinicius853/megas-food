@@ -1,5 +1,6 @@
 import {
   IsArray,
+  IsBoolean,
   IsEnum,
   IsIn,
   IsInt,
@@ -68,6 +69,12 @@ class PublicOrderV2ItemDto {
 }
 
 export class CreatePublicOrderV2Dto {
+  @IsBoolean()
+  privacyAccepted: boolean
+
+  @IsString()
+  privacyPolicyVersion: string
+
   @IsOptional()
   @ValidateNested()
   @Type(() => PublicOrderV2CustomerDto)

@@ -69,6 +69,8 @@ export type ExperimentalOrderV2Customer = {
 }
 
 export type ExperimentalOrderV2Payload = {
+  privacyAccepted: boolean
+  privacyPolicyVersion: string
   customer: ExperimentalOrderV2Customer
   type: 'ONLINE' | 'TAKEAWAY' | 'DELIVERY'
   paymentType: 'CASH' | 'PIX' | 'CREDIT_CARD' | 'DEBIT_CARD'
