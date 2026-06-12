@@ -32,8 +32,13 @@ async function main() {
       new PriceEngineService(prisma),
       new CouponsService(prisma),
       gateway as never,
+      { enqueueOrderEvent: async () => undefined } as never,
     );
-    const dashboardOrders = new OrdersService(prisma, gateway as never);
+    const dashboardOrders = new OrdersService(
+      prisma,
+      gateway as never,
+      { enqueueOrderEvent: async () => undefined } as never,
+    );
     const countsBefore = await creationCounts(prisma);
 
     const order = await publicOrders.createByTenantSlug(TENANT_SLUG, {

@@ -8,6 +8,8 @@ import { PrismaService } from '../../prisma/prisma.service';
 
 import { UpdateOrderDto } from './dto/update-order.dto';
 import { OrdersGateway } from './gateways/orders.gateway';
+import { WhatsAppEventType } from '@prisma/client';
+import { WhatsAppNotificationService } from '../whatsapp/whatsapp-notification.service';
 
 const dashboardOrdersTimeZone = 'America/Sao_Paulo';
 
@@ -21,6 +23,7 @@ export class OrdersService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly ordersGateway: OrdersGateway,
+    private readonly whatsappNotifications: WhatsAppNotificationService,
   ) {}
 
   async findAll(tenantId: string, filters: FindOrdersFilters = {}) {
@@ -71,7 +74,7 @@ export class OrdersService {
   }
 
   async update(tenantId: string, id: string, dto: UpdateOrderDto) {
-    await this.findOne(tenantId, id);
+    const previousOrder = await this.findOne(tenantId, id);
 
     const order = await this.prisma.order.update({
       where: {
@@ -92,6 +95,15 @@ export class OrdersService {
     });
 
     this.ordersGateway.emitOrderUpdated(tenantId, order);
+
+    const eventType = this.getWhatsAppEvent(dto.status);
+    if (eventType && previousOrder.status !== dto.status) {
+      await this.whatsappNotifications.enqueueOrderEvent({
+        tenantId,
+        orderId: order.id,
+        eventType,
+      });
+    }
 
     return order;
   }
@@ -217,5 +229,17 @@ export class OrdersService {
     );
 
     return timeZoneDate - date.getTime();
+  }
+
+  private getWhatsAppEvent(status?: string) {
+    const events: Record<string, WhatsAppEventType> = {
+      CONFIRMED: WhatsAppEventType.ORDER_CONFIRMED,
+      CANCELLED: WhatsAppEventType.ORDER_CANCELLED,
+      READY: WhatsAppEventType.ORDER_READY,
+      OUT_FOR_DELIVERY: WhatsAppEventType.ORDER_OUT_FOR_DELIVERY,
+      DELIVERED: WhatsAppEventType.ORDER_DELIVERED,
+    };
+
+    return status ? events[status] : undefined;
   }
 }

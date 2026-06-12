@@ -9,6 +9,8 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { CouponsService } from '../coupons/coupons.service';
 import { OrdersGateway } from '../orders/gateways/orders.gateway';
 import { PriceEngineService } from '../price-engine/price-engine.service';
+import { WhatsAppEventType } from '@prisma/client';
+import { WhatsAppNotificationService } from '../whatsapp/whatsapp-notification.service';
 
 import { CreatePublicOrderV2Dto } from './dto/create-public-order-v2.dto';
 import {
@@ -25,6 +27,7 @@ export class PublicOrdersV2Service {
     private readonly priceEngineService: PriceEngineService,
     private readonly couponsService: CouponsService,
     private readonly ordersGateway: OrdersGateway,
+    private readonly whatsappNotifications: WhatsAppNotificationService,
   ) {}
 
   async createByTenantSlug(
@@ -173,6 +176,11 @@ export class PublicOrdersV2Service {
     });
 
     this.ordersGateway.emitOrderCreated(tenantId, order);
+    await this.whatsappNotifications.enqueueOrderEvent({
+      tenantId,
+      orderId: order.id,
+      eventType: WhatsAppEventType.ORDER_CREATED,
+    });
 
     return order;
   }

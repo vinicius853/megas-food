@@ -24,6 +24,7 @@ import { PublicMenuV2Module } from './public-menu-v2/public-menu-v2.module';
 import { PublicOrdersV2Module } from './modules/public-orders-v2/public-orders-v2.module';
 
 import { GenericMenuManagementModule } from './modules/generic-menu-management/generic-menu-management.module';
+import { WhatsAppModule } from './modules/whatsapp/whatsapp.module';
 
 @Module({
   imports: [
@@ -48,6 +49,7 @@ import { GenericMenuManagementModule } from './modules/generic-menu-management/g
     BillingModule,
 
     GenericMenuManagementModule,
+    WhatsAppModule,
     PublicMenuV2Module,
     PublicOrdersV2Module,
   ],

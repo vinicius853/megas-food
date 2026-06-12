@@ -7,9 +7,10 @@ import { OrdersService } from './orders.service';
 import { OrdersController } from './orders.controller';
 
 import { OrdersGateway } from './gateways/orders.gateway';
+import { WhatsAppModule } from '../whatsapp/whatsapp.module';
 
 @Module({
-  imports: [PrismaModule, AuthModule],
+  imports: [PrismaModule, AuthModule, WhatsAppModule],
 
   controllers: [OrdersController],
 
