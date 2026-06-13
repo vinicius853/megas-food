@@ -34,7 +34,7 @@ export function PizzaSizeCard({ size, onChange, onRemove }: Props) {
         <button
           type="button"
           onClick={onRemove}
-          title="Desativar ou descartar tamanho"
+          title="Remover tamanho"
           className="mt-5 inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-slate-400 transition hover:bg-red-50 hover:text-red-600"
         >
           <Trash2 className="h-4 w-4" />
@@ -127,4 +127,3 @@ function Toggle({
     </label>
   );
 }
-

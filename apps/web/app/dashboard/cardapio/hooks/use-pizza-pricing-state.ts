@@ -213,16 +213,20 @@ export function usePizzaPricingState({
   }
 
   function removeSize(sizeId: string) {
-    if (!sizes.some((size) => size.id === sizeId && isNewSizeDraft(size))) {
+    const isNewDraft = sizes.some(
+      (size) => size.id === sizeId && isNewSizeDraft(size),
+    );
+
+    if (!isNewDraft) {
       setSizes((current) =>
         current.map((size) =>
           size.id === sizeId ? { ...size, isActive: false } : size,
         ),
       );
-      return;
+    } else {
+      setSizes((current) => current.filter((size) => size.id !== sizeId));
     }
 
-    setSizes((current) => current.filter((size) => size.id !== sizeId));
     setFlavorPricesState((current) =>
       current.filter((price) => price.sizeId !== sizeId),
     );

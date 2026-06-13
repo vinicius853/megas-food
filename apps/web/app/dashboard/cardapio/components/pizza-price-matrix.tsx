@@ -14,6 +14,7 @@ import {
 import { MiniStat } from "./mini-stat";
 import { ImageUploadField } from "./image-upload-field";
 import { MoneyInput } from "./money-input";
+import { normalizeIngredientsText } from "../hooks/ingredients-normalizer";
 import { isNewFlavorDraft } from "../hooks/menu-management-drafts";
 
 export function PizzaPriceMatrix({
@@ -196,6 +197,13 @@ export function PizzaPriceMatrix({
                             onUpdateFlavorDescription(
                               flavor.id,
                               event.target.value,
+                            )
+                          }
+                          onBlur={(event) =>
+                            onUpdateFlavorDescription(
+                              flavor.id,
+                              normalizeIngredientsText(event.target.value) ??
+                                "",
                             )
                           }
                           placeholder="Ingredientes da pizza..."

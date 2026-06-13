@@ -10,6 +10,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 
 import { ImageUploadField } from "../components/image-upload-field";
+import { normalizeIngredientsText } from "../hooks/ingredients-normalizer";
 import { isNewFlavorDraft } from "../hooks/menu-management-drafts";
 import type {
   Category,
@@ -165,6 +166,11 @@ export function PizzaFlavorCard({
                   value={flavor.description ?? ""}
                   onChange={(event) =>
                     onUpdateDescription(event.target.value)
+                  }
+                  onBlur={(event) =>
+                    onUpdateDescription(
+                      normalizeIngredientsText(event.target.value) ?? "",
+                    )
                   }
                   rows={3}
                   placeholder="Molho, mussarela, calabresa fatiada..."
