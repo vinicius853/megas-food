@@ -164,11 +164,18 @@ export class WhatsAppConnectionService {
       let providerInstance = instances.find(
         (instance) => instance.instanceName === instanceName,
       );
+      let provisionedQrCode:
+        | { qrCodeBase64?: string; qrCode?: string }
+        | undefined;
       let createdNow = false;
 
       if (!providerInstance) {
         try {
-          await this.evolutionApi.createInstance(instanceName);
+          const provisioned =
+            await this.evolutionApi.createInstance(instanceName);
+          providerInstance = provisioned.instance;
+          provisionedQrCode = provisioned.qrCode;
+          createdNow = true;
         } catch (error) {
           const refreshedInstances =
             await this.evolutionApi.fetchInstances(instanceName);
@@ -178,13 +185,10 @@ export class WhatsAppConnectionService {
 
           if (!providerInstance) throw error;
         }
-
-        createdNow = !providerInstance;
-        providerInstance = { instanceName, status: 'created' };
       }
 
       const connectionState = createdNow
-        ? { state: 'created' }
+        ? { state: providerInstance.status ?? 'created' }
         : await this.evolutionApi.getConnectionStatus(instanceName);
       const connectedPhone =
         connectionState.connectedPhone ??
@@ -209,7 +213,9 @@ export class WhatsAppConnectionService {
         };
       }
 
-      const qrCode = await this.evolutionApi.connectInstance(instanceName);
+      const qrCode = this.hasQrCode(provisionedQrCode)
+        ? provisionedQrCode
+        : await this.evolutionApi.connectInstance(instanceName);
 
       await this.prisma.whatsAppConnection.update({
         where: { id: connection.id },
@@ -264,6 +270,13 @@ export class WhatsAppConnectionService {
     return states.some((state) =>
       ['open', 'connected'].includes(String(state ?? '').toLowerCase()),
     );
+  }
+
+  private hasQrCode(qrCode?: {
+    qrCodeBase64?: string;
+    qrCode?: string;
+  }): qrCode is { qrCodeBase64?: string; qrCode?: string } {
+    return Boolean(qrCode?.qrCodeBase64 || qrCode?.qrCode);
   }
 
   private normalizeConnectedPhone(value?: string) {

@@ -32,7 +32,15 @@ describe('WhatsAppConnectionService', () => {
       isConfigured: jest.fn().mockReturnValue(true),
       sanitizeInstanceName: jest.fn((value: string) => value),
       fetchInstances: jest.fn().mockResolvedValue(options?.instances ?? []),
-      createInstance: jest.fn().mockResolvedValue({}),
+      createInstance: jest.fn().mockResolvedValue({
+        instance: {
+          instanceName: 'megas-loja-centro-tenant-1',
+          status: 'created',
+        },
+        qrCode: {
+          qrCodeBase64: 'base64-qr',
+        },
+      }),
       getConnectionStatus: jest
         .fn()
         .mockResolvedValue({ state: options?.state ?? 'close' }),
@@ -60,9 +68,7 @@ describe('WhatsAppConnectionService', () => {
     });
 
     expect(evolution.createInstance).toHaveBeenCalledTimes(1);
-    expect(evolution.connectInstance).toHaveBeenCalledWith(
-      'megas-loja-centro-tenant-1',
-    );
+    expect(evolution.connectInstance).not.toHaveBeenCalled();
     expect(prisma.whatsAppConnection.update).toHaveBeenCalledWith({
       where: { id: 'connection-1' },
       data: {
@@ -71,6 +77,28 @@ describe('WhatsAppConnectionService', () => {
         lastError: null,
       },
     });
+  });
+
+  it('usa connect como fallback quando a criacao nao retorna QR', async () => {
+    const { evolution, service } = setup();
+    evolution.createInstance.mockResolvedValue({
+      instance: {
+        instanceName: 'megas-loja-centro-tenant-1',
+        status: 'created',
+      },
+      qrCode: {},
+    });
+
+    await expect(service.getQrCode('tenant-1')).resolves.toEqual(
+      expect.objectContaining({
+        status: 'QR_PENDING',
+        qrCodeBase64: 'base64-qr',
+      }),
+    );
+
+    expect(evolution.connectInstance).toHaveBeenCalledWith(
+      'megas-loja-centro-tenant-1',
+    );
   });
 
   it('reaproveita instancia conectada sem pedir novo QR', async () => {

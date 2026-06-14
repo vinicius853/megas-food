@@ -8,9 +8,12 @@ import {
 import {
   EvolutionConnectionState,
   EvolutionInstance,
+  EvolutionInstanceProvisionResult,
   EvolutionQrCode,
 } from './evolution-api.types';
 import { WhatsAppProviderAdapter } from './whatsapp-provider.interface';
+
+type JsonRecord = Record<string, unknown>;
 
 @Injectable()
 export class EvolutionApiAdapter implements WhatsAppProviderAdapter {
@@ -23,7 +26,7 @@ export class EvolutionApiAdapter implements WhatsAppProviderAdapter {
   async sendText(
     input: SendWhatsAppMessageInput,
   ): Promise<SendWhatsAppMessageResult> {
-    const payload = await this.request<Record<string, any>>(
+    const response = await this.request(
       `/message/sendText/${encodeURIComponent(input.instanceName)}`,
       {
         method: 'POST',
@@ -34,80 +37,102 @@ export class EvolutionApiAdapter implements WhatsAppProviderAdapter {
       },
     );
 
-    return {
-      messageId:
-        String(payload?.key?.id ?? payload?.messageId ?? '') || undefined,
-    };
+    const payload = this.readRecord(response) ?? {};
+    const key = this.readRecord(payload.key);
+    const messageId = key?.id ?? payload.messageId;
+
+    return { messageId: this.readOptionalScalarString(messageId) };
   }
 
-  async createInstance(instanceName: string) {
-    return this.request<Record<string, any>>('/instance/create', {
+  async createInstance(
+    instanceName: string,
+  ): Promise<EvolutionInstanceProvisionResult> {
+    const sanitizedInstanceName = this.sanitizeInstanceName(instanceName);
+    const response = await this.request('/instance/create', {
       method: 'POST',
       body: JSON.stringify({
-        instanceName: this.sanitizeInstanceName(instanceName),
+        instanceName: sanitizedInstanceName,
         integration: 'WHATSAPP-BAILEYS',
         qrcode: true,
       }),
     });
+    const payload = this.readRecord(response) ?? {};
+
+    const instance = this.readRecord(payload.instance) ?? payload;
+
+    return {
+      instance: {
+        instanceName:
+          this.readOptionalScalarString(
+            instance.instanceName ?? instance.name,
+          ) ?? sanitizedInstanceName,
+        status: this.readOptionalString(
+          instance.status ?? instance.connectionStatus,
+        ),
+        owner: this.readOptionalString(
+          instance.owner ?? instance.ownerJid ?? instance.number,
+        ),
+      },
+      qrCode: this.normalizeQrCode(payload),
+    };
   }
 
   async connectInstance(instanceName: string): Promise<EvolutionQrCode> {
-    const payload = await this.request<Record<string, any>>(
+    const response = await this.request(
       `/instance/connect/${encodeURIComponent(
         this.sanitizeInstanceName(instanceName),
       )}`,
     );
+    const payload = this.readRecord(response) ?? {};
 
     return this.normalizeQrCode(payload);
   }
 
   async fetchInstances(instanceName?: string): Promise<EvolutionInstance[]> {
-    const query = instanceName
-      ? `?instanceName=${encodeURIComponent(
-          this.sanitizeInstanceName(instanceName),
-        )}`
-      : '';
-    const payload = await this.request<unknown>(
-      `/instance/fetchInstances${query}`,
-    );
+    const expectedInstanceName = instanceName
+      ? this.sanitizeInstanceName(instanceName)
+      : undefined;
+    const payload = await this.request('/instance/fetchInstances');
+    const payloadRecord = this.readRecord(payload);
+    const response = payloadRecord?.response;
     const records = Array.isArray(payload)
       ? payload
-      : Array.isArray((payload as any)?.response)
-        ? (payload as any).response
+      : Array.isArray(response)
+        ? response
         : [];
 
     return records
-      .map((record: any) => record?.instance ?? record)
-      .map((instance: any) => ({
-        instanceName: String(
-          instance?.instanceName ?? instance?.name ?? '',
-        ).trim(),
-        status: this.readOptionalString(
-          instance?.status ?? instance?.connectionStatus,
-        ),
-        owner: this.readOptionalString(
-          instance?.owner ?? instance?.ownerJid ?? instance?.number,
-        ),
-      }))
-      .filter((instance) => Boolean(instance.instanceName));
+      .map((record) => this.readRecord(record))
+      .map((record) => this.readRecord(record?.instance) ?? record)
+      .filter((instance): instance is JsonRecord => Boolean(instance))
+      .map((instance) => this.toEvolutionInstance(instance))
+      .filter((instance) => Boolean(instance.instanceName))
+      .filter(
+        (instance) =>
+          !expectedInstanceName ||
+          instance.instanceName === expectedInstanceName,
+      );
   }
 
   async getConnectionStatus(
     instanceName: string,
   ): Promise<EvolutionConnectionState> {
-    const payload = await this.request<Record<string, any>>(
+    const response = await this.request(
       `/instance/connectionState/${encodeURIComponent(
         this.sanitizeInstanceName(instanceName),
       )}`,
     );
-    const instance = payload?.instance ?? payload;
+    const payload = this.readRecord(response) ?? {};
+    const instance = this.readRecord(payload.instance) ?? payload;
 
     return {
-      state: String(
-        instance?.state ?? instance?.status ?? instance?.connectionStatus ?? '',
+      state: (
+        this.readOptionalScalarString(
+          instance.state ?? instance.status ?? instance.connectionStatus,
+        ) ?? ''
       ).toLowerCase(),
       connectedPhone: this.normalizeConnectedPhone(
-        instance?.owner ?? instance?.ownerJid ?? instance?.number,
+        instance.owner ?? instance.ownerJid ?? instance.number,
       ),
     };
   }
@@ -128,7 +153,10 @@ export class EvolutionApiAdapter implements WhatsAppProviderAdapter {
     return sanitized;
   }
 
-  private async request<T>(path: string, init: RequestInit = {}): Promise<T> {
+  private async request(
+    path: string,
+    init: RequestInit = {},
+  ): Promise<unknown> {
     const baseUrl = this.getBaseUrl();
     const apiKey = this.getApiKey();
 
@@ -154,7 +182,7 @@ export class EvolutionApiAdapter implements WhatsAppProviderAdapter {
       throw new Error(`Evolution API indisponivel: ${message}`);
     }
 
-    const payload = (await response.json().catch(() => null)) as T | null;
+    const payload: unknown = await response.json().catch(() => null);
 
     if (!response.ok) {
       const providerMessage = this.extractErrorMessage(payload);
@@ -163,19 +191,30 @@ export class EvolutionApiAdapter implements WhatsAppProviderAdapter {
       );
     }
 
-    return (payload ?? ({} as T)) as T;
+    return payload ?? {};
   }
 
-  private normalizeQrCode(payload: Record<string, any>): EvolutionQrCode {
-    const qrPayload = payload?.qrcode ?? payload?.qrCode ?? payload;
+  private normalizeQrCode(payload: JsonRecord): EvolutionQrCode {
+    const instance = this.readRecord(payload.instance);
+    const qrPayload =
+      this.readRecord(payload.qrcode) ??
+      this.readRecord(payload.qrCode) ??
+      this.readRecord(payload.qr) ??
+      this.readRecord(instance?.qrcode) ??
+      payload;
     const base64 = this.readOptionalString(
-      qrPayload?.base64 ??
-        payload?.base64 ??
-        qrPayload?.qrCodeBase64 ??
-        payload?.qrCodeBase64,
+      qrPayload.base64 ??
+        payload.base64 ??
+        instance?.base64 ??
+        qrPayload.qrCodeBase64 ??
+        payload.qrCodeBase64,
     );
     const code = this.readOptionalString(
-      qrPayload?.code ?? payload?.code ?? qrPayload?.qrCode ?? payload?.qrCode,
+      qrPayload.code ??
+        payload.code ??
+        instance?.code ??
+        qrPayload.qrCode ??
+        payload.qrCode,
     );
 
     return {
@@ -187,14 +226,17 @@ export class EvolutionApiAdapter implements WhatsAppProviderAdapter {
   }
 
   private extractErrorMessage(payload: unknown) {
-    if (!payload || typeof payload !== 'object') return '';
-    const record = payload as Record<string, any>;
-    const message =
-      record.message ?? record.error ?? record.response?.message ?? '';
+    const record = this.readRecord(payload);
+    if (!record) return '';
+    const response = this.readRecord(record.response);
+    const message = record.message ?? record.error ?? response?.message ?? '';
 
     return Array.isArray(message)
-      ? message.map(String).join(', ')
-      : String(message || '');
+      ? message
+          .map((item) => this.readOptionalScalarString(item))
+          .filter((item): item is string => Boolean(item))
+          .join(', ')
+      : (this.readOptionalScalarString(message) ?? '');
   }
 
   private normalizeConnectedPhone(value: unknown) {
@@ -205,6 +247,34 @@ export class EvolutionApiAdapter implements WhatsAppProviderAdapter {
 
   private readOptionalString(value: unknown) {
     return typeof value === 'string' && value.trim() ? value.trim() : undefined;
+  }
+
+  private readOptionalScalarString(value: unknown) {
+    if (typeof value === 'string') return value.trim() || undefined;
+    if (typeof value === 'number' || typeof value === 'boolean') {
+      return String(value);
+    }
+    return undefined;
+  }
+
+  private readRecord(value: unknown): JsonRecord | undefined {
+    return value !== null && typeof value === 'object' && !Array.isArray(value)
+      ? (value as JsonRecord)
+      : undefined;
+  }
+
+  private toEvolutionInstance(instance: JsonRecord): EvolutionInstance {
+    return {
+      instanceName:
+        this.readOptionalScalarString(instance.instanceName ?? instance.name) ??
+        '',
+      status: this.readOptionalString(
+        instance.status ?? instance.connectionStatus,
+      ),
+      owner: this.readOptionalString(
+        instance.owner ?? instance.ownerJid ?? instance.number,
+      ),
+    };
   }
 
   private getBaseUrl() {

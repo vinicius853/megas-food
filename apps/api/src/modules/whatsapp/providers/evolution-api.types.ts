@@ -14,6 +14,11 @@ export type EvolutionQrCode = {
   qrCode?: string;
 };
 
+export type EvolutionInstanceProvisionResult = {
+  instance: EvolutionInstance;
+  qrCode: EvolutionQrCode;
+};
+
 export type WhatsAppQrResponse = {
   status: 'QR_PENDING' | 'CONNECTED' | 'ERROR';
   qrCodeBase64?: string;
