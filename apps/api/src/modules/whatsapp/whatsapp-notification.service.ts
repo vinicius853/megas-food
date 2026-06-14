@@ -1,4 +1,9 @@
-import { BadRequestException, Injectable, Logger } from '@nestjs/common';
+import {
+  BadRequestException,
+  Inject,
+  Injectable,
+  Logger,
+} from '@nestjs/common';
 import {
   Prisma,
   WhatsAppEventType,
@@ -9,7 +14,10 @@ import { randomUUID } from 'crypto';
 import { PrismaService } from '../../prisma/prisma.service';
 import { TestWhatsAppDto } from './dto/test-whatsapp.dto';
 import { EnqueueOrderEventInput } from './types/whatsapp.types';
+import { canUseAutomaticWhatsAppNotification } from './whatsapp-automation-policy';
 import { WhatsAppOutboxService } from './whatsapp-outbox.service';
+import { WHATSAPP_PROVIDER } from './providers/whatsapp-provider.interface';
+import type { WhatsAppProviderAdapter } from './providers/whatsapp-provider.interface';
 
 @Injectable()
 export class WhatsAppNotificationService {
@@ -18,6 +26,8 @@ export class WhatsAppNotificationService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly outbox: WhatsAppOutboxService,
+    @Inject(WHATSAPP_PROVIDER)
+    private readonly provider: WhatsAppProviderAdapter,
   ) {}
 
   async enqueueOrderEvent(input: EnqueueOrderEventInput) {
@@ -35,23 +45,19 @@ export class WhatsAppNotificationService {
         }),
       ]);
 
-      if (!order) return;
-      if (
-        input.eventType === WhatsAppEventType.ORDER_READY &&
-        order.type === 'DELIVERY'
-      ) {
-        return;
-      }
+      if (!order) return { automaticScheduled: false };
       if (
         input.eventType === WhatsAppEventType.ORDER_OUT_FOR_DELIVERY &&
         order.type !== 'DELIVERY'
       ) {
-        return;
+        return { automaticScheduled: false };
       }
 
-      const enabled =
-        Boolean(connection?.automationEnabled) &&
-        connection?.enabledEvents.includes(input.eventType);
+      const enabled = canUseAutomaticWhatsAppNotification(
+        connection,
+        input.eventType,
+        this.provider.isConfigured(),
+      );
       const status = enabled
         ? WhatsAppNotificationStatus.PENDING
         : WhatsAppNotificationStatus.SKIPPED;
@@ -70,18 +76,21 @@ export class WhatsAppNotificationService {
       if (status === WhatsAppNotificationStatus.PENDING) {
         this.outbox.schedule(notification.id);
       }
+
+      return { automaticScheduled: enabled };
     } catch (error) {
       if (
         error instanceof Prisma.PrismaClientKnownRequestError &&
         error.code === 'P2002'
       ) {
-        return;
+        return { automaticScheduled: true };
       }
       this.logger.warn(
         `Falha ao registrar evento WhatsApp: ${
           error instanceof Error ? error.message : String(error)
         }`,
       );
+      return { automaticScheduled: false };
     }
   }
 

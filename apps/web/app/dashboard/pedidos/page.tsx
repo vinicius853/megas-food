@@ -80,7 +80,6 @@ export default function PedidosPage() {
     setPeriod,
     updateStatus,
     openManualWhatsApp,
-    whatsappAutomationEnabled,
   } = useOrders()
 
   const { soundEnabled, enableSound, playNewOrderSound } =
@@ -169,9 +168,6 @@ export default function PedidosPage() {
         statusVariants={statusVariants}
         updateStatus={updateStatus}
         openManualWhatsApp={openManualWhatsApp}
-        whatsappAutomationEnabled={
-          whatsappAutomationEnabled
-        }
         onOpenOrder={setSelectedOrder}
       />
 
@@ -181,9 +177,6 @@ export default function PedidosPage() {
           onClose={() => setSelectedOrder(null)}
           updateStatus={updateStatus}
           openManualWhatsApp={openManualWhatsApp}
-          whatsappAutomationEnabled={
-            whatsappAutomationEnabled
-          }
           statusLabels={statusLabels}
           statusVariants={statusVariants}
           typeLabels={typeLabels}

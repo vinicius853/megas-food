@@ -43,7 +43,7 @@ export class OrdersService {
             modifiers: true,
           },
         },
-      } as any,
+      },
       orderBy: {
         createdAt: 'desc',
       },
@@ -97,15 +97,24 @@ export class OrdersService {
     this.ordersGateway.emitOrderUpdated(tenantId, order);
 
     const eventType = this.getWhatsAppEvent(dto.status);
+    let automaticNotificationScheduled = false;
     if (eventType && previousOrder.status !== dto.status) {
-      await this.whatsappNotifications.enqueueOrderEvent({
+      const notification = await this.whatsappNotifications.enqueueOrderEvent({
         tenantId,
         orderId: order.id,
         eventType,
       });
+      automaticNotificationScheduled =
+        notification?.automaticScheduled ?? false;
     }
 
-    return order;
+    return {
+      ...order,
+      whatsappNotification: {
+        eventType: eventType ?? null,
+        automaticScheduled: automaticNotificationScheduled,
+      },
+    };
   }
 
   async remove(tenantId: string, id: string) {

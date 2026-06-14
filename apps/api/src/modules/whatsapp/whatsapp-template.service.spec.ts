@@ -27,15 +27,26 @@ describe('WhatsAppTemplateService', () => {
     ],
   };
 
-  it('gera mensagem de status com resumo generico do pedido', () => {
-    const message = service.buildOrderMessage(
-      order,
+  it.each([
+    [
       WhatsAppEventType.ORDER_CONFIRMED,
-    );
-
-    expect(message).toContain('Pedido #42');
-    expect(message).toContain('Sabores: 1/2 Calabresa');
-    expect(message.replace(/\s/g, ' ')).toContain('R$ 58,00');
+      'Olá, Ana! Seu pedido #42 foi confirmado e já entrou em preparo.',
+    ],
+    [WhatsAppEventType.ORDER_READY, 'Olá, Ana! Seu pedido #42 está pronto.'],
+    [
+      WhatsAppEventType.ORDER_OUT_FOR_DELIVERY,
+      'Olá, Ana! Seu pedido #42 saiu para entrega 🚚',
+    ],
+    [
+      WhatsAppEventType.ORDER_DELIVERED,
+      'Pedido #42 entregue com sucesso. Obrigado pela preferência!',
+    ],
+    [
+      WhatsAppEventType.ORDER_CANCELLED,
+      'Seu pedido #42 foi cancelado. Em caso de dúvidas, entre em contato com a loja.',
+    ],
+  ])('gera a mensagem oficial para %s', (eventType, expected) => {
+    expect(service.buildOrderMessage(order, eventType)).toBe(expected);
   });
 
   it('nao afirma confirmacao no evento de pedido criado', () => {

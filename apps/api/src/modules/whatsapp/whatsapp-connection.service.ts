@@ -12,6 +12,7 @@ export const defaultWhatsAppEvents: WhatsAppEventType[] = [
   WhatsAppEventType.ORDER_CANCELLED,
   WhatsAppEventType.ORDER_READY,
   WhatsAppEventType.ORDER_OUT_FOR_DELIVERY,
+  WhatsAppEventType.ORDER_DELIVERED,
 ];
 
 @Injectable()

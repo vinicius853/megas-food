@@ -33,9 +33,8 @@ type OrdersTableProps = {
     | 'info'
     | 'outline'
   >
-  updateStatus: (orderId: string, status: OrderStatus) => Promise<void>
+  updateStatus: (orderId: string, status: OrderStatus) => Promise<boolean>
   openManualWhatsApp: (orderId: string, status: OrderStatus) => Promise<void>
-  whatsappAutomationEnabled: boolean
   onOpenOrder: (order: Order) => void
 }
 
@@ -87,7 +86,6 @@ export function OrdersTable({
   statusVariants,
   updateStatus,
   openManualWhatsApp,
-  whatsappAutomationEnabled,
   onOpenOrder,
 }: OrdersTableProps) {
   return (
@@ -164,7 +162,6 @@ export function OrdersTable({
                       order,
                       updateStatus,
                       openManualWhatsApp,
-                      whatsappAutomationEnabled,
                     })}
                   </TableCell>
 
@@ -255,7 +252,6 @@ export function OrdersTable({
                     order,
                     updateStatus,
                     openManualWhatsApp,
-                    whatsappAutomationEnabled,
                   })}
                 </div>
 

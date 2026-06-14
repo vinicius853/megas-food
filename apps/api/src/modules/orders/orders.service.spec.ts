@@ -7,6 +7,7 @@ describe('OrdersService', () => {
         order: {},
       } as never,
       {} as never,
+      {} as never,
     );
 
     expect(service).not.toHaveProperty('create');
@@ -25,7 +26,11 @@ describe('OrdersService', () => {
         }),
       },
     };
-    const service = new OrdersService(prisma as never, {} as never);
+    const service = new OrdersService(
+      prisma as never,
+      {} as never,
+      {} as never,
+    );
 
     await service.findOne('tenant-1', 'order-1');
 
@@ -41,6 +46,45 @@ describe('OrdersService', () => {
               modifiers: true,
             },
           },
+        },
+      }),
+    );
+  });
+
+  it('informa ao painel quando a notificacao automatica foi agendada', async () => {
+    const order = {
+      id: 'order-1',
+      tenantId: 'tenant-1',
+      status: 'CONFIRMED',
+      items: [],
+    };
+    const prisma = {
+      order: {
+        findFirst: jest.fn().mockResolvedValue({
+          ...order,
+          status: 'PENDING',
+        }),
+        update: jest.fn().mockResolvedValue(order),
+      },
+    };
+    const notifications = {
+      enqueueOrderEvent: jest.fn().mockResolvedValue({
+        automaticScheduled: true,
+      }),
+    };
+    const service = new OrdersService(
+      prisma as never,
+      { emitOrderUpdated: jest.fn() } as never,
+      notifications as never,
+    );
+
+    await expect(
+      service.update('tenant-1', 'order-1', { status: 'CONFIRMED' }),
+    ).resolves.toEqual(
+      expect.objectContaining({
+        whatsappNotification: {
+          eventType: 'ORDER_CONFIRMED',
+          automaticScheduled: true,
         },
       }),
     );

@@ -65,6 +65,10 @@ function buildOrdersUrl(period: OrdersPeriod) {
   return `/orders?${params.toString()}`;
 }
 
+function getErrorMessage(error: unknown, fallback: string) {
+  return error instanceof Error && error.message ? error.message : fallback;
+}
+
 export function useOrders() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [period, setPeriod] = useState<OrdersPeriod>("today");
@@ -72,9 +76,6 @@ export function useOrders() {
   const [loading, setLoading] = useState(true);
 
   const [error, setError] = useState("");
-  const [whatsappAutomationEnabled, setWhatsappAutomationEnabled] =
-    useState(false);
-
   const periodLabel = useMemo(() => periodLabels[period], [period]);
 
   const loadOrders = useCallback(async () => {
@@ -83,27 +84,11 @@ export function useOrders() {
 
       setError("");
 
-      const [data, whatsappSettings] = await Promise.all([
-        apiFetch<Order[]>(buildOrdersUrl(period)),
-        apiFetch<{
-          automationEnabled: boolean;
-          providerConfigured: boolean;
-          status: string;
-        }>("/whatsapp/settings").catch(() => ({
-          automationEnabled: false,
-          providerConfigured: false,
-          status: "DISCONNECTED",
-        })),
-      ]);
+      const data = await apiFetch<Order[]>(buildOrdersUrl(period));
 
       setOrders(data);
-      setWhatsappAutomationEnabled(
-        whatsappSettings.automationEnabled &&
-          whatsappSettings.providerConfigured &&
-          whatsappSettings.status === "CONNECTED",
-      );
-    } catch (err: any) {
-      setError(err.message || "Erro ao carregar pedidos.");
+    } catch (error: unknown) {
+      setError(getErrorMessage(error, "Erro ao carregar pedidos."));
     } finally {
       setLoading(false);
     }
@@ -111,15 +96,17 @@ export function useOrders() {
 
   async function updateStatus(orderId: string, status: OrderStatus) {
     try {
-      await apiFetch(`/orders/${orderId}`, {
+      const result = await apiFetch<{
+        whatsappNotification?: {
+          automaticScheduled?: boolean;
+        };
+      }>(`/orders/${orderId}`, {
         method: "PATCH",
 
         body: JSON.stringify({
           status,
         }),
       });
-
-      await loadOrders();
 
       setOrders((current) =>
         current.map((order) =>
@@ -131,8 +118,12 @@ export function useOrders() {
             : order,
         ),
       );
-    } catch (err: any) {
-      alert(err.message || "Erro ao atualizar pedido.");
+
+      void loadOrders();
+      return Boolean(result.whatsappNotification?.automaticScheduled);
+    } catch (error: unknown) {
+      alert(getErrorMessage(error, "Erro ao atualizar pedido."));
+      throw error;
     }
   }
 
@@ -152,8 +143,8 @@ export function useOrders() {
         `/whatsapp/orders/${orderId}/manual-link?event=${event}`,
       );
       window.open(result.url, "_blank", "noopener,noreferrer");
-    } catch (err: any) {
-      alert(err.message || "Erro ao preparar mensagem do WhatsApp.");
+    } catch (error: unknown) {
+      alert(getErrorMessage(error, "Erro ao preparar mensagem do WhatsApp."));
     }
   }
 
@@ -168,6 +159,5 @@ export function useOrders() {
     setPeriod,
     updateStatus,
     openManualWhatsApp,
-    whatsappAutomationEnabled,
   };
 }

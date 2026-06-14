@@ -26,22 +26,21 @@ type RenderOrderActionsProps = {
   updateStatus: (
     orderId: string,
     status: OrderStatus,
-  ) => Promise<void>
+  ) => Promise<boolean>
   openManualWhatsApp: (
     orderId: string,
     status: OrderStatus,
   ) => Promise<void>
-  whatsappAutomationEnabled: boolean
 }
 
 export function renderOrderActions({
   order,
   updateStatus,
   openManualWhatsApp,
-  whatsappAutomationEnabled,
 }: RenderOrderActionsProps) {
-  async function notifyManually(status: OrderStatus) {
-    if (!whatsappAutomationEnabled) {
+  async function updateStatusWithFallback(status: OrderStatus) {
+    const automaticScheduled = await updateStatus(order.id, status)
+    if (!automaticScheduled) {
       await openManualWhatsApp(order.id, status)
     }
   }
@@ -59,8 +58,7 @@ export function renderOrderActions({
           size="sm"
           variant="primary"
           onClick={async () => {
-            await updateStatus(order.id, 'CONFIRMED')
-            await notifyManually('CONFIRMED')
+            await updateStatusWithFallback('CONFIRMED')
           }}
         >
           <Check className="h-4 w-4" />
@@ -70,8 +68,7 @@ export function renderOrderActions({
           size="sm"
           variant="destructive"
           onClick={async () => {
-            await updateStatus(order.id, 'CANCELLED')
-            await notifyManually('CANCELLED')
+            await updateStatusWithFallback('CANCELLED')
           }}
         >
           <X className="h-4 w-4" />
@@ -88,9 +85,7 @@ export function renderOrderActions({
           size="sm"
           variant="secondary"
           onClick={async () => {
-            await updateStatus(order.id, 'READY')
-            if (order.type !== 'DELIVERY')
-              await notifyManually('READY')
+            await updateStatusWithFallback('READY')
           }}
         >
           <Check className="h-4 w-4" />
@@ -109,11 +104,9 @@ export function renderOrderActions({
             size="sm"
             variant="outline"
             onClick={async () => {
-              await updateStatus(
-                order.id,
+              await updateStatusWithFallback(
                 'OUT_FOR_DELIVERY',
               )
-              await notifyManually('OUT_FOR_DELIVERY')
             }}
           >
             <Truck className="h-4 w-4" />
@@ -124,7 +117,7 @@ export function renderOrderActions({
             size="sm"
             variant="primary"
             onClick={() =>
-              updateStatus(order.id, 'DELIVERED')
+              updateStatusWithFallback('DELIVERED')
             }
           >
             <Check className="h-4 w-4" />
@@ -143,7 +136,7 @@ export function renderOrderActions({
           size="sm"
           variant="primary"
           onClick={() =>
-            updateStatus(order.id, 'DELIVERED')
+            updateStatusWithFallback('DELIVERED')
           }
         >
           <Check className="h-4 w-4" />

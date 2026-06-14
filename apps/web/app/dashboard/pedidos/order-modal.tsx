@@ -13,9 +13,8 @@ import type { Order, OrderItem, OrderStatus, OrderType } from './types'
 type OrderModalProps = {
   order: Order
   onClose: () => void
-  updateStatus: (orderId: string, status: OrderStatus) => Promise<void>
+  updateStatus: (orderId: string, status: OrderStatus) => Promise<boolean>
   openManualWhatsApp: (orderId: string, status: OrderStatus) => Promise<void>
-  whatsappAutomationEnabled: boolean
   statusLabels: Record<OrderStatus, string>
   statusVariants: Record<
     OrderStatus,
@@ -64,7 +63,6 @@ export function OrderModal({
   onClose,
   updateStatus,
   openManualWhatsApp,
-  whatsappAutomationEnabled,
   statusLabels,
   statusVariants,
   typeLabels,
@@ -195,7 +193,6 @@ export function OrderModal({
                   order,
                   updateStatus,
                   openManualWhatsApp,
-                  whatsappAutomationEnabled,
                 })}
               </div>
 
