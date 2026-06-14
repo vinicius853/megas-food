@@ -13,16 +13,19 @@ import {
 } from './checkout-formatters'
 import type {
   CepResponse,
+  CheckoutSuccessState,
   CheckoutModalProps,
+  CreatedPublicOrder,
   DeliveryType,
   PaymentMethod,
 } from './checkout.types'
-import {
-  buildCartItemDisplay,
-  formatModifierFraction,
-} from './cart-item-display'
 import { buildPublicOrderV2Payload } from './public-order-v2-payload'
 import { CheckoutPrivacyConsent } from './checkout-privacy-consent'
+import {
+  buildCheckoutWhatsAppMessage,
+  buildStoreWhatsAppUrl,
+} from './checkout-whatsapp-message'
+import { CheckoutWhatsAppSuccess } from './checkout-whatsapp-success'
 import { PRIVACY_POLICY_VERSION } from '@/lib/legal'
 
 export function CheckoutModal({
@@ -61,6 +64,7 @@ export function CheckoutModal({
   const [submitting, setSubmitting] = useState(false)
   const [privacyAccepted, setPrivacyAccepted] = useState(false)
   const [privacyError, setPrivacyError] = useState('')
+  const [success, setSuccess] = useState<CheckoutSuccessState | null>(null)
   const theme = palette ?? {
     primary: '#C40012',
     secondary: '#FF4A00',
@@ -195,106 +199,6 @@ export function CheckoutModal({
       : undefined
   }
 
-  const whatsappMessage = useMemo(() => {
-    if (items.length === 0) return ''
-
-    const lines: string[] = []
-
-    lines.push(`🍕 *Novo pedido - ${tenantName}*`)
-    lines.push('')
-
-    items.forEach((item, index) => {
-      const itemDisplay = buildCartItemDisplay(item)
-
-      lines.push(`*${index + 1}. ${item.productName}*`)
-
-      if (itemDisplay.sizeOption) {
-        lines.push(`Tamanho: ${itemDisplay.sizeOption}`)
-      }
-
-      if (itemDisplay.flavorOptions.length > 0) {
-        lines.push(
-          `Sabores: ${itemDisplay.flavorOptions
-            .map(
-              (option) =>
-                `${formatModifierFraction(option.fraction)}${option.name}`,
-            )
-            .join(', ')}`,
-        )
-      }
-
-      if (itemDisplay.borderOption) {
-        lines.push(`Borda: ${itemDisplay.borderOption.name}`)
-      }
-
-      if ((item.additionalItems?.length ?? 0) > 0) {
-        lines.push(
-          `Adicionais: ${item.additionalItems
-            ?.map((additional) => additional.name)
-            .join(', ')}`,
-        )
-      }
-
-      if (item.notes) {
-        lines.push(`Obs do item: ${item.notes}`)
-      }
-
-      lines.push(`Qtd: ${item.quantity}`)
-      lines.push(`Subtotal: ${formatMoney(item.totalPrice * item.quantity)}`)
-      lines.push('')
-    })
-
-    lines.push(`Subtotal: ${formatMoney(totalPrice)}`)
-    if (couponCode && discountAmount > 0) {
-      lines.push(`Cupom: ${couponCode}`)
-      lines.push(`Desconto: -${formatMoney(discountAmount)}`)
-    }
-    lines.push(`Taxa de entrega: ${deliveryFeeLabel}`)
-    lines.push(`💰 *Total: ${formatMoney(orderTotal)}*`)
-    lines.push(`Pagamento: ${paymentLabel}`)
-
-    if (paymentMethod === 'MONEY') {
-      lines.push(
-        `Vai pagar com: ${cashAmountNumber > 0 ? formatMoney(cashAmountNumber) : 'Não informado'}`,
-      )
-      lines.push(`Troco: ${formatMoney(changeAmount)}`)
-    }
-
-    lines.push('')
-    lines.push(`👤 Nome: ${customerName}`)
-    lines.push(`📱 WhatsApp: ${customerWhatsapp}`)
-    lines.push(
-      `🚚 Tipo: ${deliveryType === 'DELIVERY' ? 'Entrega' : 'Retirada'}`,
-    )
-
-    if (deliveryType === 'DELIVERY') {
-      lines.push(`📍 Endereço: ${fullAddress || 'Não informado'}`)
-    }
-
-    if (notes) {
-      lines.push(`📝 Obs: ${notes}`)
-    }
-
-    return encodeURIComponent(lines.join('\n'))
-  }, [
-    items,
-    totalPrice,
-    couponCode,
-    discountAmount,
-    orderTotal,
-    deliveryFeeLabel,
-    customerName,
-    customerWhatsapp,
-    deliveryType,
-    fullAddress,
-    cashAmountNumber,
-    changeAmount,
-    notes,
-    paymentLabel,
-    paymentMethod,
-    tenantName,
-  ])
-
   async function handleFinishOrder() {
     try {
       if (!privacyAccepted) {
@@ -362,66 +266,78 @@ export function CheckoutModal({
             ? 'CREDIT_CARD'
             : 'PIX'
 
-      await apiFetch(`/public-orders-v2/${tenantSlug}`, {
-        method: 'POST',
-        body: JSON.stringify(
-          buildPublicOrderV2Payload({
-            customerName: customerName.trim(),
-            customerPhone: customerWhatsapp.trim(),
-            type: deliveryType === 'DELIVERY' ? 'DELIVERY' : 'TAKEAWAY',
-            paymentType,
-            deliveryFee,
-            couponCode,
-            notes: [
-              notes.trim(),
-              paymentNotes,
-              couponCode && discountAmount > 0
-                ? `Cupom: ${couponCode}\nDesconto: -${formatMoney(discountAmount)}`
-                : '',
-              deliveryType === 'DELIVERY'
-                ? `Taxa de entrega: ${deliveryFeeLabel}`
-                : '',
-              fullAddress ? `Endereco: ${fullAddress}` : '',
-            ]
-              .filter(Boolean)
-              .join('\n'),
-            privacyAccepted,
-            privacyPolicyVersion: PRIVACY_POLICY_VERSION,
-            items,
-          }),
-        ),
+      const order = await apiFetch<CreatedPublicOrder>(
+        `/public-orders-v2/${tenantSlug}`,
+        {
+          method: 'POST',
+          body: JSON.stringify(
+            buildPublicOrderV2Payload({
+              customerName: customerName.trim(),
+              customerPhone: customerWhatsapp.trim(),
+              type: deliveryType === 'DELIVERY' ? 'DELIVERY' : 'TAKEAWAY',
+              paymentType,
+              deliveryFee,
+              couponCode,
+              notes: [
+                notes.trim(),
+                paymentNotes,
+                couponCode && discountAmount > 0
+                  ? `Cupom: ${couponCode}\nDesconto: -${formatMoney(discountAmount)}`
+                  : '',
+                deliveryType === 'DELIVERY'
+                  ? `Taxa de entrega: ${deliveryFeeLabel}`
+                  : '',
+                fullAddress ? `Endereco: ${fullAddress}` : '',
+              ]
+                .filter(Boolean)
+                .join('\n'),
+              privacyAccepted,
+              privacyPolicyVersion: PRIVACY_POLICY_VERSION,
+              items,
+            }),
+          ),
+        },
+      )
+
+      const message = buildCheckoutWhatsAppMessage({
+        orderNumber: order.number,
+        tenantName,
+        customerName: customerName.trim(),
+        customerWhatsapp: customerWhatsapp.trim(),
+        deliveryType,
+        fullAddress,
+        items,
+        notes: notes.trim(),
+        paymentMethod,
+        cashAmount: cashAmountNumber,
+        changeAmount,
+        subtotal: totalPrice,
+        couponCode,
+        discountAmount,
+        deliveryFeeLabel,
+        total: orderTotal,
       })
+      const whatsappUrl = whatsapp
+        ? buildStoreWhatsAppUrl(whatsapp, message)
+        : undefined
+      const openedWindow = whatsappUrl
+        ? window.open(whatsappUrl, '_blank')
+        : null
 
-      let whatsappAutomationEnabled = false
-      try {
-        const status = await apiFetch<{
-          automationEnabled: boolean
-        }>(`/whatsapp/public/${tenantSlug}/status`)
-        whatsappAutomationEnabled = status.automationEnabled
-      } catch {
-        // Falha de status preserva o fallback manual existente.
-      }
+      if (openedWindow) openedWindow.opener = null
 
-      if (whatsappAutomationEnabled) {
-        setPrivacyAccepted(false)
-        onOrderFinished?.()
-        onClose()
-        return
-      }
-
-      if (!whatsapp) {
-        alert('WhatsApp da pizzaria não configurado.')
-        onOrderFinished?.()
-        return
-      }
-
-      const cleanPhone = whatsapp.replace(/\D/g, '')
-      const url = `https://wa.me/${cleanPhone}?text=${whatsappMessage}`
-
-      window.open(url, '_blank')
       setPrivacyAccepted(false)
-      onOrderFinished?.()
-      onClose()
+
+      if (openedWindow) {
+        onOrderFinished?.()
+        return
+      }
+
+      setSuccess({
+        orderNumber: order.number,
+        whatsappUrl,
+        popupBlocked: Boolean(whatsappUrl),
+      })
     } catch (error: unknown) {
       alert(getErrorMessage(error))
     } finally {
@@ -433,7 +349,35 @@ export function CheckoutModal({
 
   return (
     <div className="fixed inset-0 z-[80] flex items-end justify-center bg-black/60 backdrop-blur-sm md:items-center">
-      <div className="flex max-h-[94vh] w-full max-w-2xl flex-col overflow-hidden rounded-t-3xl bg-white shadow-2xl md:rounded-3xl">
+      <div className="relative flex max-h-[94vh] w-full max-w-2xl flex-col overflow-hidden rounded-t-3xl bg-white shadow-2xl md:rounded-3xl">
+        {success && (
+          <CheckoutWhatsAppSuccess
+            orderNumber={success.orderNumber}
+            whatsappUrl={success.whatsappUrl}
+            popupBlocked={success.popupBlocked}
+            primaryColor={theme.primary}
+            textOnPrimary={theme.textOnPrimary}
+            onConfirm={() => {
+              if (!success.whatsappUrl) return
+
+              const openedWindow = window.open(success.whatsappUrl, '_blank')
+              if (openedWindow) {
+                openedWindow.opener = null
+                onOrderFinished?.()
+                return
+              }
+
+              setSuccess((current) =>
+                current ? { ...current, popupBlocked: true } : current,
+              )
+            }}
+            onClose={() => {
+              setSuccess(null)
+              onOrderFinished?.()
+              onClose()
+            }}
+          />
+        )}
         <div className="flex items-center justify-between border-b border-slate-200 px-5 py-4">
           <div>
             <h2 className="text-lg font-bold text-slate-900">

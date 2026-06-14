@@ -55,3 +55,14 @@ export type CepResponse = {
   uf?: string
   erro?: boolean
 }
+
+export type CreatedPublicOrder = {
+  id: string
+  number?: number
+}
+
+export type CheckoutSuccessState = {
+  orderNumber?: number
+  whatsappUrl?: string
+  popupBlocked: boolean
+}
