@@ -1,18 +1,57 @@
-import { Test, TestingModule } from '@nestjs/testing';
+import { UserRole } from '@prisma/client';
+
 import { TenantsService } from './tenants.service';
 
-describe('TenantsService', () => {
-  let service: TenantsService;
+describe('TenantsService commercial listings', () => {
+  function setup() {
+    const prisma = {
+      tenant: {
+        findMany: jest.fn().mockResolvedValue([]),
+        findFirst: jest.fn().mockResolvedValue(null),
+        findUnique: jest.fn().mockResolvedValue(null),
+      },
+    };
+    const service = new TenantsService(prisma as never, {} as never);
 
-  beforeEach(async () => {
-    const module: TestingModule = await Test.createTestingModule({
-      providers: [TenantsService],
-    }).compile();
+    return { prisma, service };
+  }
 
-    service = module.get<TenantsService>(TenantsService);
+  it('lista somente tenants que possuem CLIENT_OWNER', async () => {
+    const { prisma, service } = setup();
+
+    await service.findCommercial();
+
+    expect(prisma.tenant.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          AND: [
+            {},
+            {
+              users: {
+                some: {
+                  role: UserRole.CLIENT_OWNER,
+                },
+              },
+            },
+          ],
+        },
+      }),
+    );
   });
 
-  it('should be defined', () => {
-    expect(service).toBeDefined();
+  it('mantem a consulta tecnica por id disponivel para administracao interna', async () => {
+    const { prisma, service } = setup();
+
+    await expect(service.findOne('internal-tenant')).rejects.toThrow(
+      'Cliente nao encontrado.',
+    );
+
+    expect(prisma.tenant.findUnique).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          id: 'internal-tenant',
+        },
+      }),
+    );
   });
 });

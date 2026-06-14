@@ -1,6 +1,10 @@
 import { apiFetch } from "@/lib/api";
 
-import type { WhatsAppEvent, WhatsAppSettings } from "./types";
+import type {
+  WhatsAppEvent,
+  WhatsAppQrResponse,
+  WhatsAppSettings,
+} from "./types";
 
 export function getWhatsAppSettings() {
   return apiFetch<WhatsAppSettings>("/whatsapp/settings");
@@ -21,4 +25,8 @@ export function testWhatsAppConnection() {
     method: "POST",
     body: JSON.stringify({}),
   });
+}
+
+export function getWhatsAppQrCode() {
+  return apiFetch<WhatsAppQrResponse>("/whatsapp/connection/qr");
 }

@@ -18,3 +18,12 @@ export type WhatsAppSettings = {
   providerConfigured: boolean;
   qrCodeAvailable: boolean;
 };
+
+export type WhatsAppQrResponse = {
+  status: "QR_PENDING" | "CONNECTED" | "ERROR";
+  qrCodeBase64?: string;
+  qrCode?: string;
+  instanceName: string;
+  connectedPhone?: string;
+  message?: string;
+};

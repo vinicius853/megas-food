@@ -3,7 +3,8 @@
 import { ArrowLeft, ImageIcon, Plus, X } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 
-import { useCart, type CartItem } from "./cart-context";
+import { useCart } from "./cart-context";
+import { ConfiguratorSelectionFooter } from "./configurator-selection-footer";
 import {
   PizzaConfiguratorDrinkSuggestion,
   PizzaConfiguratorDrinkSuggestionFooter,
@@ -15,12 +16,19 @@ import {
   toNumber,
 } from "./pizza-configurator-helpers";
 import { OptionCard } from "./pizza-configurator-option-card";
+import {
+  BORDER_GROUP_CODE,
+  buildCartDisplayGroups,
+  buildSelectedModifierRequest,
+  FLAVOR_GROUP_CODE,
+  SIZE_GROUP_CODE,
+  withSelectedModifierDisplay,
+} from "./pizza-configurator-modifiers";
 import { PizzaConfiguratorSummary } from "./pizza-configurator-summary";
 import { getV2ContextualOptionPrice } from "./public-menu-mappers";
 import {
   calculatePriceEngineShadow,
   comparePriceEngineShadow,
-  type PriceEngineSelectedModifier,
 } from "./price-engine-shadow";
 import type { PublicMenuV2Option } from "./public-menu.types";
 import type {
@@ -81,19 +89,29 @@ export function PizzaConfiguratorFlow({
 
         return getV2ContextualOptionPrice(selectedFlavor, option.id) > 0;
       })
-      .map((option) => ({
-        ...option,
-        maxFlavors: normalizeMaxFlavors(
-          option.rules.find((rule) => rule.targetGroupId === flavorGroup.id)
-            ?.maxSelections ?? flavorGroup.maxSelections,
-        ),
-        allowBorder: borderGroup
-          ? Boolean(
-              option.rules.find((rule) => rule.targetGroupId === borderGroup.id)
-                ?.isEnabled,
-            )
-          : false,
-      }))
+      .map((option) => {
+        const flavorRule = option.rules.find(
+          (rule) => rule.targetGroupId === flavorGroup.id,
+        );
+
+        return {
+          ...option,
+          minFlavors: Math.max(
+            Number(flavorRule?.minSelections ?? flavorGroup.minSelections) || 0,
+            0,
+          ),
+          maxFlavors: normalizeMaxFlavors(
+            flavorRule?.maxSelections ?? flavorGroup.maxSelections,
+          ),
+          allowBorder: borderGroup
+            ? Boolean(
+                option.rules.find(
+                  (rule) => rule.targetGroupId === borderGroup.id,
+                )?.isEnabled,
+              )
+            : false,
+        };
+      })
       .slice(0, 4);
   }, [borderGroup, firstFlavorOptionId, flavorGroup, product, sizeGroup]);
 
@@ -398,7 +416,11 @@ export function PizzaConfiguratorFlow({
           </button>
         </header>
 
-        <div className="overflow-y-auto px-4 py-5">
+        <div
+          className={`min-h-0 flex-1 overflow-y-auto px-4 py-5 ${
+            step === "secondFlavor" ? "pb-24" : ""
+          }`}
+        >
           <div className="mb-5 flex items-center gap-3">
             {heroImage ? (
               <img
@@ -499,11 +521,6 @@ export function PizzaConfiguratorFlow({
               <h3 className="mb-4 text-lg font-black text-slate-950">
                 Escolha os sabores
               </h3>
-              <p className="mb-4 text-sm font-semibold text-slate-500">
-                Voce pode escolher mais {selectedSize.maxFlavors - 1} sabor(es).
-                Total selecionado: {selectedFlavorOptionIds.length}/
-                {selectedSize.maxFlavors}.
-              </p>
               <div className="grid gap-3">
                 {availableFlavors
                   .filter((flavor) => flavor.id !== firstFlavorOptionId)
@@ -520,14 +537,6 @@ export function PizzaConfiguratorFlow({
                     />
                   ))}
               </div>
-              <button
-                type="button"
-                disabled={extraFlavorOptionIds.length === 0}
-                onClick={() => setStep(nextAfterFlavorChoice(selectedSize))}
-                className="mt-4 h-12 w-full rounded-2xl bg-red-700 text-sm font-black text-white shadow-lg disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-400"
-              >
-                Continuar
-              </button>
             </section>
           )}
 
@@ -661,6 +670,15 @@ export function PizzaConfiguratorFlow({
           {step === "drinkSuggestion" && <PizzaConfiguratorDrinkSuggestion />}
         </div>
 
+        {step === "secondFlavor" && selectedSize && (
+          <ConfiguratorSelectionFooter
+            selectedCount={selectedFlavorOptionIds.length}
+            minSelections={selectedSize.minFlavors}
+            maxSelections={selectedSize.maxFlavors}
+            onContinue={() => setStep(nextAfterFlavorChoice(selectedSize))}
+          />
+        )}
+
         {step === "summary" && (
           <footer className="border-t border-slate-200 bg-white p-4">
             <button
@@ -689,120 +707,4 @@ export function PizzaConfiguratorFlow({
       </div>
     </div>
   );
-}
-
-const SIZE_GROUP_CODE = "pizza_size";
-const FLAVOR_GROUP_CODE = "pizza_flavor";
-const BORDER_GROUP_CODE = "pizza_border";
-
-type ConfiguratorSizeOption = PublicMenuV2Option & {
-  maxFlavors: number;
-  allowBorder: boolean;
-};
-
-function buildSelectedModifierRequest(input: {
-  productId: string;
-  sizeOptionId: string;
-  flavorOptionIds: string[];
-  borderOptionId?: string;
-}) {
-  const fraction =
-    input.flavorOptionIds.length > 1 ? 1 / input.flavorOptionIds.length : 1;
-  const selectedModifiers: PriceEngineSelectedModifier[] = [
-    {
-      groupCode: SIZE_GROUP_CODE,
-      optionId: input.sizeOptionId,
-    },
-    ...input.flavorOptionIds.map((optionId) => ({
-      groupCode: FLAVOR_GROUP_CODE,
-      optionId,
-      dependsOnOptionId: input.sizeOptionId,
-      fraction,
-    })),
-  ];
-
-  if (input.borderOptionId) {
-    selectedModifiers.push({
-      groupCode: BORDER_GROUP_CODE,
-      optionId: input.borderOptionId,
-      dependsOnOptionId: input.sizeOptionId,
-    });
-  }
-
-  return {
-    productId: input.productId,
-    quantity: 1,
-    selectedModifiers,
-  };
-}
-
-function withSelectedModifierDisplay(
-  modifiers: PriceEngineSelectedModifier[],
-  input: {
-    selectedSize: ConfiguratorSizeOption;
-    selectedFlavors: PublicMenuV2Option[];
-    selectedBorder?: PublicMenuV2Option;
-    selectedBorderPrice: number;
-  },
-): CartItem["selectedModifiers"] {
-  let flavorIndex = -1;
-
-  return modifiers.map((modifier) => {
-    if (modifier.groupCode === SIZE_GROUP_CODE) {
-      return {
-        ...modifier,
-        groupName: "Tamanho",
-        optionName: input.selectedSize.name,
-      };
-    }
-
-    if (modifier.groupCode === FLAVOR_GROUP_CODE) {
-      flavorIndex += 1;
-      const flavor = input.selectedFlavors[flavorIndex];
-
-      return {
-        ...modifier,
-        groupName: "Sabores",
-        optionName: flavor?.name,
-      };
-    }
-
-    if (modifier.groupCode === BORDER_GROUP_CODE) {
-      return {
-        ...modifier,
-        groupName: "Borda",
-        optionName: input.selectedBorder?.name,
-        unitPriceDelta: input.selectedBorderPrice,
-        totalDelta: input.selectedBorderPrice,
-      };
-    }
-
-    return modifier;
-  });
-}
-
-function buildCartDisplayGroups(
-  modifiers: CartItem["selectedModifiers"],
-): CartItem["displayGroups"] {
-  const groups = new Map<
-    string,
-    NonNullable<CartItem["displayGroups"]>[number]
-  >();
-
-  for (const modifier of modifiers) {
-    const group = groups.get(modifier.groupCode) ?? {
-      code: modifier.groupCode,
-      name: modifier.groupName ?? modifier.groupCode,
-      options: [],
-    };
-
-    group.options.push({
-      name: modifier.optionName ?? "Opcao",
-      fraction: modifier.fraction,
-      price: modifier.totalDelta,
-    });
-    groups.set(modifier.groupCode, group);
-  }
-
-  return Array.from(groups.values());
 }

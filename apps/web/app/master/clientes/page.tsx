@@ -87,7 +87,7 @@ export default function ClientesPage() {
     setError('')
 
     try {
-      const data = await apiFetch<Tenant[]>('/tenants')
+      const data = await apiFetch<Tenant[]>('/tenants/commercial')
       setTenants(data)
     } catch (err) {
       setError(getErrorMessage(err))

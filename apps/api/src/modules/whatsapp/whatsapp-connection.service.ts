@@ -1,9 +1,10 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable, Logger } from '@nestjs/common';
 import { WhatsAppConnectionStatus, WhatsAppEventType } from '@prisma/client';
 
 import { PrismaService } from '../../prisma/prisma.service';
 import { UpdateWhatsAppSettingsDto } from './dto/update-whatsapp-settings.dto';
 import { EvolutionApiAdapter } from './providers/evolution-api.adapter';
+import type { WhatsAppQrResponse } from './providers/evolution-api.types';
 
 export const defaultWhatsAppEvents: WhatsAppEventType[] = [
   WhatsAppEventType.ORDER_CONFIRMED,
@@ -14,6 +15,8 @@ export const defaultWhatsAppEvents: WhatsAppEventType[] = [
 
 @Injectable()
 export class WhatsAppConnectionService {
+  private readonly logger = new Logger(WhatsAppConnectionService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly evolutionApi: EvolutionApiAdapter,
@@ -48,7 +51,9 @@ export class WhatsAppConnectionService {
       lastConnectedAt: connection?.lastConnectedAt ?? null,
       provider: 'EVOLUTION_API' as const,
       providerConfigured,
-      qrCodeAvailable: false,
+      qrCodeAvailable:
+        providerConfigured &&
+        connection?.status !== WhatsAppConnectionStatus.CONNECTED,
     };
   }
 
@@ -113,7 +118,166 @@ export class WhatsAppConnectionService {
     };
   }
 
-  private buildInstanceName(tenantId: string) {
-    return `megas-${tenantId.replace(/[^a-zA-Z0-9]/g, '').slice(0, 20)}`;
+  async getQrCode(tenantId: string): Promise<WhatsAppQrResponse> {
+    let instanceName = '';
+
+    try {
+      if (!this.evolutionApi.isConfigured()) {
+        return {
+          status: 'ERROR',
+          instanceName,
+          message:
+            'Evolution API nao configurada no servidor. O envio manual continua disponivel.',
+        };
+      }
+
+      const tenant = await this.prisma.tenant.findUnique({
+        where: { id: tenantId },
+        select: { id: true, slug: true },
+      });
+
+      if (!tenant) {
+        throw new BadRequestException('Tenant nao encontrado.');
+      }
+
+      const existingConnection =
+        await this.prisma.whatsAppConnection.findUnique({
+          where: { tenantId },
+        });
+      instanceName = this.evolutionApi.sanitizeInstanceName(
+        existingConnection?.instanceName ??
+          this.buildInstanceName(tenant.id, tenant.slug),
+      );
+
+      const connection = await this.prisma.whatsAppConnection.upsert({
+        where: { tenantId },
+        create: {
+          tenantId,
+          instanceName,
+          status: WhatsAppConnectionStatus.DISCONNECTED,
+          enabledEvents: defaultWhatsAppEvents,
+        },
+        update: { instanceName },
+      });
+
+      const instances = await this.evolutionApi.fetchInstances(instanceName);
+      let providerInstance = instances.find(
+        (instance) => instance.instanceName === instanceName,
+      );
+      let createdNow = false;
+
+      if (!providerInstance) {
+        try {
+          await this.evolutionApi.createInstance(instanceName);
+        } catch (error) {
+          const refreshedInstances =
+            await this.evolutionApi.fetchInstances(instanceName);
+          providerInstance = refreshedInstances.find(
+            (instance) => instance.instanceName === instanceName,
+          );
+
+          if (!providerInstance) throw error;
+        }
+
+        createdNow = !providerInstance;
+        providerInstance = { instanceName, status: 'created' };
+      }
+
+      const connectionState = createdNow
+        ? { state: 'created' }
+        : await this.evolutionApi.getConnectionStatus(instanceName);
+      const connectedPhone =
+        connectionState.connectedPhone ??
+        this.normalizeConnectedPhone(providerInstance.owner);
+
+      if (this.isConnected(connectionState.state, providerInstance.status)) {
+        await this.prisma.whatsAppConnection.update({
+          where: { id: connection.id },
+          data: {
+            status: WhatsAppConnectionStatus.CONNECTED,
+            connectedPhone,
+            lastConnectedAt: new Date(),
+            lastError: null,
+          },
+        });
+
+        return {
+          status: 'CONNECTED',
+          instanceName,
+          connectedPhone,
+          message: 'WhatsApp conectado.',
+        };
+      }
+
+      const qrCode = await this.evolutionApi.connectInstance(instanceName);
+
+      await this.prisma.whatsAppConnection.update({
+        where: { id: connection.id },
+        data: {
+          status: WhatsAppConnectionStatus.DISCONNECTED,
+          connectedPhone: null,
+          lastError: null,
+        },
+      });
+
+      return {
+        status: 'QR_PENDING',
+        instanceName,
+        qrCodeBase64: qrCode.qrCodeBase64,
+        qrCode: qrCode.qrCode,
+        message:
+          qrCode.qrCodeBase64 || qrCode.qrCode
+            ? 'Aguardando leitura do QR Code.'
+            : 'Instancia criada, mas a Evolution API ainda nao retornou um QR Code.',
+      };
+    } catch (error) {
+      const message = this.sanitizeProviderError(error);
+
+      await this.prisma.whatsAppConnection
+        .update({
+          where: { tenantId },
+          data: {
+            status: WhatsAppConnectionStatus.ERROR,
+            lastError: message.slice(0, 500),
+          },
+        })
+        .catch(() => undefined);
+
+      this.logger.warn(
+        `Falha ao provisionar WhatsApp do tenant ${tenantId}: ${message}`,
+      );
+
+      return {
+        status: 'ERROR',
+        instanceName,
+        message,
+      };
+    }
+  }
+
+  private buildInstanceName(tenantId: string, tenantSlug?: string | null) {
+    const identity = tenantSlug?.trim() || tenantId;
+    return `megas-${identity}-${tenantId.slice(0, 8)}`;
+  }
+
+  private isConnected(...states: Array<string | undefined>) {
+    return states.some((state) =>
+      ['open', 'connected'].includes(String(state ?? '').toLowerCase()),
+    );
+  }
+
+  private normalizeConnectedPhone(value?: string) {
+    if (!value) return undefined;
+    return value.split('@')[0]?.replace(/\D/g, '') || undefined;
+  }
+
+  private sanitizeProviderError(error: unknown) {
+    const message =
+      error instanceof Error
+        ? error.message
+        : 'Falha desconhecida ao conectar WhatsApp.';
+    const apiKey = process.env.EVOLUTION_API_KEY?.trim();
+
+    return apiKey ? message.replaceAll(apiKey, '[redacted]') : message;
   }
 }

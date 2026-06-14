@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common'
 import { SubscriptionStatus } from '@prisma/client'
 
 import { PrismaService } from '../../prisma/prisma.service'
+import { commercialTenantWhere } from '../tenants/commercial-tenant'
 
 @Injectable()
 export class BillingDiagnosticsService {
@@ -69,11 +70,13 @@ export class BillingDiagnosticsService {
       this.prisma.subscription.count({
         where: {
           status: SubscriptionStatus.PAST_DUE,
+          tenant: commercialTenantWhere,
         },
       }),
       this.prisma.subscription.count({
         where: {
           status: SubscriptionStatus.BLOCKED,
+          tenant: commercialTenantWhere,
         },
       }),
       this.prisma.subscription.count({
@@ -81,6 +84,7 @@ export class BillingDiagnosticsService {
           status: {
             in: [SubscriptionStatus.ACTIVE, SubscriptionStatus.PAST_DUE],
           },
+          tenant: commercialTenantWhere,
           nextBillingDate: {
             gte: now,
             lte: sevenDaysFromNow,
@@ -90,7 +94,9 @@ export class BillingDiagnosticsService {
     ])
 
     const hasCriticalIssue =
-      oldPendingWebhooks > 0 || failedWebhooks24h > 0 || blockedSubscriptions > 0
+      oldPendingWebhooks > 0 ||
+      failedWebhooks24h > 0 ||
+      blockedSubscriptions > 0
     const hasWarning = pendingWebhooks > 0 || pastDueSubscriptions > 0
 
     return {

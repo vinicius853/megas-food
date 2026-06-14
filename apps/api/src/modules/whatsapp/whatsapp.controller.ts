@@ -45,12 +45,8 @@ export class WhatsAppController {
   }
 
   @Get('connection/qr')
-  getQrCode() {
-    return {
-      available: false,
-      message:
-        'QR Code sera disponibilizado quando o provisionamento da instancia estiver habilitado.',
-    };
+  getQrCode(@Req() req: any) {
+    return this.connections.getQrCode(req.user.tenantId);
   }
 
   @Get('orders/:orderId/manual-link')

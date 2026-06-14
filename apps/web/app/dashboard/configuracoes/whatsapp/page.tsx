@@ -1,6 +1,6 @@
 "use client";
 
-import { MessageCircle, QrCode, Send } from "lucide-react";
+import { MessageCircle, Send } from "lucide-react";
 import type { ReactNode } from "react";
 
 import { PageContainer, PageHeader } from "@/components/layout/page-container";
@@ -10,6 +10,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 import type { WhatsAppEvent } from "./types";
 import { useWhatsAppSettings } from "./use-whatsapp-settings";
+import { WhatsAppQrCard } from "./whatsapp-qr-card";
 
 const events: Array<{ value: WhatsAppEvent; label: string }> = [
   { value: "ORDER_CREATED", label: "Pedido recebido" },
@@ -64,14 +65,11 @@ export default function WhatsAppSettingsPage() {
             <CardContent className="grid gap-3 sm:grid-cols-2">
               <Info label="Número da loja" value={settings.recipientPhone} />
               <Info label="Número conectado" value={settings.connectedPhone} />
-              <div className="sm:col-span-2 rounded-lg border border-dashed border-slate-300 p-4">
-                <div className="flex items-center gap-2 font-semibold">
-                  <QrCode className="h-4 w-4" /> QR Code
-                </div>
-                <p className="mt-1 text-sm text-slate-500">
-                  Provisionamento por QR Code preparado para a próxima etapa.
-                </p>
-              </div>
+              <WhatsAppQrCard
+                qr={state.qr}
+                loading={state.qrLoading}
+                onRefresh={state.refreshQr}
+              />
               {settings.lastError && (
                 <p className="sm:col-span-2 text-sm text-red-600">
                   Último erro: {settings.lastError}

@@ -16,6 +16,7 @@ import * as bcrypt from 'bcryptjs'
 
 import { PrismaService } from '../../prisma/prisma.service'
 import { AuditLogsService } from '../audit-logs/audit-logs.service'
+import { commercialTenantWhere } from '../tenants/commercial-tenant'
 
 import { CreateBillingInvoiceDto } from './dto/create-billing-invoice.dto'
 import { ActivateSubscriptionDto } from './dto/activate-subscription.dto'
@@ -153,7 +154,10 @@ export class BillingService {
         createdAt: event.createdAt,
       })),
     ]
-      .sort((first, second) => second.createdAt.getTime() - first.createdAt.getTime())
+      .sort(
+        (first, second) =>
+          second.createdAt.getTime() - first.createdAt.getTime(),
+      )
       .slice(0, 30)
   }
 
@@ -175,11 +179,15 @@ export class BillingService {
     }
 
     if (webhookLog.provider !== 'MERCADO_PAGO') {
-      throw new BadRequestException('Apenas webhooks do Mercado Pago podem ser reprocessados.')
+      throw new BadRequestException(
+        'Apenas webhooks do Mercado Pago podem ser reprocessados.',
+      )
     }
 
     if (webhookLog.processed && !webhookLog.error) {
-      throw new BadRequestException('Este webhook ja foi processado com sucesso.')
+      throw new BadRequestException(
+        'Este webhook ja foi processado com sucesso.',
+      )
     }
 
     const result = await this.processMercadoPagoWebhookLog(webhookLog)
@@ -216,7 +224,11 @@ export class BillingService {
   ) {
     this.assertFinancialAccess(actor)
 
-    return this.billingSubscriptionsService.changeTenantPlan(tenantId, dto, actor)
+    return this.billingSubscriptionsService.changeTenantPlan(
+      tenantId,
+      dto,
+      actor,
+    )
   }
 
   async scheduleSubscriptionCancellation(
@@ -264,7 +276,10 @@ export class BillingService {
     )
   }
 
-  async createMercadoPagoSubscriptionLink(subscriptionId: string, actor: Actor) {
+  async createMercadoPagoSubscriptionLink(
+    subscriptionId: string,
+    actor: Actor,
+  ) {
     this.assertFinancialAccess(actor)
 
     return this.billingSubscriptionsService.createMercadoPagoSubscriptionLink(
@@ -282,10 +297,17 @@ export class BillingService {
   async createMercadoPagoPreference(invoiceId: string, actor: Actor) {
     this.assertFinancialAccess(actor)
 
-    return this.billingInvoicesService.createMercadoPagoPreference(invoiceId, actor)
+    return this.billingInvoicesService.createMercadoPagoPreference(
+      invoiceId,
+      actor,
+    )
   }
 
-  async markManualPayment(invoiceId: string, dto: ManualPaymentDto, actor: Actor) {
+  async markManualPayment(
+    invoiceId: string,
+    dto: ManualPaymentDto,
+    actor: Actor,
+  ) {
     this.assertFinancialAccess(actor)
     await this.verifyCriticalAction(actor.userId, dto.confirmationPassword)
 
@@ -299,7 +321,9 @@ export class BillingService {
   }) {
     const dataId = extractDataId(input.body, input.query)
     const eventId = String(input.body?.id || input.query.id || dataId || '')
-    const eventType = String(input.body?.type || input.query.type || input.query.topic || '')
+    const eventType = String(
+      input.body?.type || input.query.type || input.query.topic || '',
+    )
 
     this.mercadoPagoService.validateWebhookSignature({
       dataId,
@@ -340,6 +364,7 @@ export class BillingService {
         const preapproval = await this.mercadoPagoService.getPreapproval(dataId)
         const subscription = await this.prisma.subscription.findFirst({
           where: {
+            tenant: commercialTenantWhere,
             OR: [
               { mercadoPagoSubscriptionId: String(preapproval.id) },
               { id: preapproval.external_reference || '' },
@@ -375,7 +400,7 @@ export class BillingService {
               : subscription.accessUntil,
             startedAt:
               internalStatus === SubscriptionStatus.ACTIVE
-                ? subscription.startedAt ?? new Date()
+                ? (subscription.startedAt ?? new Date())
                 : subscription.startedAt,
           },
         })
@@ -403,7 +428,8 @@ export class BillingService {
       }
 
       const payment = await this.mercadoPagoService.getPayment(dataId)
-      const invoiceId = payment.external_reference || payment.metadata?.invoice_id
+      const invoiceId =
+        payment.external_reference || payment.metadata?.invoice_id
 
       if (!invoiceId) {
         throw new Error('Pagamento sem referencia de fatura.')
@@ -423,11 +449,12 @@ export class BillingService {
           paymentMethod: BillingPaymentMethod.MERCADO_PAGO,
           mercadoPagoPaymentId: String(payment.id),
           mercadoPagoPaymentStatus: payment.status,
-          paidAt: payment.status === 'approved'
-            ? payment.date_approved
-              ? new Date(payment.date_approved)
-              : new Date()
-            : invoice.paidAt,
+          paidAt:
+            payment.status === 'approved'
+              ? payment.date_approved
+                ? new Date(payment.date_approved)
+                : new Date()
+              : invoice.paidAt,
         },
       })
 
@@ -451,7 +478,10 @@ export class BillingService {
         where: { id: webhookLog.id },
         data: {
           processed: false,
-          error: error instanceof Error ? error.message : 'Erro ao processar webhook.',
+          error:
+            error instanceof Error
+              ? error.message
+              : 'Erro ao processar webhook.',
           processedAt: new Date(),
         },
       })
@@ -485,7 +515,9 @@ export class BillingService {
 
   private async verifyCriticalAction(userId?: string, password?: string) {
     if (!userId || !password) {
-      throw new UnauthorizedException('Confirme sua senha para registrar pagamento manual.')
+      throw new UnauthorizedException(
+        'Confirme sua senha para registrar pagamento manual.',
+      )
     }
 
     const user = await this.prisma.user.findUnique({
@@ -503,5 +535,4 @@ export class BillingService {
       throw new UnauthorizedException('Senha de confirmacao invalida.')
     }
   }
-
 }

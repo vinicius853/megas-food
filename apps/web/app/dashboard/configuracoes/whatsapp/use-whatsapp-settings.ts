@@ -3,16 +3,23 @@
 import { useEffect, useState } from "react";
 
 import {
+  getWhatsAppQrCode,
   getWhatsAppSettings,
   testWhatsAppConnection,
   updateWhatsAppSettings,
 } from "./whatsapp-api";
-import type { WhatsAppEvent, WhatsAppSettings } from "./types";
+import type {
+  WhatsAppEvent,
+  WhatsAppQrResponse,
+  WhatsAppSettings,
+} from "./types";
 
 export function useWhatsAppSettings() {
   const [settings, setSettings] = useState<WhatsAppSettings | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [qrLoading, setQrLoading] = useState(false);
+  const [qr, setQr] = useState<WhatsAppQrResponse | null>(null);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
 
@@ -24,11 +31,54 @@ export function useWhatsAppSettings() {
     try {
       setLoading(true);
       setError("");
-      setSettings(await getWhatsAppSettings());
+      const loadedSettings = await getWhatsAppSettings();
+      setSettings(loadedSettings);
+      if (loadedSettings.providerConfigured) {
+        void refreshQr();
+      }
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Falha ao carregar.");
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function refreshQr() {
+    try {
+      setQrLoading(true);
+      setError("");
+      const result = await getWhatsAppQrCode();
+      setQr(result);
+      setSettings((current) => {
+        if (!current) return current;
+        if (result.status === "CONNECTED") {
+          return {
+            ...current,
+            status: "CONNECTED",
+            connectedPhone: result.connectedPhone ?? current.connectedPhone,
+            lastError: null,
+          };
+        }
+        if (result.status === "ERROR") {
+          return {
+            ...current,
+            status: "ERROR",
+            lastError: result.message ?? current.lastError,
+          };
+        }
+        return {
+          ...current,
+          status: "DISCONNECTED",
+          connectedPhone: null,
+          lastError: null,
+        };
+      });
+    } catch (cause) {
+      setError(
+        cause instanceof Error ? cause.message : "Falha ao atualizar QR Code.",
+      );
+    } finally {
+      setQrLoading(false);
     }
   }
 
@@ -85,10 +135,13 @@ export function useWhatsAppSettings() {
     setSettings,
     loading,
     saving,
+    qr,
+    qrLoading,
     message,
     error,
     toggleEvent,
     save,
     test,
+    refreshQr,
   };
 }

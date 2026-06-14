@@ -56,6 +56,12 @@ export class TenantsController {
     return this.tenantsService.findAll()
   }
 
+  @Get('commercial')
+  @Roles('MASTER_OWNER', 'MASTER_ADMIN', 'FINANCE_ADMIN', 'SUPPORT')
+  findCommercial() {
+    return this.tenantsService.findCommercial()
+  }
+
   @Get(':id')
   @Roles('MASTER_OWNER', 'MASTER_ADMIN', 'FINANCE_ADMIN', 'SUPPORT')
   findOne(@Param('id') id: string) {

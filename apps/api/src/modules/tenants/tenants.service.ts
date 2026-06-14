@@ -16,6 +16,7 @@ import { AuditLogsService } from '../audit-logs/audit-logs.service'
 import { CreateTenantDto } from './dto/create-tenant.dto'
 import { ResetOwnerPasswordDto } from './dto/reset-owner-password.dto'
 import { UpdateTenantDto } from './dto/update-tenant.dto'
+import { withCommercialTenant } from './commercial-tenant'
 import { normalizeTenantSegments } from './tenant-segments'
 
 @Injectable()
@@ -33,28 +34,20 @@ export class TenantsService {
     })
 
     if (alreadyExists) {
-      throw new BadRequestException(
-        'Ja existe um cliente com este slug.',
-      )
+      throw new BadRequestException('Ja existe um cliente com este slug.')
     }
 
-    const emailAlreadyExists =
-      await this.prisma.user.findFirst({
-        where: {
-          email: dto.ownerEmail,
-        },
-      })
+    const emailAlreadyExists = await this.prisma.user.findFirst({
+      where: {
+        email: dto.ownerEmail,
+      },
+    })
 
     if (emailAlreadyExists) {
-      throw new BadRequestException(
-        'Já existe um usuário com este email.',
-      )
+      throw new BadRequestException('Já existe um usuário com este email.')
     }
 
-    const hashedPassword = await bcrypt.hash(
-      dto.ownerPassword,
-      10,
-    )
+    const hashedPassword = await bcrypt.hash(dto.ownerPassword, 10)
 
     const tenant = await this.prisma.$transaction(async (tx) => {
       const internalCode = await this.generateInternalCode(tx)
@@ -118,6 +111,16 @@ export class TenantsService {
     })
   }
 
+  async findCommercial() {
+    return this.prisma.tenant.findMany({
+      where: withCommercialTenant(),
+      orderBy: {
+        createdAt: 'desc',
+      },
+      include: this.tenantInclude(true),
+    })
+  }
+
   async findOne(id: string) {
     const tenant = await this.prisma.tenant.findUnique({
       where: {
@@ -128,9 +131,7 @@ export class TenantsService {
     })
 
     if (!tenant) {
-      throw new NotFoundException(
-        'Cliente nao encontrado.',
-      )
+      throw new NotFoundException('Cliente nao encontrado.')
     }
 
     return tenant
@@ -142,14 +143,18 @@ export class TenantsService {
     actor?: { userId?: string; role?: string; permissions?: string[] },
   ) {
     const currentTenant = await this.findOne(id)
-    const changedFields = Object.keys(dto).filter((field) => field !== 'confirmationPassword')
+    const changedFields = Object.keys(dto).filter(
+      (field) => field !== 'confirmationPassword',
+    )
     const isStatusChange =
       changedFields.length === 1 &&
       typeof dto.isActive === 'boolean' &&
       dto.isActive !== currentTenant.isActive
 
     if (actor?.role === 'SUPPORT') {
-      const canManageClientStatus = actor.permissions?.includes('MANAGE_CLIENT_STATUS')
+      const canManageClientStatus = actor.permissions?.includes(
+        'MANAGE_CLIENT_STATUS',
+      )
 
       if (!isStatusChange || !canManageClientStatus) {
         throw new ForbiddenException(
@@ -163,21 +168,18 @@ export class TenantsService {
     }
 
     if (dto.slug) {
-      const slugAlreadyExists =
-        await this.prisma.tenant.findFirst({
-          where: {
-            slug: dto.slug,
+      const slugAlreadyExists = await this.prisma.tenant.findFirst({
+        where: {
+          slug: dto.slug,
 
-            NOT: {
-              id,
-            },
+          NOT: {
+            id,
           },
-        })
+        },
+      })
 
       if (slugAlreadyExists) {
-        throw new BadRequestException(
-          'Este slug já está em uso.',
-        )
+        throw new BadRequestException('Este slug já está em uso.')
       }
     }
 
@@ -208,7 +210,8 @@ export class TenantsService {
     })
 
     const action =
-      typeof dto.isActive === 'boolean' && dto.isActive !== currentTenant.isActive
+      typeof dto.isActive === 'boolean' &&
+      dto.isActive !== currentTenant.isActive
         ? dto.isActive
           ? 'Ativou cliente'
           : 'Desativou cliente'
@@ -218,7 +221,10 @@ export class TenantsService {
       actor,
       action,
       target: tenant.name,
-      level: action === 'Desativou cliente' ? AuditLogLevel.WARNING : AuditLogLevel.INFO,
+      level:
+        action === 'Desativou cliente'
+          ? AuditLogLevel.WARNING
+          : AuditLogLevel.INFO,
       metadata: {
         tenantId: tenant.id,
         changedFields: Object.keys(dto),
@@ -247,7 +253,9 @@ export class TenantsService {
     await this.verifyCriticalAction(actor?.userId, dto.confirmationPassword)
 
     const tenant = await this.findOne(tenantId)
-    const owner = tenant.users.find((user) => user.role === UserRole.CLIENT_OWNER)
+    const owner = tenant.users.find(
+      (user) => user.role === UserRole.CLIENT_OWNER,
+    )
 
     if (!owner) {
       throw new NotFoundException(
@@ -343,9 +351,14 @@ export class TenantsService {
     return value ? value.replace(/\D/g, '') : undefined
   }
 
-  private tenantInclude() {
+  private tenantInclude(ownerOnly = false) {
     return {
       users: {
+        where: ownerOnly
+          ? {
+              role: UserRole.CLIENT_OWNER,
+            }
+          : undefined,
         select: {
           id: true,
           name: true,

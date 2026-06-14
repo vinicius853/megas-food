@@ -1,4 +1,8 @@
-import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common'
+import {
+  ForbiddenException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common'
 import {
   AuditLogLevel,
   BillingInvoiceStatus,
@@ -9,6 +13,10 @@ import {
 
 import { PrismaService } from '../../prisma/prisma.service'
 import { AuditLogsService } from '../audit-logs/audit-logs.service'
+import {
+  commercialTenantWhere,
+  withCommercialTenant,
+} from '../tenants/commercial-tenant'
 
 import { monthlyFee } from './billing.constants'
 import { defaultDueDate, toMoneyNumber } from './billing.helpers'
@@ -31,6 +39,9 @@ export class BillingInvoicesService {
     await this.refreshOverdueInvoices()
 
     return this.prisma.billingInvoice.findMany({
+      where: {
+        tenant: commercialTenantWhere,
+      },
       orderBy: [{ dueDate: 'asc' }, { createdAt: 'desc' }],
       include: {
         tenant: {
@@ -55,8 +66,8 @@ export class BillingInvoicesService {
   async createInvoice(dto: CreateBillingInvoiceDto, actor: Actor) {
     const defaultPlan = await this.billingPlansService.ensureDefaultPlan()
 
-    const tenant = await this.prisma.tenant.findUnique({
-      where: { id: dto.tenantId },
+    const tenant = await this.prisma.tenant.findFirst({
+      where: withCommercialTenant({ id: dto.tenantId }),
     })
 
     if (!tenant) {
@@ -163,7 +174,11 @@ export class BillingInvoicesService {
     return updated
   }
 
-  async markManualPayment(invoiceId: string, dto: ManualPaymentDto, actor: Actor) {
+  async markManualPayment(
+    invoiceId: string,
+    dto: ManualPaymentDto,
+    actor: Actor,
+  ) {
     const invoice = await this.getInvoice(invoiceId)
 
     const updated = await this.prisma.billingInvoice.update({
@@ -198,6 +213,7 @@ export class BillingInvoicesService {
     await this.prisma.billingInvoice.updateMany({
       where: {
         status: BillingInvoiceStatus.OPEN,
+        tenant: commercialTenantWhere,
         dueDate: {
           lt: new Date(),
         },
@@ -209,8 +225,11 @@ export class BillingInvoicesService {
   }
 
   async getInvoice(id: string) {
-    const invoice = await this.prisma.billingInvoice.findUnique({
-      where: { id },
+    const invoice = await this.prisma.billingInvoice.findFirst({
+      where: {
+        id,
+        tenant: commercialTenantWhere,
+      },
       include: {
         tenant: true,
       },

@@ -133,7 +133,7 @@ export default function CobrancasPage() {
         diagnosticsData,
       ] = await Promise.all([
         apiFetch<BillingInvoice[]>('/billing/invoices'),
-        apiFetch<Tenant[]>('/tenants'),
+        apiFetch<Tenant[]>('/tenants/commercial'),
         apiFetch<BillingSubscription[]>('/billing/subscriptions'),
         apiFetch<BillingEvent[]>('/billing/events'),
         apiFetch<BillingDiagnostics>('/billing/diagnostics'),

@@ -82,7 +82,7 @@ export default function MasterDashboardPage() {
 
     async function load() {
       try {
-        const data = await apiFetch<Tenant[]>('/tenants')
+        const data = await apiFetch<Tenant[]>('/tenants/commercial')
         setTenants(data)
       } finally {
         setLoading(false)

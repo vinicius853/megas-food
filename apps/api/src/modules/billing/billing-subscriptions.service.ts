@@ -13,12 +13,13 @@ import {
 
 import { PrismaService } from '../../prisma/prisma.service'
 import { AuditLogsService } from '../audit-logs/audit-logs.service'
+import {
+  commercialTenantWhere,
+  withCommercialTenant,
+} from '../tenants/commercial-tenant'
 
 import { defaultGracePeriodDays } from './billing.constants'
-import {
-  defaultSubscriptionDueDate,
-  toMoneyNumber,
-} from './billing.helpers'
+import { defaultSubscriptionDueDate, toMoneyNumber } from './billing.helpers'
 import { BillingPlansService } from './billing-plans.service'
 import type { Actor } from './billing.types'
 import { ActivateSubscriptionDto } from './dto/activate-subscription.dto'
@@ -41,6 +42,9 @@ export class BillingSubscriptionsService {
     await this.refreshSubscriptionStatuses('master-list-subscriptions')
 
     return this.prisma.subscription.findMany({
+      where: {
+        tenant: commercialTenantWhere,
+      },
       orderBy: {
         createdAt: 'desc',
       },
@@ -134,7 +138,8 @@ export class BillingSubscriptionsService {
             accessUntil: subscription.accessUntil,
             gracePeriodDays: subscription.gracePeriodDays,
             mercadoPagoSubscriptionUrl: subscription.mercadoPagoSubscriptionUrl,
-            mercadoPagoSubscriptionStatus: subscription.mercadoPagoSubscriptionStatus,
+            mercadoPagoSubscriptionStatus:
+              subscription.mercadoPagoSubscriptionStatus,
           }
         : {
             id: null,
@@ -154,8 +159,8 @@ export class BillingSubscriptionsService {
   }
 
   async activateSubscription(dto: ActivateSubscriptionDto, actor: Actor) {
-    const tenant = await this.prisma.tenant.findUnique({
-      where: { id: dto.tenantId },
+    const tenant = await this.prisma.tenant.findFirst({
+      where: withCommercialTenant({ id: dto.tenantId }),
     })
 
     if (!tenant) {
@@ -214,13 +219,15 @@ export class BillingSubscriptionsService {
             status: SubscriptionStatus.ACTIVE,
             contractedMonthlyPrice,
             contractedAnnualPrice:
-              dto.contractedAnnualPrice ?? currentSubscription.contractedAnnualPrice,
+              dto.contractedAnnualPrice ??
+              currentSubscription.contractedAnnualPrice,
             contractedSetupFee:
               dto.contractedSetupFee ?? currentSubscription.contractedSetupFee,
             contractedAt: isContractChange
               ? new Date()
               : currentSubscription.contractedAt,
-            internalNotes: dto.internalNotes ?? currentSubscription.internalNotes,
+            internalNotes:
+              dto.internalNotes ?? currentSubscription.internalNotes,
             startedAt: currentSubscription.startedAt ?? new Date(),
             nextBillingDate,
             accessUntil,
@@ -274,8 +281,8 @@ export class BillingSubscriptionsService {
     dto: ChangeTenantPlanDto,
     actor: Actor,
   ) {
-    const tenant = await this.prisma.tenant.findUnique({
-      where: { id: tenantId },
+    const tenant = await this.prisma.tenant.findFirst({
+      where: withCommercialTenant({ id: tenantId }),
     })
 
     if (!tenant) {
@@ -318,7 +325,8 @@ export class BillingSubscriptionsService {
             contractedAnnualPrice: dto.contractedAnnualPrice,
             contractedSetupFee: dto.contractedSetupFee,
             contractedAt: new Date(),
-            internalNotes: dto.internalNotes ?? currentSubscription.internalNotes,
+            internalNotes:
+              dto.internalNotes ?? currentSubscription.internalNotes,
           },
           include: {
             plan: true,
@@ -481,9 +489,15 @@ export class BillingSubscriptionsService {
     return updated
   }
 
-  async createMercadoPagoSubscriptionLink(subscriptionId: string, actor: Actor) {
-    const subscription = await this.prisma.subscription.findUnique({
-      where: { id: subscriptionId },
+  async createMercadoPagoSubscriptionLink(
+    subscriptionId: string,
+    actor: Actor,
+  ) {
+    const subscription = await this.prisma.subscription.findFirst({
+      where: {
+        id: subscriptionId,
+        tenant: commercialTenantWhere,
+      },
       include: {
         plan: true,
         tenant: {
@@ -575,6 +589,7 @@ export class BillingSubscriptionsService {
     const subscriptionsToCancel = await this.prisma.subscription.findMany({
       where: {
         status: SubscriptionStatus.CANCEL_SCHEDULED,
+        tenant: commercialTenantWhere,
         accessUntil: {
           lt: now,
         },
@@ -608,6 +623,7 @@ export class BillingSubscriptionsService {
     const subscriptionsToMarkPastDue = await this.prisma.subscription.findMany({
       where: {
         status: SubscriptionStatus.ACTIVE,
+        tenant: commercialTenantWhere,
         nextBillingDate: {
           lt: now,
         },
@@ -642,6 +658,7 @@ export class BillingSubscriptionsService {
     const pastDueSubscriptions = await this.prisma.subscription.findMany({
       where: {
         status: SubscriptionStatus.PAST_DUE,
+        tenant: commercialTenantWhere,
         nextBillingDate: {
           not: null,
         },
@@ -697,8 +714,11 @@ export class BillingSubscriptionsService {
   }
 
   private async getSubscription(id: string) {
-    const subscription = await this.prisma.subscription.findUnique({
-      where: { id },
+    const subscription = await this.prisma.subscription.findFirst({
+      where: {
+        id,
+        tenant: commercialTenantWhere,
+      },
       include: {
         plan: true,
         tenant: true,
