@@ -36,7 +36,7 @@ export function CheckoutModal({
   totalPrice,
   couponCode,
   discountAmount = 0,
-  whatsapp,
+  storeWhatsappPhone,
   tenantName,
   tenantSlug,
   palette,
@@ -317,8 +317,8 @@ export function CheckoutModal({
         deliveryFeeLabel,
         total: orderTotal,
       })
-      const whatsappUrl = whatsapp
-        ? buildStoreWhatsAppUrl(whatsapp, message)
+      const whatsappUrl = storeWhatsappPhone
+        ? buildStoreWhatsAppUrl(storeWhatsappPhone, message)
         : undefined
       const openedWindow = whatsappUrl
         ? window.open(whatsappUrl, '_blank')

@@ -122,8 +122,11 @@ export function buildCheckoutWhatsAppMessage({
   return lines.join('\n')
 }
 
-export function buildStoreWhatsAppUrl(phone: string, message: string) {
-  const cleanPhone = phone.replace(/\D/g, '')
+export function buildStoreWhatsAppUrl(
+  storeWhatsappPhone: string,
+  message: string,
+) {
+  const cleanPhone = storeWhatsappPhone.replace(/\D/g, '')
   if (!cleanPhone) return undefined
 
   return `https://wa.me/${cleanPhone}?text=${encodeURIComponent(message)}`

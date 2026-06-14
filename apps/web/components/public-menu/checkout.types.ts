@@ -8,7 +8,7 @@ export type CheckoutModalProps = {
   totalPrice: number
   couponCode?: string
   discountAmount?: number
-  whatsapp?: string | null
+  storeWhatsappPhone?: string | null
   tenantName: string
   tenantSlug: string
   palette?: MenuPalette

@@ -21,7 +21,7 @@ type CartDrawerProps = {
   onOrderFinished?: () => void
   tenantName: string
   tenantSlug: string
-  whatsapp?: string | null
+  storeWhatsappPhone?: string | null
   palette?: MenuPalette
   delivery?: DeliverySettings
   ordersEnabled?: boolean
@@ -216,7 +216,7 @@ export function CartDrawer({
   onOrderFinished,
   tenantName,
   tenantSlug,
-  whatsapp,
+  storeWhatsappPhone,
   palette,
   delivery,
   ordersEnabled = true,
@@ -729,7 +729,7 @@ export function CartDrawer({
         totalPrice={totalPrice}
         couponCode={appliedCoupon?.code}
         discountAmount={appliedCoupon?.discountAmount ?? 0}
-        whatsapp={whatsapp}
+        storeWhatsappPhone={storeWhatsappPhone}
         tenantName={tenantName}
         tenantSlug={tenantSlug}
         palette={theme}

@@ -495,7 +495,7 @@ function PublicMenuContent({ slug }: { slug: string }) {
         onOrderFinished={handleOrderFinished}
         tenantName={tenantName}
         tenantSlug={tenant?.slug ?? slug}
-        whatsapp={menuV2Data.delivery?.whatsapp || tenant?.whatsapp}
+        storeWhatsappPhone={tenant?.whatsapp ?? null}
         palette={palette}
         delivery={menuV2Data.delivery}
         ordersEnabled={storeStatus.isOpen}
