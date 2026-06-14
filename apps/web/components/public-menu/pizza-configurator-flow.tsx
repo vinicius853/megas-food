@@ -37,6 +37,14 @@ import type {
   Step,
 } from "./pizza-configurator.types";
 
+type SelectionFooterConfig = {
+  selectedCount: number;
+  minSelections: number;
+  maxSelections: number;
+  required: boolean;
+  onContinue: () => void;
+};
+
 export function PizzaConfiguratorFlow({
   open,
   tenantSlug,
@@ -250,6 +258,12 @@ export function PizzaConfiguratorFlow({
   ]);
 
   const hasAdditionalProducts = availableAdditionalProducts.length > 0;
+  const availableBorderOptions = selectedSize
+    ? activeBorderOptions.filter(
+        (border) =>
+          getV2ContextualOptionPrice(border, selectedSize.id) > 0,
+      )
+    : [];
 
   function nextAfterFlavorChoice(size = selectedSize) {
     return size?.allowBorder
@@ -262,6 +276,40 @@ export function PizzaConfiguratorFlow({
   function nextAfterBorderChoice() {
     return hasAdditionalProducts ? "additionalQuestion" : "summary";
   }
+
+  const selectionFooter: SelectionFooterConfig | null = (() => {
+    if (step === "secondFlavor" && selectedSize) {
+      return {
+        selectedCount: selectedFlavorOptionIds.length,
+        minSelections: selectedSize.minFlavors,
+        maxSelections: selectedSize.maxFlavors,
+        required: selectedSize.minFlavors > 0,
+        onContinue: () => setStep(nextAfterFlavorChoice(selectedSize)),
+      };
+    }
+
+    if (step === "borderSelect" && borderGroup) {
+      return {
+        selectedCount: selectedBorderOptionId ? 1 : 0,
+        minSelections: borderGroup.minSelections,
+        maxSelections: Math.max(borderGroup.maxSelections, 1),
+        required: borderGroup.isRequired,
+        onContinue: () => setStep(nextAfterBorderChoice()),
+      };
+    }
+
+    if (step === "additionalSelect") {
+      return {
+        selectedCount: selectedAdditionalIds.length,
+        minSelections: 0,
+        maxSelections: Math.max(availableAdditionalProducts.length, 1),
+        required: false,
+        onContinue: () => setStep("summary"),
+      };
+    }
+
+    return null;
+  })();
 
   function goBack() {
     if (step === "size") {
@@ -418,7 +466,7 @@ export function PizzaConfiguratorFlow({
 
         <div
           className={`min-h-0 flex-1 overflow-y-auto px-4 py-5 ${
-            step === "secondFlavor" ? "pb-24" : ""
+            selectionFooter ? "pb-28" : ""
           }`}
         >
           <div className="mb-5 flex items-center gap-3">
@@ -569,12 +617,7 @@ export function PizzaConfiguratorFlow({
                 Escolha sua borda recheada
               </h3>
               <div className="grid gap-3">
-                {activeBorderOptions
-                  .filter(
-                    (border) =>
-                      getV2ContextualOptionPrice(border, selectedSize.id) > 0,
-                  )
-                  .map((border) => {
+                {availableBorderOptions.map((border) => {
                     const price = getV2ContextualOptionPrice(
                       border,
                       selectedSize.id,
@@ -587,8 +630,9 @@ export function PizzaConfiguratorFlow({
                         price={price}
                         selected={selectedBorderOptionId === border.id}
                         onClick={() => {
-                          setSelectedBorderOptionId(border.id);
-                          setStep(nextAfterBorderChoice());
+                          setSelectedBorderOptionId((current) =>
+                            current === border.id ? "" : border.id,
+                          );
                         }}
                       />
                     );
@@ -638,13 +682,6 @@ export function PizzaConfiguratorFlow({
                 ))}
               </div>
 
-              <button
-                type="button"
-                onClick={() => setStep("summary")}
-                className="mt-4 h-12 w-full rounded-2xl bg-red-700 text-sm font-black text-white shadow-lg"
-              >
-                Continuar
-              </button>
             </section>
           )}
 
@@ -670,12 +707,13 @@ export function PizzaConfiguratorFlow({
           {step === "drinkSuggestion" && <PizzaConfiguratorDrinkSuggestion />}
         </div>
 
-        {step === "secondFlavor" && selectedSize && (
+        {selectionFooter && (
           <ConfiguratorSelectionFooter
-            selectedCount={selectedFlavorOptionIds.length}
-            minSelections={selectedSize.minFlavors}
-            maxSelections={selectedSize.maxFlavors}
-            onContinue={() => setStep(nextAfterFlavorChoice(selectedSize))}
+            selectedCount={selectionFooter.selectedCount}
+            minSelections={selectionFooter.minSelections}
+            maxSelections={selectionFooter.maxSelections}
+            required={selectionFooter.required}
+            onContinue={selectionFooter.onContinue}
           />
         )}
 
