@@ -6,6 +6,8 @@ import { EvolutionApiAdapter } from './providers/evolution-api.adapter';
 import { WHATSAPP_PROVIDER } from './providers/whatsapp-provider.interface';
 import { WhatsAppConnectionService } from './whatsapp-connection.service';
 import { WhatsAppController } from './whatsapp.controller';
+import { WhatsAppEvolutionWebhookController } from './whatsapp-evolution-webhook.controller';
+import { WhatsAppEvolutionWebhookService } from './whatsapp-evolution-webhook.service';
 import { WhatsAppManualService } from './whatsapp-manual.service';
 import { WhatsAppNotificationService } from './whatsapp-notification.service';
 import { WhatsAppOutboxService } from './whatsapp-outbox.service';
@@ -15,10 +17,15 @@ import { WhatsAppWorkerService } from './whatsapp-worker.service';
 
 @Module({
   imports: [PrismaModule, AuthModule],
-  controllers: [WhatsAppController, WhatsAppPublicController],
+  controllers: [
+    WhatsAppController,
+    WhatsAppPublicController,
+    WhatsAppEvolutionWebhookController,
+  ],
   providers: [
     EvolutionApiAdapter,
     WhatsAppConnectionService,
+    WhatsAppEvolutionWebhookService,
     WhatsAppManualService,
     WhatsAppNotificationService,
     WhatsAppOutboxService,

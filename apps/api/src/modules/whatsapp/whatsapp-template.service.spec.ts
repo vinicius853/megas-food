@@ -44,7 +44,7 @@ describe('WhatsAppTemplateService', () => {
       WhatsAppEventType.ORDER_CREATED,
     );
 
-    expect(message).toContain('recebemos seu pedido');
+    expect(message).toContain('Recebemos seu pedido');
     expect(message).not.toContain('foi confirmado');
   });
 

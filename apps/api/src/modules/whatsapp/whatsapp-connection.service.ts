@@ -7,6 +7,7 @@ import { EvolutionApiAdapter } from './providers/evolution-api.adapter';
 import type { WhatsAppQrResponse } from './providers/evolution-api.types';
 
 export const defaultWhatsAppEvents: WhatsAppEventType[] = [
+  WhatsAppEventType.ORDER_CREATED,
   WhatsAppEventType.ORDER_CONFIRMED,
   WhatsAppEventType.ORDER_CANCELLED,
   WhatsAppEventType.ORDER_READY,

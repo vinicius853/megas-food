@@ -15,6 +15,9 @@ describe('PublicOrdersV2Service', () => {
   let ordersGateway: {
     emitOrderCreated: jest.Mock;
   };
+  let whatsappNotifications: {
+    enqueueOrderEvent: jest.Mock;
+  };
 
   beforeEach(() => {
     prisma = {
@@ -37,11 +40,15 @@ describe('PublicOrdersV2Service', () => {
     ordersGateway = {
       emitOrderCreated: jest.fn(),
     };
+    whatsappNotifications = {
+      enqueueOrderEvent: jest.fn().mockResolvedValue(undefined),
+    };
     service = new PublicOrdersV2Service(
       prisma,
       priceEngineService as any,
       couponsService as any,
       ordersGateway as any,
+      whatsappNotifications as any,
     );
   });
 
@@ -92,6 +99,11 @@ describe('PublicOrdersV2Service', () => {
       'tenant-1',
       order,
     );
+    expect(whatsappNotifications.enqueueOrderEvent).toHaveBeenCalledWith({
+      tenantId: 'tenant-1',
+      orderId: order.id,
+      eventType: 'ORDER_CREATED',
+    });
   });
 
   it('cria pedido V2 meio a meio com fraction no snapshot', async () => {

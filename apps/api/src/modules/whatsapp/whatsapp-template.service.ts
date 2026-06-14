@@ -18,6 +18,14 @@ export class WhatsAppTemplateService {
     order: WhatsAppOrderSnapshot,
     eventType: WhatsAppEventType,
   ) {
+    if (eventType === WhatsAppEventType.ORDER_CREATED) {
+      const customerName = order.customerName?.trim() || 'cliente';
+      return [
+        `Olá, ${customerName}! Recebemos seu pedido #${order.number}.`,
+        'A loja já foi notificada e em breve irá confirmar o preparo.',
+      ].join('\n');
+    }
+
     const title = eventTitles[eventType] ?? 'atualizacao do seu pedido';
     const greeting = order.customerName
       ? `Ola, ${order.customerName}!`

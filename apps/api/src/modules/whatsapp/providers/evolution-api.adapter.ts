@@ -44,6 +44,14 @@ export class EvolutionApiAdapter implements WhatsAppProviderAdapter {
     return { messageId: this.readOptionalScalarString(messageId) };
   }
 
+  sendTextMessage(instanceName: string, phone: string, message: string) {
+    return this.sendText({
+      instanceName: this.sanitizeInstanceName(instanceName),
+      recipient: phone,
+      text: message,
+    });
+  }
+
   async createInstance(
     instanceName: string,
   ): Promise<EvolutionInstanceProvisionResult> {
