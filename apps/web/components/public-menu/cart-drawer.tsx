@@ -13,6 +13,7 @@ import {
 
 import { apiFetch } from '@/lib/api'
 import { useCart, type CartItem } from './cart-context'
+import { cartItemDisplayName } from './cart-item-display'
 import { CheckoutModal } from './checkout-modal'
 
 type CartDrawerProps = {
@@ -394,6 +395,7 @@ export function CartDrawer({
               <div className="space-y-2">
                 {items.map((item) => {
                   const itemDisplay = buildCartItemDisplay(item)
+                  const displayName = cartItemDisplayName(item)
                   const subtitle = itemDisplaySubtitle(itemDisplay)
 
                   return (
@@ -412,7 +414,7 @@ export function CartDrawer({
                         {item.imageUrl ? (
                           <img
                             src={item.imageUrl}
-                            alt={item.productName}
+                            alt={displayName}
                             className="h-full w-full object-cover"
                           />
                         ) : (
@@ -429,7 +431,7 @@ export function CartDrawer({
                         <div className="flex items-start justify-between gap-3">
                           <div className="min-w-0">
                             <h3 className="truncate text-sm font-black leading-tight text-slate-950">
-                              {item.productName}
+                              {displayName}
                             </h3>
                             {subtitle && (
                               <p className="mt-0.5 line-clamp-1 text-xs font-semibold leading-relaxed text-slate-500">

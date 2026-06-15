@@ -26,7 +26,7 @@ function validatesGenericWholePizza() {
     printOptions,
   );
 
-  assert.match(html, /Pizza redonda/);
+  assert.match(html, /Pizza calabresa/);
   assert.match(html, /Tamanho:/);
   assert.match(html, /\* 30cm/);
   assert.match(html, /Sabores:/);
@@ -47,6 +47,7 @@ function validatesGenericHalfAndHalf() {
 
   assert.match(html, /\* 1\/2 calabresa/);
   assert.match(html, /\* 1\/2 mussarela/);
+  assert.match(html, /Pizza 1\/2 calabresa \+ 1\/2 mussarela/);
 }
 
 function validatesGenericPizzaWithBorder() {

@@ -5,6 +5,7 @@ import type { OrderItem, OrderItemModifier } from "./types";
 
 function run() {
   validatesGenericPizzaHalfAndHalf();
+  validatesGenericPizzaWithThreeFlavors();
   validatesGenericPizzaWithBorder();
   validatesGenericBurger();
 }
@@ -19,9 +20,28 @@ function validatesGenericPizzaHalfAndHalf() {
   );
 
   assert.equal(normalized.source, "V2_GENERIC");
+  assert.equal(
+    normalized.name,
+    "Pizza 1/2 calabresa + 1/2 mussarela",
+  );
   assert.equal(normalized.groups.length, 2);
   assert.equal(normalized.groups[1].options.length, 2);
   assert.equal(normalized.groups[1].options[0].fraction, 0.5);
+}
+
+function validatesGenericPizzaWithThreeFlavors() {
+  const normalized = normalizeOrderItemForDisplay(
+    genericItem([
+      modifier("flavor-1", "Sabores", "pizza_flavor", "Calabresa", 40),
+      modifier("flavor-2", "Sabores", "pizza_flavor", "Mussarela", 0),
+      modifier("flavor-3", "Sabores", "pizza_flavor", "Peperone", 0),
+    ]),
+  );
+
+  assert.equal(
+    normalized.name,
+    "Pizza 1/3 Calabresa + 1/3 Mussarela + 1/3 Peperone",
+  );
 }
 
 function validatesGenericPizzaWithBorder() {
@@ -56,6 +76,7 @@ function validatesGenericBurger() {
     normalized.groups.map((group) => group.groupCode),
     ["ponto_carne", "queijos", "extras"],
   );
+  assert.equal(normalized.name, "Hamburguer artesanal");
 }
 
 function genericItem(

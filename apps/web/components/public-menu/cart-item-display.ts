@@ -1,4 +1,5 @@
 import type { CartItem } from './cart-context'
+import { buildConfiguredItemName } from '@/lib/configured-item-name'
 
 export type CartItemDisplay = {
   sizeOption?: string
@@ -44,6 +45,25 @@ export function itemDisplaySubtitle(display: CartItemDisplay) {
   return details.join(' · ')
 }
 
+export function cartItemDisplayName(item: CartItem) {
+  const groups =
+    item.displayGroups.length > 0
+      ? item.displayGroups.map((group) => ({
+          code: group.code,
+          name: group.name,
+          options: group.options.map((option) => ({
+            name: option.name,
+            fraction: option.fraction,
+          })),
+        }))
+      : groupSelectedModifiers(item)
+
+  return buildConfiguredItemName(
+    item.productName,
+    groups,
+  )
+}
+
 export function formatModifierFraction(fraction?: number) {
   if (!fraction || fraction >= 1) return ''
 
@@ -86,4 +106,32 @@ function getModifierName(item: CartItem, groupCode: string) {
     (modifier) => modifier.groupCode === groupCode,
   )
     ?.optionName
+}
+
+function groupSelectedModifiers(item: CartItem) {
+  const groups = new Map<
+    string,
+    {
+      code: string
+      name: string
+      options: Array<{ name: string; fraction?: number }>
+    }
+  >()
+
+  for (const modifier of item.selectedModifiers) {
+    if (!modifier.optionName) continue
+
+    const group = groups.get(modifier.groupCode) ?? {
+      code: modifier.groupCode,
+      name: modifier.groupName ?? modifier.groupCode,
+      options: [],
+    }
+    group.options.push({
+      name: modifier.optionName,
+      fraction: modifier.fraction,
+    })
+    groups.set(modifier.groupCode, group)
+  }
+
+  return [...groups.values()]
 }

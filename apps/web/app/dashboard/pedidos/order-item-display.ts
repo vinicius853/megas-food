@@ -1,4 +1,5 @@
 import type { OrderItem, OrderItemModifier } from "./types";
+import { buildConfiguredItemName } from "@/lib/configured-item-name";
 
 export type NormalizedOrderItemModifier = {
   id: string;
@@ -36,16 +37,28 @@ export function normalizeOrderItemForDisplay(
   item: OrderItem,
 ): NormalizedOrderItemForDisplay {
   const modifiers = normalizeModifiers(item.modifiers);
+  const groups = groupModifiers(modifiers);
+  const originalName = cleanText(item.name) || "Produto";
 
   return {
     source: "V2_GENERIC",
-    name: cleanText(item.name) || "Produto",
+    name: buildConfiguredItemName(
+      originalName,
+      groups.map((group) => ({
+        code: group.groupCode,
+        name: group.groupName,
+        options: group.options.map((option) => ({
+          name: option.optionName,
+          fraction: option.fraction,
+        })),
+      })),
+    ),
     quantity: Number(item.quantity ?? 1),
     unitPrice: Number(item.unitPrice ?? 0),
     total: Number(item.total ?? 0),
     notes: item.notes,
     modifiers,
-    groups: groupModifiers(modifiers),
+    groups,
   };
 }
 

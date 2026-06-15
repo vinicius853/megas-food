@@ -1,5 +1,8 @@
 import type { CartItem } from './cart-context'
-import { formatModifierFraction } from './cart-item-display'
+import {
+  cartItemDisplayName,
+  formatModifierFraction,
+} from './cart-item-display'
 import { formatMoney } from './checkout-formatters'
 import type { DeliveryType, PaymentMethod } from './checkout.types'
 
@@ -52,7 +55,7 @@ export function buildCheckoutWhatsAppMessage({
   ]
 
   items.forEach((item, index) => {
-    lines.push(`*${index + 1}. ${item.productName}*`)
+    lines.push(`*${index + 1}. ${cartItemDisplayName(item)}*`)
 
     item.displayGroups.forEach((group) => {
       if (group.options.length === 0) return
