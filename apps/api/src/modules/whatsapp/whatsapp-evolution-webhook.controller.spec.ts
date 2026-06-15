@@ -5,7 +5,7 @@ import { WhatsAppEvolutionWebhookController } from './whatsapp-evolution-webhook
 describe('WhatsAppEvolutionWebhookController', () => {
   function setup() {
     const webhookService = {
-      handle: jest.fn().mockResolvedValue({ received: true }),
+      accept: jest.fn().mockReturnValue({ received: true }),
     };
     const controller = new WhatsAppEvolutionWebhookController(
       webhookService as never,
@@ -14,7 +14,7 @@ describe('WhatsAppEvolutionWebhookController', () => {
     return { controller, webhookService };
   }
 
-  it('aceita apikey no corpo e remove a chave antes do processamento', async () => {
+  it('aceita apikey no corpo e remove a chave antes do processamento', () => {
     const { controller, webhookService } = setup();
     const payload = {
       apikey: 'evolution-key',
@@ -23,9 +23,9 @@ describe('WhatsAppEvolutionWebhookController', () => {
       data: {},
     };
 
-    await controller.handleWebhook(payload);
+    controller.handleWebhook(payload);
 
-    expect(webhookService.handle).toHaveBeenCalledWith(
+    expect(webhookService.accept).toHaveBeenCalledWith(
       {
         event: 'messages.upsert',
         instance: 'tenant-instance',
@@ -39,10 +39,10 @@ describe('WhatsAppEvolutionWebhookController', () => {
   it.each([
     ['apikey', ['evolution-key', undefined, undefined, undefined]],
     ['x-api-key', [undefined, 'evolution-key', undefined, undefined]],
-  ])('repassa credencial recebida no header %s', async (_, headers) => {
+  ])('repassa credencial recebida no header %s', (_, headers) => {
     const { controller, webhookService } = setup();
 
-    await controller.handleWebhook(
+    controller.handleWebhook(
       { event: 'messages.upsert', instance: 'tenant-instance' },
       headers[0],
       headers[1],
@@ -50,29 +50,27 @@ describe('WhatsAppEvolutionWebhookController', () => {
       headers[3],
     );
 
-    expect(webhookService.handle).toHaveBeenCalledWith(
+    expect(webhookService.accept).toHaveBeenCalledWith(
       { event: 'messages.upsert', instance: 'tenant-instance' },
       ['evolution-key'],
     );
   });
 
-  it('mantem a rejeicao do service quando nenhuma chave e enviada', async () => {
+  it('mantem a rejeicao do service quando nenhuma chave e enviada', () => {
     const webhookService = {
-      handle: jest
-        .fn()
-        .mockRejectedValue(
-          new UnauthorizedException('Webhook Evolution nao autorizado.'),
-        ),
+      accept: jest.fn().mockImplementation(() => {
+        throw new UnauthorizedException('Webhook Evolution nao autorizado.');
+      }),
     };
     const controller = new WhatsAppEvolutionWebhookController(
       webhookService as never,
     );
 
-    await expect(
+    expect(() => {
       controller.handleWebhook({
         event: 'messages.upsert',
         instance: 'tenant-instance',
-      }),
-    ).rejects.toBeInstanceOf(UnauthorizedException);
+      });
+    }).toThrow(UnauthorizedException);
   });
 });

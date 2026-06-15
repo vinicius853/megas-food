@@ -24,6 +24,23 @@ export class WhatsAppEvolutionWebhookService {
     private readonly configService: ConfigService,
   ) {}
 
+  accept(payload: unknown, suppliedCredentials?: string | readonly string[]) {
+    this.assertAuthorized(suppliedCredentials);
+    this.logReceivedPayload(payload);
+
+    setImmediate(() => {
+      void this.handle(payload, suppliedCredentials).catch((error) => {
+        const message =
+          error instanceof Error ? error.message : 'Falha desconhecida.';
+        this.logger.warn(
+          `Falha ao processar webhook Evolution em background: ${message}`,
+        );
+      });
+    });
+
+    return { received: true };
+  }
+
   async handle(
     payload: unknown,
     suppliedCredentials?: string | readonly string[],
@@ -179,6 +196,16 @@ export class WhatsAppEvolutionWebhookService {
       expectedBuffer.length === suppliedBuffer.length &&
       timingSafeEqual(expectedBuffer, suppliedBuffer)
     );
+  }
+
+  private logReceivedPayload(payload: unknown) {
+    try {
+      this.logger.log(`Webhook Evolution recebido: ${JSON.stringify(payload)}`);
+    } catch {
+      this.logger.log(
+        'Webhook Evolution recebido com payload nao serializavel.',
+      );
+    }
   }
 
   private isDuplicate(messageId: string) {

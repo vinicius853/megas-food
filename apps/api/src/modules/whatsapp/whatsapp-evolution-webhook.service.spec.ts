@@ -146,6 +146,20 @@ describe('WhatsAppEvolutionWebhookService', () => {
       service.handle(messagePayload({ text: 'menu' }), 'webhook-secret'),
     ).rejects.toThrow('Webhook Evolution nao autorizado.');
   });
+
+  it('confirma o recebimento antes de processar o payload', () => {
+    const scheduleSpy = jest
+      .spyOn(global, 'setImmediate')
+      .mockImplementation((() => ({ ref: jest.fn() })) as never);
+    const { service } = setup();
+
+    expect(
+      service.accept(messagePayload({ text: 'menu' }), 'evolution-api-key'),
+    ).toEqual({ received: true });
+    expect(scheduleSpy).toHaveBeenCalledTimes(1);
+
+    scheduleSpy.mockRestore();
+  });
 });
 
 function messagePayload(input?: {

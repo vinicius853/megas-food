@@ -19,7 +19,7 @@ export class WhatsAppEvolutionWebhookController {
     const { apiKey: bodyApiKey, payload: sanitizedPayload } =
       sanitizeWebhookPayload(payload);
 
-    return this.webhookService.handle(
+    return this.webhookService.accept(
       sanitizedPayload,
       [
         apiKeyHeader,
