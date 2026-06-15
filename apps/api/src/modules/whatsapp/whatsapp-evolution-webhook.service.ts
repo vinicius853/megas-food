@@ -24,9 +24,12 @@ export class WhatsAppEvolutionWebhookService {
     private readonly configService: ConfigService,
   ) {}
 
-  async handle(payload: unknown, suppliedCredential?: string) {
+  async handle(
+    payload: unknown,
+    suppliedCredentials?: string | readonly string[],
+  ) {
     const event = parseEvolutionWebhook(payload);
-    this.assertAuthorized(suppliedCredential ?? event?.apiKey);
+    this.assertAuthorized(suppliedCredentials ?? event?.apiKey);
 
     if (!event) {
       return { received: true, ignored: 'INVALID_PAYLOAD' };
@@ -147,23 +150,35 @@ export class WhatsAppEvolutionWebhookService {
     });
   }
 
-  private assertAuthorized(suppliedCredential?: string) {
-    const expected =
-      this.configService.get<string>('EVOLUTION_WEBHOOK_SECRET')?.trim() ||
-      this.configService.get<string>('EVOLUTION_API_KEY')?.trim();
+  private assertAuthorized(suppliedCredentials?: string | readonly string[]) {
+    const expectedCredential =
+      this.configService.get<string>('EVOLUTION_API_KEY')?.trim() ||
+      this.configService.get<string>('EVOLUTION_WEBHOOK_SECRET')?.trim();
+    const candidates = (
+      Array.isArray(suppliedCredentials)
+        ? suppliedCredentials
+        : [suppliedCredentials]
+    ).filter((credential): credential is string => Boolean(credential));
 
-    if (!expected || !suppliedCredential) {
+    if (!expectedCredential || !candidates.length) {
       throw new UnauthorizedException('Webhook Evolution nao autorizado.');
     }
 
+    const authorized = candidates.some((candidate) =>
+      this.credentialsMatch(expectedCredential, candidate),
+    );
+    if (!authorized) {
+      throw new UnauthorizedException('Webhook Evolution nao autorizado.');
+    }
+  }
+
+  private credentialsMatch(expected: string, supplied: string) {
     const expectedBuffer = Buffer.from(expected);
-    const suppliedBuffer = Buffer.from(suppliedCredential);
-    if (
-      expectedBuffer.length !== suppliedBuffer.length ||
-      !timingSafeEqual(expectedBuffer, suppliedBuffer)
-    ) {
-      throw new UnauthorizedException('Webhook Evolution nao autorizado.');
-    }
+    const suppliedBuffer = Buffer.from(supplied);
+    return (
+      expectedBuffer.length === suppliedBuffer.length &&
+      timingSafeEqual(expectedBuffer, suppliedBuffer)
+    );
   }
 
   private isDuplicate(messageId: string) {
