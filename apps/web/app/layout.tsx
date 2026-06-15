@@ -15,8 +15,8 @@ const geistMono = Geist_Mono({
 })
 
 export const metadata: Metadata = {
-  title: 'Pizza SaaS',
-  description: 'Sistema profissional para pizzarias',
+  title: 'Megas Food',
+  description: 'Pedidos, gestao e crescimento para operacoes de food service',
 }
 
 export default function RootLayout({

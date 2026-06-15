@@ -1,9 +1,11 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Building2, Pizza } from "lucide-react";
 
+import megasFoodLogo from "@/app/login/imagens/megas-food-logo.png";
 import { cn } from "@/lib/utils";
 
 import { type NavSection, type WorkspaceKind } from "@/lib/navigation";
@@ -34,17 +36,29 @@ export function Sidebar({
       <div className="flex flex-col items-center border-b border-slate-200 px-6 py-7 text-center">
         <div
           className={cn(
-            "flex h-20 w-20 items-center justify-center overflow-hidden rounded-3xl shadow-sm",
+            "relative flex h-20 w-20 items-center justify-center overflow-hidden rounded-3xl shadow-sm",
             isMaster
               ? "bg-slate-900 text-white"
               : "bg-orange-50 text-orange-600",
           )}
         >
           {!isMaster && brand?.logoUrl ? (
-            <img
+            <Image
               src={brand.logoUrl}
               alt={displayName}
+              fill
+              className="object-cover"
+              sizes="80px"
+              unoptimized
+            />
+          ) : isMaster ? (
+            <Image
+              src={megasFoodLogo}
+              alt=""
+              aria-hidden="true"
               className="h-full w-full object-cover"
+              sizes="80px"
+              priority
             />
           ) : (
             <BrandIcon className="h-10 w-10" />
@@ -67,18 +81,18 @@ export function Sidebar({
       <div className="p-5">
         <div className="rounded-3xl border border-slate-200 bg-white p-4 shadow-sm">
           <div className="flex items-center gap-3">
-            <div
-              className={cn(
-                "flex h-10 w-10 items-center justify-center rounded-2xl",
-                isMaster
-                  ? "bg-slate-900 text-white"
-                  : "bg-orange-50 text-orange-600",
-              )}
-            >
-              <BrandIcon className="h-5 w-5" />
+            <div className="relative h-10 w-10 shrink-0 overflow-hidden rounded-xl bg-slate-950 ring-1 ring-slate-200">
+              <Image
+                src={megasFoodLogo}
+                alt=""
+                aria-hidden="true"
+                fill
+                className="object-cover"
+                sizes="40px"
+              />
             </div>
 
-            <div>
+            <div className="min-w-0">
               <p className="text-sm font-black text-slate-900">Megas Food</p>
 
               <p className="text-xs text-slate-500">
