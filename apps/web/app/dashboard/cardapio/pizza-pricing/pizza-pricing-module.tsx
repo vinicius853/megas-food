@@ -5,12 +5,10 @@ import { PizzaSizesPanel } from "./pizza-sizes-panel";
 import type { PizzaPricingModuleProps } from "./pizza-pricing-types";
 
 export function PizzaPricingModule(props: PizzaPricingModuleProps) {
-  const visibleSizes = props.sizes.filter((size) => size.isActive);
-
   return (
     <div className="min-w-0 space-y-4">
       <PizzaSizesPanel
-        sizes={visibleSizes}
+        sizes={props.sizes}
         onAdd={props.onAddSize}
         onRemove={props.onRemoveSize}
         onUpdate={props.onUpdateSize}
@@ -21,7 +19,7 @@ export function PizzaPricingModule(props: PizzaPricingModuleProps) {
         flavorPrices={props.flavorPrices}
         flavors={props.flavors}
         search={props.search}
-        sizes={visibleSizes}
+        sizes={props.sizes}
         onAddFlavor={props.onAddFlavor}
         onRemoveFlavor={props.onRemoveFlavor}
         onSearchChange={props.setSearch}

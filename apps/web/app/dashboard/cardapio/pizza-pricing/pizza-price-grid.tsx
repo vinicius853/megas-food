@@ -76,7 +76,7 @@ export function PizzaPriceGrid({
 
               <input
                 type="checkbox"
-                checked={available && !disabled}
+                checked={available}
                 disabled={disabled}
                 onChange={(event) =>
                   onAvailabilityChange(
@@ -95,7 +95,7 @@ export function PizzaPriceGrid({
               <MoneyInput
                 fluid
                 disabled={!available || disabled}
-                value={price?.price ?? "0,00"}
+                value={price?.price ?? ""}
                 onChange={(value) =>
                   onPriceChange(
                     size.productId,
