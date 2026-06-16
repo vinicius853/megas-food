@@ -289,7 +289,7 @@ function buildItemHtml(item: any, mode: PrintMode) {
 
       ${
         isFilled(parsedNotes.notes)
-          ? `<div class="item-detail">Obs: ${escapeHtml(parsedNotes.notes)}</div>`
+          ? `<div class="item-detail note-line item-note">Obs: ${escapeHtml(parsedNotes.notes)}</div>`
           : ""
       }
     </div>
@@ -343,13 +343,17 @@ function buildPaymentHtml(
 
   return `
     <div class="dash"></div>
-    <p>Pagamento: ${escapeHtml(payment)}</p>
+    <p class="payment-line">Pagamento: <strong>${escapeHtml(payment)}</strong></p>
     ${
       parsedNotes.cashPaid
-        ? `<p>Troco para: ${escapeHtml(parsedNotes.cashPaid)}</p>`
+        ? `<p class="payment-line">Troco para: <strong>${escapeHtml(parsedNotes.cashPaid)}</strong></p>`
         : ""
     }
-    ${parsedNotes.change ? `<p>Troco: ${escapeHtml(parsedNotes.change)}</p>` : ""}
+    ${
+      parsedNotes.change
+        ? `<p class="payment-line">Troco: <strong>${escapeHtml(parsedNotes.change)}</strong></p>`
+        : ""
+    }
   `;
 }
 
@@ -381,12 +385,15 @@ export function buildPrintHtml(
           body {
             width: ${paperWidth};
             margin: 0;
-            padding: ${options.paperSize === "58mm" ? "5px" : "8px"};
+            padding: ${options.paperSize === "58mm" ? "6px" : "9px"};
             color: #000;
             background: #fff;
             font-family: "Courier New", Courier, monospace;
-            font-size: ${options.paperSize === "58mm" ? "10.5px" : "12px"};
-            line-height: 1.3;
+            font-size: ${options.paperSize === "58mm" ? "12px" : "14px"};
+            font-weight: 800;
+            line-height: 1.38;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
           }
 
           h1, h2, h3, p {
@@ -399,56 +406,69 @@ export function buildPrintHtml(
           }
 
           .store {
-            font-size: ${options.paperSize === "58mm" ? "13px" : "16px"};
+            font-size: ${options.paperSize === "58mm" ? "15px" : "18px"};
             font-weight: 900;
             text-transform: uppercase;
           }
 
           .subtitle {
-            margin-top: 2px;
-            font-size: ${options.paperSize === "58mm" ? "10px" : "11px"};
-            font-weight: 800;
+            margin-top: 3px;
+            font-size: ${options.paperSize === "58mm" ? "11px" : "13px"};
+            font-weight: 900;
             text-transform: uppercase;
           }
 
           .dash {
-            border-top: 1px dashed #000;
-            margin: 7px 0;
+            border-top: 2px dashed #000;
+            margin: 10px 0;
           }
 
           .equals {
-            border-top: 2px solid #000;
-            margin: 9px 0 7px;
+            border-top: 3px solid #000;
+            margin: 12px 0 9px;
           }
 
           .order-label {
-            margin-top: 8px;
-            font-weight: 800;
+            margin-top: 9px;
+            font-size: ${options.paperSize === "58mm" ? "12px" : "14px"};
+            font-weight: 900;
             text-align: center;
           }
 
           .order-number {
-            margin: 5px 0 8px;
-            font-size: ${options.paperSize === "58mm" ? "22px" : "28px"};
+            margin: 6px 0 10px;
+            padding: 5px 0;
+            border-top: 2px solid #000;
+            border-bottom: 2px solid #000;
+            font-size: ${options.paperSize === "58mm" ? "27px" : "34px"};
             font-weight: 900;
             text-align: center;
           }
 
           .section-title {
+            margin-bottom: 2px;
+            font-size: ${options.paperSize === "58mm" ? "12px" : "14px"};
             font-weight: 900;
             text-transform: uppercase;
           }
 
           .spacer {
-            height: 6px;
+            height: 7px;
           }
 
           .item {
-            margin-bottom: 8px;
+            margin-bottom: 12px;
+            padding-bottom: 9px;
+            border-bottom: 1px dashed #000;
             break-inside: avoid;
           }
 
+          .item:last-child {
+            border-bottom: 0;
+          }
+
           .item-head {
+            font-size: ${options.paperSize === "58mm" ? "13px" : "15px"};
             font-weight: 900;
           }
 
@@ -457,7 +477,7 @@ export function buildPrintHtml(
             align-items: flex-start;
             justify-content: space-between;
             gap: 8px;
-            margin-top: 2px;
+            margin-top: 4px;
           }
 
           .item-row span {
@@ -470,27 +490,57 @@ export function buildPrintHtml(
           }
 
           .item-detail {
-            margin-top: 2px;
-            padding-left: 10px;
+            margin-top: 4px;
+            padding-left: 8px;
+            font-weight: 800;
+          }
+
+          .item-detail-title {
+            padding-left: 0;
+            font-weight: 900;
+            text-transform: uppercase;
+          }
+
+          .note-line {
+            margin-top: 7px;
+            padding: 5px 4px;
+            border: 2px solid #000;
+            font-size: ${options.paperSize === "58mm" ? "12px" : "14px"};
+            font-weight: 900;
+            text-transform: uppercase;
+          }
+
+          .item-note {
+            padding-left: 4px;
+          }
+
+          .payment-line {
+            margin-top: 4px;
+            font-size: ${options.paperSize === "58mm" ? "13px" : "15px"};
+            font-weight: 900;
           }
 
           .total-label {
             text-align: center;
+            font-size: ${options.paperSize === "58mm" ? "14px" : "17px"};
             font-weight: 900;
           }
 
           .total-value {
-            margin-top: 5px;
-            font-size: ${options.paperSize === "58mm" ? "18px" : "24px"};
+            margin-top: 6px;
+            padding: 5px 0;
+            border-top: 2px solid #000;
+            border-bottom: 2px solid #000;
+            font-size: ${options.paperSize === "58mm" ? "23px" : "30px"};
             font-weight: 900;
             text-align: right;
           }
 
           .footer {
-            margin-top: 12px;
+            margin-top: 14px;
             text-align: center;
-            font-size: ${options.paperSize === "58mm" ? "9.5px" : "11px"};
-            font-weight: 800;
+            font-size: ${options.paperSize === "58mm" ? "11px" : "13px"};
+            font-weight: 900;
           }
 
           @media print {
@@ -540,7 +590,10 @@ export function buildPrintHtml(
               <div class="section-title">OBSERVACOES</div>
               <div class="spacer"></div>
               ${parsedNotes.general
-                .map((line: string) => `<p>${escapeHtml(line)}</p>`)
+                .map(
+                  (line: string) =>
+                    `<p class="note-line">${escapeHtml(line)}</p>`,
+                )
                 .join("")}
             `
             : ""
