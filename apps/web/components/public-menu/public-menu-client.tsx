@@ -290,7 +290,7 @@ function PublicMenuContent({ slug }: { slug: string }) {
     >
       <div className="mx-auto min-h-screen w-full max-w-[860px] bg-slate-50 shadow-2xl">
         <header
-          className="relative min-h-[190px] w-full overflow-hidden bg-slate-900 px-4 pb-16 pt-5 text-white shadow-sm sm:min-h-[230px] sm:px-8"
+          className="relative min-h-[230px] w-full overflow-hidden bg-slate-900 px-4 pb-16 pt-5 text-white shadow-sm sm:min-h-[230px] sm:px-8"
           style={{ backgroundColor: palette.primary }}
         >
           {menuCover && (
@@ -299,7 +299,7 @@ function PublicMenuContent({ slug }: { slug: string }) {
                 src={menuCover}
                 alt=""
                 aria-hidden="true"
-                className="absolute inset-0 block h-full w-full object-cover object-center"
+                className="absolute inset-0 block h-full w-full bg-black object-contain object-center sm:object-cover"
               />
               <div
                 aria-hidden="true"

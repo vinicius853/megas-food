@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Banknote, CreditCard, MapPin, QrCode, Search, X } from 'lucide-react'
 
 import { apiFetch } from '@/lib/api'
@@ -26,6 +26,7 @@ import {
   buildStoreWhatsAppUrl,
 } from './checkout-whatsapp-message'
 import { CheckoutWhatsAppSuccess } from './checkout-whatsapp-success'
+import { PublicMenuFloatingPanel } from './public-menu-floating-panel'
 import { PRIVACY_POLICY_VERSION } from '@/lib/legal'
 
 export function CheckoutModal({
@@ -62,7 +63,7 @@ export function CheckoutModal({
   const [loadingCep, setLoadingCep] = useState(false)
   const [cepError, setCepError] = useState('')
   const [submitting, setSubmitting] = useState(false)
-  const [privacyAccepted, setPrivacyAccepted] = useState(false)
+  const [privacyAccepted, setPrivacyAccepted] = useState(true)
   const [privacyError, setPrivacyError] = useState('')
   const [success, setSuccess] = useState<CheckoutSuccessState | null>(null)
   const theme = palette ?? {
@@ -72,6 +73,13 @@ export function CheckoutModal({
     soft: '#FFF1F2',
     textOnPrimary: '#FFFFFF',
   }
+
+  useEffect(() => {
+    if (!open) return
+
+    setPrivacyAccepted(true)
+    setPrivacyError('')
+  }, [open])
 
   async function handleSearchCep() {
     const cleanCep = onlyNumbers(cep)
@@ -326,7 +334,7 @@ export function CheckoutModal({
 
       if (openedWindow) openedWindow.opener = null
 
-      setPrivacyAccepted(false)
+      setPrivacyAccepted(true)
 
       if (openedWindow) {
         onOrderFinished?.()
@@ -348,8 +356,15 @@ export function CheckoutModal({
   if (!open) return null
 
   return (
-    <div className="fixed inset-0 z-[80] flex items-end justify-center bg-black/60 backdrop-blur-sm md:items-center">
-      <div className="relative flex max-h-[94vh] w-full max-w-2xl flex-col overflow-hidden rounded-t-3xl bg-white shadow-2xl md:rounded-3xl">
+    <PublicMenuFloatingPanel
+      contentClassName="relative"
+      maxWidthClassName="max-w-2xl"
+      onBack={() => {
+        onClose()
+        return false
+      }}
+      zIndexClassName="z-[80]"
+    >
         {success && (
           <CheckoutWhatsAppSuccess
             orderNumber={success.orderNumber}
@@ -398,7 +413,7 @@ export function CheckoutModal({
           </button>
         </div>
 
-        <div className="flex-1 overflow-y-auto p-5">
+        <div className="flex-1 overflow-y-auto overscroll-contain p-5">
           <div className="space-y-4">
             <div className="grid gap-3 md:grid-cols-2">
               <input
@@ -742,7 +757,6 @@ export function CheckoutModal({
             {submitting ? 'Enviando pedido...' : 'Enviar pedido'}
           </button>
         </div>
-      </div>
-    </div>
+    </PublicMenuFloatingPanel>
   )
 }

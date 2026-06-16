@@ -25,6 +25,7 @@ import {
   withSelectedModifierDisplay,
 } from "./pizza-configurator-modifiers";
 import { PizzaConfiguratorSummary } from "./pizza-configurator-summary";
+import { PublicMenuFloatingPanel } from "./public-menu-floating-panel";
 import { getV2ContextualOptionPrice } from "./public-menu-mappers";
 import {
   calculatePriceEngineShadow,
@@ -347,6 +348,16 @@ export function PizzaConfiguratorFlow({
     if (step === "drinkSuggestion") onClose();
   }
 
+  function handleBrowserBack() {
+    if (step === "size" || step === "drinkSuggestion") {
+      onClose();
+      return false;
+    }
+
+    goBack();
+    return true;
+  }
+
   function toggleExtraFlavor(flavorId: string) {
     const maxExtras = Math.max((selectedSize?.maxFlavors ?? 1) - 1, 0);
 
@@ -432,8 +443,10 @@ export function PizzaConfiguratorFlow({
   const heroImage = firstFlavor?.imageUrl || product.imageUrl || undefined;
 
   return (
-    <div className="fixed inset-0 z-[70] flex items-end justify-center bg-black/70 font-sans md:items-center">
-      <div className="flex max-h-[92vh] w-full max-w-md flex-col overflow-hidden rounded-t-[28px] bg-white shadow-2xl md:max-h-[calc(100vh-3rem)] md:rounded-[28px]">
+    <PublicMenuFloatingPanel
+      onBack={handleBrowserBack}
+      zIndexClassName="z-[70]"
+    >
         <header className="flex shrink-0 items-center justify-between border-b border-slate-200 px-4 py-3">
           <button
             type="button"
@@ -465,7 +478,7 @@ export function PizzaConfiguratorFlow({
         </header>
 
         <div
-          className={`min-h-0 flex-1 overflow-y-auto px-4 py-5 ${
+          className={`min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-5 ${
             selectionFooter ? "pb-28" : ""
           }`}
         >
@@ -742,7 +755,6 @@ export function PizzaConfiguratorFlow({
             }}
           />
         )}
-      </div>
-    </div>
+    </PublicMenuFloatingPanel>
   );
 }

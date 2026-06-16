@@ -15,6 +15,7 @@ import { apiFetch } from '@/lib/api'
 import { useCart, type CartItem } from './cart-context'
 import { cartItemDisplayName } from './cart-item-display'
 import { CheckoutModal } from './checkout-modal'
+import { PublicMenuFloatingPanel } from './public-menu-floating-panel'
 
 type CartDrawerProps = {
   open: boolean
@@ -303,14 +304,20 @@ export function CartDrawer({
   useEffect(() => {
     if (!appliedCoupon) return
 
+    let cancelled = false
+
     if (totalPrice <= 0) {
-      removeCoupon()
-      return
+      const timeout = window.setTimeout(() => {
+        if (!cancelled) removeCoupon()
+      }, 0)
+
+      return () => {
+        cancelled = true
+        window.clearTimeout(timeout)
+      }
     }
 
     if (appliedCoupon.subtotal === totalPrice) return
-
-    let cancelled = false
 
     async function revalidateCoupon() {
       try {
@@ -352,8 +359,15 @@ export function CartDrawer({
 
   return (
     <>
-      <div className="fixed inset-0 z-[60] flex items-start justify-center bg-black/45 px-3 pb-4 pt-20 md:items-center md:p-6">
-        <div className="flex max-h-[calc(100dvh-6rem)] min-h-0 w-full max-w-md animate-in slide-in-from-bottom-4 duration-300 flex-col overflow-hidden rounded-3xl bg-white shadow-2xl md:max-h-[calc(100dvh-3rem)]">
+      <PublicMenuFloatingPanel
+        className="bg-black/45"
+        contentClassName="animate-in slide-in-from-bottom-4 duration-300"
+        onBack={() => {
+          onClose()
+          return false
+        }}
+        zIndexClassName="z-[60]"
+      >
           <header className="flex flex-shrink-0 items-center justify-between border-b border-slate-200 px-4 py-3">
             <div>
               <h2 className="text-lg font-black uppercase tracking-tight text-slate-950">
@@ -373,7 +387,7 @@ export function CartDrawer({
             </button>
           </header>
 
-          <div className="min-h-0 flex-1 overflow-y-auto bg-slate-50 px-3 py-3">
+          <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain bg-slate-50 px-3 py-3">
             {items.length === 0 ? (
               <div className="flex h-full flex-col items-center justify-center text-center">
                 <div
@@ -720,8 +734,7 @@ export function CartDrawer({
               Finalizar pedido
             </button>
           </footer>
-        </div>
-      </div>
+      </PublicMenuFloatingPanel>
 
       <CheckoutModal
         open={checkoutOpen}
