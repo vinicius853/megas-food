@@ -1,5 +1,6 @@
 import { ArrowRight, CheckCircle2, ShoppingBasket } from 'lucide-react'
 
+import { capitalizePublicDisplayName } from './public-menu-display-text'
 import { formatMoney } from './public-menu-formatters'
 import type { MenuPalette } from './public-menu.types'
 
@@ -79,6 +80,7 @@ type AddedToCartToastProps = {
 
 export function AddedToCartToast({ item, palette }: AddedToCartToastProps) {
   if (!item) return null
+  const displayName = capitalizePublicDisplayName(item.name)
 
   return (
     <div
@@ -92,7 +94,7 @@ export function AddedToCartToast({ item, palette }: AddedToCartToastProps) {
         {item.imageUrl ? (
           <img
             src={item.imageUrl}
-            alt={item.name}
+            alt={displayName}
             className="h-full w-full object-cover"
           />
         ) : (
@@ -111,7 +113,7 @@ export function AddedToCartToast({ item, palette }: AddedToCartToastProps) {
           Adicionado ao carrinho
         </p>
         <p className="mt-1 truncate text-sm font-black text-slate-950">
-          {item.name}
+          {displayName}
         </p>
       </div>
 

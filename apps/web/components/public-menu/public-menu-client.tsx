@@ -10,6 +10,7 @@ import { PublicLegalFooter } from "@/components/legal/public-legal-footer";
 import { CartDrawer } from "./cart-drawer";
 import { CartProvider, useCart } from "./cart-context";
 import { PizzaConfiguratorFlow } from "./pizza-configurator-flow";
+import { capitalizePublicDisplayName } from "./public-menu-display-text";
 import { AddedToCartToast, BottomCartBar } from "./public-menu-feedback";
 import { getCategoryIcon, getSectionDomId } from "./public-menu-formatters";
 import { getStoreOpenStatus } from "./public-menu-hours";
@@ -394,7 +395,7 @@ function PublicMenuContent({ slug }: { slug: string }) {
                 <span className="mr-2">
                   {category === "Todos" ? "" : getCategoryIcon(category)}
                 </span>
-                {category}
+                {capitalizePublicDisplayName(category)}
               </button>
             ))}
           </div>
@@ -425,7 +426,7 @@ function PublicMenuContent({ slug }: { slug: string }) {
                     <span className="mr-2">
                       {getCategoryIcon(section.title)}
                     </span>
-                    {section.title}
+                    {capitalizePublicDisplayName(section.title)}
                   </h2>
                 </div>
 

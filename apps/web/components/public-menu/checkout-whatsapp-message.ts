@@ -5,6 +5,7 @@ import {
 } from './cart-item-display'
 import { formatMoney } from './checkout-formatters'
 import type { DeliveryType, PaymentMethod } from './checkout.types'
+import { capitalizePublicDisplayName } from './public-menu-display-text'
 
 type BuildCheckoutWhatsAppMessageInput = {
   orderNumber?: number
@@ -68,11 +69,11 @@ export function buildCheckoutWhatsAppMessage({
               ? ` (+${formatMoney(option.price)})`
               : ''
 
-          return `${fraction}${option.name}${price}`
+          return `${fraction}${capitalizePublicDisplayName(option.name)}${price}`
         })
         .join(', ')
 
-      lines.push(`${group.name}: ${options}`)
+      lines.push(`${capitalizePublicDisplayName(group.name)}: ${options}`)
     })
 
     if ((item.additionalItems?.length ?? 0) > 0) {
@@ -80,7 +81,7 @@ export function buildCheckoutWhatsAppMessage({
         `Adicionais: ${item.additionalItems
           ?.map(
             (additional) =>
-              `${additional.name} (+${formatMoney(additional.price)})`,
+              `${capitalizePublicDisplayName(additional.name)} (+${formatMoney(additional.price)})`,
           )
           .join(', ')}`,
       )

@@ -1,5 +1,6 @@
 import type { CartItem } from './cart-context'
 import { buildConfiguredItemName } from '@/lib/configured-item-name'
+import { capitalizePublicDisplayName } from './public-menu-display-text'
 
 export type CartItemDisplay = {
   sizeOption?: string
@@ -19,15 +20,17 @@ export function buildCartItemDisplay(item: CartItem): CartItemDisplay {
   const borderGroup = item.displayGroups.find((group) => group.code === 'pizza_border')
 
   return {
-    sizeOption: sizeGroup?.options[0]?.name ?? getModifierName(item, 'pizza_size'),
+    sizeOption: capitalizeOptionalName(
+      sizeGroup?.options[0]?.name ?? getModifierName(item, 'pizza_size'),
+    ),
     flavorOptions:
       flavorGroup?.options.map((option) => ({
-        name: option.name,
+        name: capitalizePublicDisplayName(option.name),
         fraction: option.fraction,
       })) ?? buildFlavorDisplayFromModifiers(item),
     borderOption: borderGroup?.options[0]
       ? {
-          name: borderGroup.options[0].name,
+          name: capitalizePublicDisplayName(borderGroup.options[0].name),
           price: borderGroup.options[0].price,
         }
       : buildBorderDisplayFromModifiers(item),
@@ -52,16 +55,13 @@ export function cartItemDisplayName(item: CartItem) {
           code: group.code,
           name: group.name,
           options: group.options.map((option) => ({
-            name: option.name,
+            name: capitalizePublicDisplayName(option.name),
             fraction: option.fraction,
           })),
         }))
       : groupSelectedModifiers(item)
 
-  return buildConfiguredItemName(
-    item.productName,
-    groups,
-  )
+  return capitalizePublicDisplayName(buildConfiguredItemName(item.productName, groups))
 }
 
 export function formatModifierFraction(fraction?: number) {
@@ -80,7 +80,9 @@ function buildFlavorDisplayFromModifiers(item: CartItem) {
 
   return flavorModifiers.length > 0
     ? flavorModifiers.map((modifier) => ({
-        name: modifier.optionName ?? 'Sabor',
+        name: modifier.optionName
+          ? capitalizePublicDisplayName(modifier.optionName)
+          : 'Sabor',
         fraction: modifier.fraction,
       }))
     : []
@@ -96,7 +98,7 @@ function buildBorderDisplayFromModifiers(item: CartItem) {
   }
 
   return {
-    name: borderModifier.optionName,
+    name: capitalizePublicDisplayName(borderModifier.optionName),
     price: borderModifier.totalDelta,
   }
 }
@@ -127,11 +129,15 @@ function groupSelectedModifiers(item: CartItem) {
       options: [],
     }
     group.options.push({
-      name: modifier.optionName,
+      name: capitalizePublicDisplayName(modifier.optionName),
       fraction: modifier.fraction,
     })
     groups.set(modifier.groupCode, group)
   }
 
   return [...groups.values()]
+}
+
+function capitalizeOptionalName(value?: string) {
+  return value ? capitalizePublicDisplayName(value) : undefined
 }

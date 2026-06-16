@@ -1,5 +1,6 @@
 import { ImageIcon, Plus } from "lucide-react";
 
+import { capitalizePublicDisplayName } from "./public-menu-display-text";
 import { formatMoney, formatShortMoney } from "./public-menu-formatters";
 import type {
   FixedProductCard,
@@ -20,6 +21,8 @@ export function PublicFlavorCard({
   storeOpen,
   onAdd,
 }: PublicFlavorCardProps) {
+  const displayName = capitalizePublicDisplayName(flavor.name);
+
   return (
     <div>
       <article className="relative overflow-hidden rounded-2xl border border-slate-200 bg-white p-3 shadow-sm shadow-slate-950/5 transition hover:border-slate-300 hover:bg-slate-50">
@@ -27,7 +30,7 @@ export function PublicFlavorCard({
           {flavor.image ? (
             <img
               src={flavor.image}
-              alt={flavor.name}
+              alt={displayName}
               className="h-[76px] w-[76px] rounded-lg object-cover shadow-sm"
             />
           ) : (
@@ -36,7 +39,7 @@ export function PublicFlavorCard({
 
           <div className="min-w-0 pr-1">
             <h3 className="line-clamp-2 text-lg font-black leading-tight text-slate-950">
-              {flavor.name}
+              {displayName}
             </h3>
 
             <p className="mt-1 line-clamp-2 text-xs font-semibold leading-relaxed text-slate-500">
@@ -79,7 +82,7 @@ export function PublicFlavorCard({
             disabled={!storeOpen}
             className="mt-1 flex h-8 w-8 items-center justify-center rounded-full text-white shadow-md transition active:scale-95 disabled:cursor-not-allowed disabled:opacity-45"
             style={{ backgroundColor: storeOpen ? palette.primary : "#94A3B8" }}
-            aria-label={`Adicionar ${flavor.name}`}
+            aria-label={`Adicionar ${displayName}`}
           >
             <Plus className="h-5 w-5" />
           </button>
@@ -102,6 +105,8 @@ export function PublicFixedProductCard({
   storeOpen,
   onAdd,
 }: PublicFixedProductCardProps) {
+  const displayName = capitalizePublicDisplayName(product.name);
+
   return (
     <div>
       <article className="relative overflow-hidden rounded-2xl border border-slate-200 bg-white p-3 shadow-sm shadow-slate-950/5 transition hover:border-slate-300 hover:bg-slate-50">
@@ -109,7 +114,7 @@ export function PublicFixedProductCard({
           {product.image ? (
             <img
               src={product.image}
-              alt={product.name}
+              alt={displayName}
               className="h-[76px] w-[76px] rounded-lg object-cover shadow-sm"
             />
           ) : (
@@ -118,7 +123,7 @@ export function PublicFixedProductCard({
 
           <div className="min-w-0">
             <h3 className="line-clamp-2 text-base font-black leading-tight text-slate-950">
-              {product.name}
+              {displayName}
             </h3>
 
             {product.description ? (
@@ -140,7 +145,7 @@ export function PublicFixedProductCard({
             disabled={!storeOpen}
             className="mt-1 flex h-8 w-8 items-center justify-center rounded-full text-white shadow-md transition active:scale-95 disabled:cursor-not-allowed disabled:opacity-45"
             style={{ backgroundColor: storeOpen ? palette.primary : "#94A3B8" }}
-            aria-label={`Adicionar ${product.name}`}
+            aria-label={`Adicionar ${displayName}`}
           >
             <Plus className="h-5 w-5" />
           </button>

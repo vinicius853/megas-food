@@ -1,6 +1,7 @@
 import { Check } from 'lucide-react'
 
 import { formatMoney } from './pizza-configurator-helpers'
+import { capitalizePublicDisplayName } from './public-menu-display-text'
 
 type OptionCardProps = {
   title: string
@@ -17,6 +18,8 @@ export function OptionCard({
   selected,
   onClick,
 }: OptionCardProps) {
+  const displayTitle = capitalizePublicDisplayName(title)
+
   return (
     <button
       type="button"
@@ -28,7 +31,7 @@ export function OptionCard({
       }`}
     >
       <div className="min-w-0 flex-1">
-        <p className="text-sm font-black text-slate-950">{title}</p>
+        <p className="text-sm font-black text-slate-950">{displayTitle}</p>
         {description && (
           <p className="mt-1 text-xs font-semibold text-slate-500">
             {description}

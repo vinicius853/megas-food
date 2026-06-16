@@ -1,4 +1,5 @@
 import { formatMoney } from './pizza-configurator-helpers'
+import { capitalizePublicDisplayName } from './public-menu-display-text'
 
 type PizzaConfiguratorSummaryProps = {
   productName: string
@@ -23,6 +24,16 @@ export function PizzaConfiguratorSummary({
   onNotesChange,
   totalPrice,
 }: PizzaConfiguratorSummaryProps) {
+  const displayProductName = capitalizePublicDisplayName(productName)
+  const displaySizeLabel = capitalizePublicDisplayName(sizeOptionLabel)
+  const displayFlavorLabels = flavorOptionLabels.map((label) =>
+    capitalizePublicDisplayName(label),
+  )
+  const displayBorderLabel = capitalizePublicDisplayName(borderOptionLabel)
+  const displayAdditionalNames = additionalNames.map((name) =>
+    capitalizePublicDisplayName(name),
+  )
+
   return (
     <section>
       <h3 className="mb-4 text-lg font-black text-slate-950">
@@ -30,22 +41,22 @@ export function PizzaConfiguratorSummary({
       </h3>
 
       <div className="space-y-3 rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm font-bold text-slate-700">
-        <p>Produto: <span className="text-slate-950">{productName}</span></p>
-        <p>Tamanho: <span className="text-slate-950">{sizeOptionLabel}</span></p>
+        <p>Produto: <span className="text-slate-950">{displayProductName}</span></p>
+        <p>Tamanho: <span className="text-slate-950">{displaySizeLabel}</span></p>
         <p>
           Sabores:{' '}
           <span className="text-slate-950">
-            {flavorOptionLabels.filter(Boolean).join(' / ')}
+            {displayFlavorLabels.filter(Boolean).join(' / ')}
           </span>
         </p>
         {borderOptionLabel && (
-          <p>Borda: <span className="text-slate-950">{borderOptionLabel}</span></p>
+          <p>Borda: <span className="text-slate-950">{displayBorderLabel}</span></p>
         )}
         {additionalNames.length > 0 && (
           <p>
             Adicionais:{' '}
             <span className="text-slate-950">
-              {additionalNames.join(', ')}
+              {displayAdditionalNames.join(', ')}
             </span>
           </p>
         )}

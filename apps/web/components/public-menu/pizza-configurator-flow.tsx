@@ -25,6 +25,7 @@ import {
   withSelectedModifierDisplay,
 } from "./pizza-configurator-modifiers";
 import { PizzaConfiguratorSummary } from "./pizza-configurator-summary";
+import { capitalizePublicDisplayName } from "./public-menu-display-text";
 import { PublicMenuFloatingPanel } from "./public-menu-floating-panel";
 import { getV2ContextualOptionPrice } from "./public-menu-mappers";
 import {
@@ -441,6 +442,9 @@ export function PizzaConfiguratorFlow({
   if (!open || !product) return null;
 
   const heroImage = firstFlavor?.imageUrl || product.imageUrl || undefined;
+  const displayMainName = capitalizePublicDisplayName(
+    firstFlavor?.name || product.name,
+  );
 
   return (
     <PublicMenuFloatingPanel
@@ -458,7 +462,7 @@ export function PizzaConfiguratorFlow({
 
           <div className="min-w-0 px-3 text-center">
             <h2 className="truncate text-sm font-black text-slate-950">
-              {firstFlavor?.name || product.name}
+              {displayMainName}
               {selectedSize ? ` · ${selectedSize.name}` : ""}
             </h2>
             <p className="truncate text-xs font-semibold text-slate-500">
@@ -486,7 +490,7 @@ export function PizzaConfiguratorFlow({
             {heroImage ? (
               <img
                 src={heroImage}
-                alt={firstFlavor?.name || product.name}
+                alt={displayMainName}
                 className="h-20 w-20 rounded-2xl object-cover shadow-sm"
               />
             ) : (
@@ -496,7 +500,7 @@ export function PizzaConfiguratorFlow({
             )}
             <div>
               <p className="text-lg font-black text-slate-950">
-                {firstFlavor?.name || product.name}
+                {displayMainName}
               </p>
               <p className="mt-1 text-sm font-medium leading-relaxed text-slate-500">
                 {firstFlavor?.description || product.description}

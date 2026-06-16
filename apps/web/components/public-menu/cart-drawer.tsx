@@ -16,6 +16,7 @@ import { useCart, type CartItem } from './cart-context'
 import { cartItemDisplayName } from './cart-item-display'
 import { CheckoutModal } from './checkout-modal'
 import { PublicMenuFloatingPanel } from './public-menu-floating-panel'
+import { capitalizePublicDisplayName } from './public-menu-display-text'
 
 type CartDrawerProps = {
   open: boolean
@@ -575,7 +576,7 @@ export function CartDrawer({
                             >
                               <div>
                                 <p className="font-semibold text-slate-700">
-                                  {additional.name}
+                                  {capitalizePublicDisplayName(additional.name)}
                                 </p>
                                 <p
                                   className="mt-1 text-xs font-bold"
