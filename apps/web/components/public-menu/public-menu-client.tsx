@@ -162,7 +162,7 @@ function PublicMenuContent({ slug }: { slug: string }) {
     const matchesSearch =
       !searchText ||
       product.name.toLowerCase().includes(searchText) ||
-      product.description.toLowerCase().includes(searchText);
+      (product.description ?? "").toLowerCase().includes(searchText);
 
     const matchesCategory =
       currentCategory === "Todos" ||

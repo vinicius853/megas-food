@@ -169,7 +169,7 @@ export type FixedProductCard = {
   id: string;
   product: PublicMenuV2Product;
   name: string;
-  description: string;
+  description: string | null;
   categoryName: string;
   categorySortOrder: number;
   image?: string;

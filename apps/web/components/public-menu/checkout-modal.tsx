@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Banknote, CreditCard, MapPin, QrCode, Search, X } from 'lucide-react'
 
 import { apiFetch } from '@/lib/api'
@@ -66,6 +66,15 @@ export function CheckoutModal({
   const [privacyAccepted, setPrivacyAccepted] = useState(true)
   const [privacyError, setPrivacyError] = useState('')
   const [success, setSuccess] = useState<CheckoutSuccessState | null>(null)
+  const customerSectionRef = useRef<HTMLDivElement | null>(null)
+  const addressSectionRef = useRef<HTMLDivElement | null>(null)
+  const paymentSectionRef = useRef<HTMLDivElement | null>(null)
+  const submitSectionRef = useRef<HTMLDivElement | null>(null)
+  const autoScrollRef = useRef({
+    hasScrolledToAddress: false,
+    hasScrolledToPayment: false,
+    hasScrolledToSubmit: false,
+  })
   const theme = palette ?? {
     primary: '#C40012',
     secondary: '#FF4A00',
@@ -77,8 +86,18 @@ export function CheckoutModal({
   useEffect(() => {
     if (!open) return
 
-    setPrivacyAccepted(true)
-    setPrivacyError('')
+    const timer = window.setTimeout(() => {
+      setPrivacyAccepted(true)
+      setPrivacyError('')
+    }, 0)
+
+    autoScrollRef.current = {
+      hasScrolledToAddress: false,
+      hasScrolledToPayment: false,
+      hasScrolledToSubmit: false,
+    }
+
+    return () => window.clearTimeout(timer)
   }, [open])
 
   async function handleSearchCep() {
@@ -171,6 +190,19 @@ export function CheckoutModal({
       ? cashAmountNumber - orderTotal
       : 0
 
+  const customerSectionValid =
+    customerName.trim().length > 0 && onlyNumbers(customerWhatsapp).length >= 10
+  const addressSectionValid =
+    deliveryType === 'PICKUP' ||
+    (street.trim().length > 0 &&
+      number.trim().length > 0 &&
+      neighborhood.trim().length > 0 &&
+      (!hasDeliveryZones || Boolean(selectedDeliveryZone)))
+  const paymentSectionValid =
+    paymentMethod !== 'MONEY' ||
+    cashAmountNumber === 0 ||
+    cashAmountNumber >= orderTotal
+
   const paymentLabel = {
     MONEY: 'Dinheiro',
     CARD: 'Cartão',
@@ -196,6 +228,90 @@ export function CheckoutModal({
   ]
     .filter(Boolean)
     .join(', ')
+
+  useEffect(() => {
+    autoScrollRef.current = {
+      hasScrolledToAddress: false,
+      hasScrolledToPayment: false,
+      hasScrolledToSubmit: false,
+    }
+  }, [deliveryType])
+
+  useEffect(() => {
+    if (!customerSectionValid) {
+      autoScrollRef.current = {
+        hasScrolledToAddress: false,
+        hasScrolledToPayment: false,
+        hasScrolledToSubmit: false,
+      }
+      return
+    }
+
+    if (!addressSectionValid) {
+      autoScrollRef.current.hasScrolledToPayment = false
+      autoScrollRef.current.hasScrolledToSubmit = false
+      return
+    }
+
+    if (!paymentSectionValid) {
+      autoScrollRef.current.hasScrolledToSubmit = false
+    }
+  }, [addressSectionValid, customerSectionValid, paymentSectionValid])
+
+  useEffect(() => {
+    if (!open || success || submitting || !customerSectionValid) return
+
+    const timer = window.setTimeout(() => {
+      const isMobile = window.matchMedia('(max-width: 767px)').matches
+      if (!isMobile) return
+
+      if (
+        deliveryType === 'DELIVERY' &&
+        !autoScrollRef.current.hasScrolledToAddress
+      ) {
+        addressSectionRef.current?.scrollIntoView({
+          behavior: 'smooth',
+          block: 'start',
+        })
+        autoScrollRef.current.hasScrolledToAddress = true
+        return
+      }
+
+      if (
+        addressSectionValid &&
+        !autoScrollRef.current.hasScrolledToPayment
+      ) {
+        paymentSectionRef.current?.scrollIntoView({
+          behavior: 'smooth',
+          block: 'start',
+        })
+        autoScrollRef.current.hasScrolledToPayment = true
+        return
+      }
+
+      if (
+        addressSectionValid &&
+        paymentSectionValid &&
+        !autoScrollRef.current.hasScrolledToSubmit
+      ) {
+        submitSectionRef.current?.scrollIntoView({
+          behavior: 'smooth',
+          block: 'end',
+        })
+        autoScrollRef.current.hasScrolledToSubmit = true
+      }
+    }, 450)
+
+    return () => window.clearTimeout(timer)
+  }, [
+    addressSectionValid,
+    customerSectionValid,
+    deliveryType,
+    open,
+    paymentSectionValid,
+    submitting,
+    success,
+  ])
 
   function choiceStyle(isSelected: boolean) {
     return isSelected
@@ -415,7 +531,10 @@ export function CheckoutModal({
 
         <div className="flex-1 overflow-y-auto overscroll-contain p-5">
           <div className="space-y-4">
-            <div className="grid gap-3 md:grid-cols-2">
+            <div
+              ref={customerSectionRef}
+              className="grid gap-3 md:grid-cols-2"
+            >
               <input
                 value={customerName}
                 onChange={(e) => setCustomerName(e.target.value)}
@@ -460,7 +579,10 @@ export function CheckoutModal({
             </div>
 
             {deliveryType === 'PICKUP' && (
-              <div className="rounded-3xl border border-slate-200 bg-slate-50 p-4">
+              <div
+                ref={addressSectionRef}
+                className="rounded-3xl border border-slate-200 bg-slate-50 p-4"
+              >
                 <div className="flex items-start gap-3">
                   <div
                     className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl"
@@ -575,7 +697,10 @@ export function CheckoutModal({
               </div>
             )}
 
-            <div className="rounded-3xl border border-slate-200 bg-slate-50 p-4">
+            <div
+              ref={paymentSectionRef}
+              className="rounded-3xl border border-slate-200 bg-slate-50 p-4"
+            >
               <div className="mb-3 text-sm font-semibold text-slate-700">
                 Forma de pagamento
               </div>
@@ -694,7 +819,10 @@ export function CheckoutModal({
           </div>
         </div>
 
-        <div className="border-t border-slate-200 bg-white p-5">
+        <div
+          ref={submitSectionRef}
+          className="border-t border-slate-200 bg-white p-5"
+        >
           <div className="mb-4 space-y-2">
             <div className="flex items-center justify-between text-sm">
               <span className="text-slate-500">Subtotal</span>

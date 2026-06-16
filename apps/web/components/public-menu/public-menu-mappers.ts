@@ -50,7 +50,7 @@ export function mapFixedProductCardsFromV2(
       id: product.id,
       product,
       name: product.name,
-      description: product.description ?? "Produto cadastrado no cardapio.",
+      description: product.description?.trim() || null,
       categoryName: category.name,
       categorySortOrder: category.sortOrder,
       image: product.imageUrl || undefined,

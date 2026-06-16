@@ -35,7 +35,7 @@ export function PublicFlavorCard({
           )}
 
           <div className="min-w-0 pr-1">
-            <h3 className="truncate text-lg font-black leading-tight text-slate-950">
+            <h3 className="line-clamp-2 text-lg font-black leading-tight text-slate-950">
               {flavor.name}
             </h3>
 
@@ -43,7 +43,7 @@ export function PublicFlavorCard({
               {flavor.description}
             </p>
 
-            <div className="mt-2 grid grid-cols-2 gap-y-2 sm:grid-cols-4 sm:gap-y-1">
+            <div className="mt-2.5 grid grid-cols-2 gap-y-2 sm:grid-cols-4 sm:gap-y-1">
               {flavor.prices.slice(0, 4).map((price, priceIndex) => (
                 <div
                   key={price.label}
@@ -117,13 +117,15 @@ export function PublicFixedProductCard({
           )}
 
           <div className="min-w-0">
-            <h3 className="truncate text-base font-black leading-tight text-slate-950">
+            <h3 className="line-clamp-2 text-base font-black leading-tight text-slate-950">
               {product.name}
             </h3>
 
-            <p className="mt-1 line-clamp-2 text-[11px] font-medium leading-relaxed text-slate-500">
-              {product.description}
-            </p>
+            {product.description ? (
+              <p className="mt-1 line-clamp-2 text-[11px] font-medium leading-relaxed text-slate-500">
+                {product.description}
+              </p>
+            ) : null}
 
             <div
               className="mt-2 text-sm font-black"

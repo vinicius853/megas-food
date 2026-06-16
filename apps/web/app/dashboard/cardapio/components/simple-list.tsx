@@ -73,14 +73,28 @@ export function SimpleProductList({
                 onChange={(value) => onUpdate(item.id, "imageUrl", value)}
               />
 
-              <input
-                autoFocus={isNewProductDraft(item)}
-                value={item.name}
-                onChange={(event) =>
-                  onUpdate(item.id, "name", event.target.value)
-                }
-                className="h-11 rounded-2xl border border-slate-200 px-4 text-sm font-black outline-none focus:border-orange-500 focus:ring-4 focus:ring-orange-500/15"
-              />
+              <div className="space-y-2">
+                <input
+                  autoFocus={isNewProductDraft(item)}
+                  value={item.name}
+                  onChange={(event) =>
+                    onUpdate(item.id, "name", event.target.value)
+                  }
+                  placeholder="Nome do produto"
+                  className="h-11 w-full rounded-2xl border border-slate-200 px-4 text-sm font-black outline-none placeholder:text-slate-400 focus:border-orange-500 focus:ring-4 focus:ring-orange-500/15"
+                />
+
+                <textarea
+                  value={item.description ?? ""}
+                  onChange={(event) =>
+                    onUpdate(item.id, "description", event.target.value)
+                  }
+                  maxLength={220}
+                  rows={2}
+                  placeholder="Descricao opcional: ingredientes, preparo ou detalhes do item."
+                  className="w-full resize-none rounded-2xl border border-slate-200 px-4 py-3 text-sm font-semibold leading-relaxed text-slate-700 outline-none placeholder:text-slate-400 focus:border-orange-500 focus:ring-4 focus:ring-orange-500/15"
+                />
+              </div>
             </div>
 
             <div className="flex flex-wrap gap-2">
