@@ -25,28 +25,30 @@ export function PublicFlavorCard({
 
   return (
     <div>
-      <article className="relative overflow-hidden rounded-2xl border border-slate-200 bg-white p-3 shadow-sm shadow-slate-950/5 transition hover:border-slate-300 hover:bg-slate-50">
-        <div className="grid grid-cols-[76px_1fr_36px] items-start gap-3">
+      <article className="relative overflow-hidden rounded-2xl border border-slate-200 bg-white p-3 pb-12 shadow-sm shadow-slate-950/5 transition hover:border-slate-300 hover:bg-slate-50">
+        <div className="grid grid-cols-[80px_1fr] items-start gap-3">
           {flavor.image ? (
             <img
               src={flavor.image}
               alt={displayName}
-              className="h-[76px] w-[76px] rounded-lg object-cover shadow-sm"
+              className="h-[80px] w-[80px] rounded-lg object-cover shadow-sm"
             />
           ) : (
             <ProductImagePlaceholder />
           )}
 
-          <div className="min-w-0 pr-1">
+          <div className="min-w-0">
             <h3 className="line-clamp-2 text-lg font-black leading-tight text-slate-950">
               {displayName}
             </h3>
 
-            <p className="mt-1 line-clamp-2 text-xs font-semibold leading-relaxed text-slate-500">
-              {flavor.description}
-            </p>
+            {flavor.description ? (
+              <p className="mt-1 line-clamp-2 text-xs font-semibold leading-relaxed text-slate-500">
+                {flavor.description}
+              </p>
+            ) : null}
 
-            <div className="mt-2.5 grid grid-cols-2 gap-y-2 sm:grid-cols-4 sm:gap-y-1">
+            <div className="mt-3 grid grid-cols-2 gap-y-2 pr-9 sm:grid-cols-4 sm:gap-y-1 sm:pr-10">
               {flavor.prices.slice(0, 4).map((price, priceIndex) => (
                 <div
                   key={price.label}
@@ -80,7 +82,7 @@ export function PublicFlavorCard({
           <button
             onClick={() => onAdd(flavor.id)}
             disabled={!storeOpen}
-            className="mt-1 flex h-8 w-8 items-center justify-center rounded-full text-white shadow-md transition active:scale-95 disabled:cursor-not-allowed disabled:opacity-45"
+            className="absolute bottom-3 right-3 flex h-9 w-9 items-center justify-center rounded-full text-white shadow-md transition focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-red-200 active:scale-95 disabled:cursor-not-allowed disabled:opacity-45"
             style={{ backgroundColor: storeOpen ? palette.primary : "#94A3B8" }}
             aria-label={`Adicionar ${displayName}`}
           >
@@ -109,19 +111,19 @@ export function PublicFixedProductCard({
 
   return (
     <div>
-      <article className="relative overflow-hidden rounded-2xl border border-slate-200 bg-white p-3 shadow-sm shadow-slate-950/5 transition hover:border-slate-300 hover:bg-slate-50">
-        <div className="grid grid-cols-[76px_1fr_36px] items-start gap-3">
+      <article className="relative overflow-hidden rounded-2xl border border-slate-200 bg-white p-3 pb-12 shadow-sm shadow-slate-950/5 transition hover:border-slate-300 hover:bg-slate-50">
+        <div className="grid grid-cols-[80px_1fr] items-start gap-3">
           {product.image ? (
             <img
               src={product.image}
               alt={displayName}
-              className="h-[76px] w-[76px] rounded-lg object-cover shadow-sm"
+              className="h-[80px] w-[80px] rounded-lg object-cover shadow-sm"
             />
           ) : (
             <ProductImagePlaceholder />
           )}
 
-          <div className="min-w-0">
+          <div className="min-w-0 pr-9">
             <h3 className="line-clamp-2 text-base font-black leading-tight text-slate-950">
               {displayName}
             </h3>
@@ -143,7 +145,7 @@ export function PublicFixedProductCard({
           <button
             onClick={() => onAdd(product)}
             disabled={!storeOpen}
-            className="mt-1 flex h-8 w-8 items-center justify-center rounded-full text-white shadow-md transition active:scale-95 disabled:cursor-not-allowed disabled:opacity-45"
+            className="absolute bottom-3 right-3 flex h-9 w-9 items-center justify-center rounded-full text-white shadow-md transition focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-red-200 active:scale-95 disabled:cursor-not-allowed disabled:opacity-45"
             style={{ backgroundColor: storeOpen ? palette.primary : "#94A3B8" }}
             aria-label={`Adicionar ${displayName}`}
           >
@@ -157,7 +159,7 @@ export function PublicFixedProductCard({
 
 function ProductImagePlaceholder() {
   return (
-    <div className="flex h-[76px] w-[76px] items-center justify-center rounded-lg bg-slate-100 text-slate-400">
+    <div className="flex h-[80px] w-[80px] items-center justify-center rounded-lg bg-slate-100 text-slate-400">
       <ImageIcon className="h-6 w-6" aria-hidden="true" />
     </div>
   );
