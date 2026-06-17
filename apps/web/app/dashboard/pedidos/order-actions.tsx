@@ -38,11 +38,8 @@ export function renderOrderActions({
   updateStatus,
   openManualWhatsApp,
 }: RenderOrderActionsProps) {
-  async function updateStatusWithFallback(status: OrderStatus) {
-    const automaticScheduled = await updateStatus(order.id, status)
-    if (!automaticScheduled) {
-      await openManualWhatsApp(order.id, status)
-    }
+  async function changeStatus(status: OrderStatus) {
+    await updateStatus(order.id, status)
   }
 
   const manualButton = (status: OrderStatus) => (
@@ -58,7 +55,7 @@ export function renderOrderActions({
           size="sm"
           variant="primary"
           onClick={async () => {
-            await updateStatusWithFallback('CONFIRMED')
+            await changeStatus('CONFIRMED')
           }}
         >
           <Check className="h-4 w-4" />
@@ -68,7 +65,7 @@ export function renderOrderActions({
           size="sm"
           variant="destructive"
           onClick={async () => {
-            await updateStatusWithFallback('CANCELLED')
+            await changeStatus('CANCELLED')
           }}
         >
           <X className="h-4 w-4" />
@@ -85,7 +82,7 @@ export function renderOrderActions({
           size="sm"
           variant="secondary"
           onClick={async () => {
-            await updateStatusWithFallback('READY')
+            await changeStatus('READY')
           }}
         >
           <Check className="h-4 w-4" />
@@ -104,9 +101,7 @@ export function renderOrderActions({
             size="sm"
             variant="outline"
             onClick={async () => {
-              await updateStatusWithFallback(
-                'OUT_FOR_DELIVERY',
-              )
+              await changeStatus('OUT_FOR_DELIVERY')
             }}
           >
             <Truck className="h-4 w-4" />
@@ -116,9 +111,7 @@ export function renderOrderActions({
           <Button
             size="sm"
             variant="primary"
-            onClick={() =>
-              updateStatusWithFallback('DELIVERED')
-            }
+            onClick={() => changeStatus('DELIVERED')}
           >
             <Check className="h-4 w-4" />
             Finalizar
@@ -135,9 +128,7 @@ export function renderOrderActions({
         <Button
           size="sm"
           variant="primary"
-          onClick={() =>
-            updateStatusWithFallback('DELIVERED')
-          }
+          onClick={() => changeStatus('DELIVERED')}
         >
           <Check className="h-4 w-4" />
           Entregue

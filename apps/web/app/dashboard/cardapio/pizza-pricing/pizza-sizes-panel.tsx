@@ -23,6 +23,9 @@ export function PizzaSizesPanel({
   onUpdate,
 }: Props) {
   const [open, setOpen] = useState(false);
+  const [inactiveOpen, setInactiveOpen] = useState(true);
+  const activeSizes = sizes.filter((size) => size.isActive !== false);
+  const inactiveSizes = sizes.filter((size) => size.isActive === false);
 
   function add(type: "round" | "square") {
     const created = onAdd(type);
@@ -51,7 +54,7 @@ export function PizzaSizesPanel({
         </span>
 
         <span className="hidden rounded-full bg-slate-100 px-3 py-1 text-xs font-black text-slate-600 sm:block">
-          {sizes.length} cadastrados
+          {activeSizes.length} ativos
         </span>
         <ChevronDown
           className={`h-5 w-5 shrink-0 text-slate-400 transition ${
@@ -94,10 +97,10 @@ export function PizzaSizesPanel({
             </div>
           </div>
 
-          {sizes.length === 0 ? (
+          {activeSizes.length === 0 ? (
             <div className="rounded-2xl border border-dashed border-slate-300 bg-white px-5 py-8 text-center">
               <p className="font-black text-slate-800">
-                Nenhum tamanho cadastrado
+                Nenhum tamanho ativo
               </p>
               <p className="mt-1 text-sm text-slate-500">
                 Adicione o primeiro tamanho para liberar preços dos sabores.
@@ -105,7 +108,7 @@ export function PizzaSizesPanel({
             </div>
           ) : (
             <div className="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
-              {sizes.map((size) => (
+              {activeSizes.map((size) => (
                 <PizzaSizeCard
                   key={size.id}
                   size={size}
@@ -113,6 +116,47 @@ export function PizzaSizesPanel({
                   onRemove={() => onRemove(size.id)}
                 />
               ))}
+            </div>
+          )}
+
+          {inactiveSizes.length > 0 && (
+            <div className="mt-5 overflow-hidden rounded-2xl border border-slate-200 bg-white">
+              <button
+                type="button"
+                onClick={() => setInactiveOpen((current) => !current)}
+                className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left transition hover:bg-slate-50"
+                aria-expanded={inactiveOpen}
+              >
+                <span>
+                  <span className="block text-sm font-black text-slate-800">
+                    Tamanhos inativos ({inactiveSizes.length})
+                  </span>
+                  <span className="mt-0.5 block text-xs font-semibold text-slate-500">
+                    Precos e regras ficam preservados para reativacao.
+                  </span>
+                </span>
+                <ChevronDown
+                  className={`h-5 w-5 shrink-0 text-slate-400 transition ${
+                    inactiveOpen ? "rotate-180" : ""
+                  }`}
+                />
+              </button>
+
+              {inactiveOpen && (
+                <div className="border-t border-slate-100 bg-slate-50 p-4">
+                  <div className="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
+                    {inactiveSizes.map((size) => (
+                      <PizzaSizeCard
+                        key={size.id}
+                        size={size}
+                        inactiveMode
+                        onChange={(patch) => onUpdate(size.id, patch)}
+                        onRemove={() => onRemove(size.id)}
+                      />
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </div>

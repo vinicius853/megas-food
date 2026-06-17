@@ -1,4 +1,4 @@
-import { Trash2 } from "lucide-react";
+import { RotateCcw, Trash2 } from "lucide-react";
 
 import type { SizeOptionMatrixRow } from "../types/menu-management";
 import { formatSlices, getSizeSlices } from "./pizza-pricing-helpers";
@@ -7,9 +7,15 @@ type Props = {
   size: SizeOptionMatrixRow;
   onChange: (patch: Partial<SizeOptionMatrixRow>) => void;
   onRemove: () => void;
+  inactiveMode?: boolean;
 };
 
-export function PizzaSizeCard({ size, onChange, onRemove }: Props) {
+export function PizzaSizeCard({
+  size,
+  onChange,
+  onRemove,
+  inactiveMode = false,
+}: Props) {
   return (
     <article
       className={`min-w-0 rounded-2xl border p-4 transition ${
@@ -31,14 +37,26 @@ export function PizzaSizeCard({ size, onChange, onRemove }: Props) {
           />
         </div>
 
-        <button
-          type="button"
-          onClick={onRemove}
-          title="Remover tamanho"
-          className="mt-5 inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-slate-400 transition hover:bg-red-50 hover:text-red-600"
-        >
-          <Trash2 className="h-4 w-4" />
-        </button>
+        {inactiveMode ? (
+          <button
+            type="button"
+            onClick={() => onChange({ isActive: true })}
+            title="Reativar tamanho"
+            className="mt-5 inline-flex h-10 shrink-0 items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-3 text-xs font-black text-emerald-700 transition hover:border-emerald-300 hover:bg-emerald-100"
+          >
+            <RotateCcw className="h-4 w-4" />
+            Reativar
+          </button>
+        ) : (
+          <button
+            type="button"
+            onClick={onRemove}
+            title="Remover tamanho"
+            className="mt-5 inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-slate-400 transition hover:bg-red-50 hover:text-red-600"
+          >
+            <Trash2 className="h-4 w-4" />
+          </button>
+        )}
       </div>
 
       <div className="mt-4 grid grid-cols-2 gap-3">
