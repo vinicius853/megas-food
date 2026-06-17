@@ -38,6 +38,70 @@ describe('MercadoPagoService', () => {
     jest.restoreAllMocks()
   })
 
+  it('uses sandbox_init_point as paymentUrl when access token is TEST', async () => {
+    jest.spyOn(global, 'fetch').mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        id: 'pref-test',
+        init_point: 'https://www.mercadopago.com.br/checkout/v1/redirect?pref_id=pref-test',
+        sandbox_init_point:
+          'https://sandbox.mercadopago.com.br/checkout/v1/redirect?pref_id=pref-test',
+      }),
+    } as Response)
+
+    const service = new MercadoPagoService(
+      makeConfig({
+        MERCADO_PAGO_ACCESS_TOKEN: 'TEST-123',
+      }),
+    )
+
+    const preference = await service.createPreference({
+      invoiceId: 'invoice-1',
+      tenantId: 'tenant-1',
+      tenantName: 'Pizzaria Teste',
+      amount: 150,
+    })
+
+    expect(preference.paymentUrl).toBe(
+      'https://sandbox.mercadopago.com.br/checkout/v1/redirect?pref_id=pref-test',
+    )
+    expect(preference.sandboxPaymentUrl).toBe(
+      'https://sandbox.mercadopago.com.br/checkout/v1/redirect?pref_id=pref-test',
+    )
+  })
+
+  it('uses init_point as paymentUrl when access token is production', async () => {
+    jest.spyOn(global, 'fetch').mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        id: 'pref-prod',
+        init_point: 'https://www.mercadopago.com.br/checkout/v1/redirect?pref_id=pref-prod',
+        sandbox_init_point:
+          'https://sandbox.mercadopago.com.br/checkout/v1/redirect?pref_id=pref-prod',
+      }),
+    } as Response)
+
+    const service = new MercadoPagoService(
+      makeConfig({
+        MERCADO_PAGO_ACCESS_TOKEN: 'APP_USR-123',
+      }),
+    )
+
+    const preference = await service.createPreference({
+      invoiceId: 'invoice-1',
+      tenantId: 'tenant-1',
+      tenantName: 'Pizzaria Producao',
+      amount: 150,
+    })
+
+    expect(preference.paymentUrl).toBe(
+      'https://www.mercadopago.com.br/checkout/v1/redirect?pref_id=pref-prod',
+    )
+    expect(preference.sandboxPaymentUrl).toBe(
+      'https://sandbox.mercadopago.com.br/checkout/v1/redirect?pref_id=pref-prod',
+    )
+  })
+
   it('accepts a valid Mercado Pago webhook signature', () => {
     const service = new MercadoPagoService(
       makeConfig({

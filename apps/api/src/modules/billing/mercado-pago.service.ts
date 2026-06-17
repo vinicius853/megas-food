@@ -112,7 +112,7 @@ export class MercadoPagoService {
 
     return {
       preferenceId: data.id,
-      paymentUrl: data.init_point || '',
+      paymentUrl: this.getPreferencePaymentUrl(accessToken, data),
       sandboxPaymentUrl: data.sandbox_init_point || '',
     }
   }
@@ -317,6 +317,21 @@ export class MercadoPagoService {
     if (ageInMs > toleranceInSeconds * 1000) {
       throw new UnauthorizedException('Webhook do Mercado Pago expirado.')
     }
+  }
+
+  private getPreferencePaymentUrl(
+    accessToken: string,
+    data: MercadoPagoPreferenceResponse,
+  ) {
+    if (this.isTestAccessToken(accessToken)) {
+      return data.sandbox_init_point || data.init_point || ''
+    }
+
+    return data.init_point || data.sandbox_init_point || ''
+  }
+
+  private isTestAccessToken(accessToken: string) {
+    return accessToken.trim().toUpperCase().startsWith('TEST')
   }
 
   private getAccessToken() {
