@@ -101,6 +101,7 @@ export type PriceEngineOptionPrice = {
   modifierOptionId: string;
   dependsOnOptionId: string | null;
   price: unknown;
+  isActive: boolean;
 };
 
 export type PriceEngineCatalog = {

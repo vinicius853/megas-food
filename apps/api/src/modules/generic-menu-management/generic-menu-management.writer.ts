@@ -429,6 +429,7 @@ export class GenericMenuManagementWriter {
     const data = {
       dependsOnOptionId: dependsOnOptionId ?? null,
       price: dto.price,
+      ...(dto.isActive !== undefined ? { isActive: dto.isActive } : {}),
     };
 
     if (dto.id) {
@@ -466,6 +467,7 @@ export class GenericMenuManagementWriter {
         tenantId,
         productId,
         modifierOptionId,
+        isActive: dto.isActive ?? true,
         ...data,
       },
     });

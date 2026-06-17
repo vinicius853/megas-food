@@ -114,6 +114,7 @@ export function genericMenuToMatrix(
           sizeId: price.dependsOnOptionId,
           flavorId: option.id,
           price: price.price,
+          isActive: price.isActive !== false,
         });
       }
     }
@@ -129,6 +130,7 @@ export function genericMenuToMatrix(
           sizeId: price.dependsOnOptionId,
           borderId: option.id,
           price: price.price,
+          isActive: price.isActive !== false,
         });
       }
     }
@@ -341,6 +343,7 @@ function buildPizzaGroups(state: MatrixState, product: GenericMenuProduct) {
                   id: price.id,
                   ...contextualOptionReference(price.sizeId, product),
                   price: parseMoney(price.price),
+                  isActive: price.isActive !== false,
                 })),
             ),
             rules: baseline?.rules.map(toUpdateRule) ?? [],
@@ -379,6 +382,7 @@ function buildPizzaGroups(state: MatrixState, product: GenericMenuProduct) {
                   id: price.id,
                   ...contextualOptionReference(price.sizeId, product),
                   price: parseMoney(price.price),
+                  isActive: price.isActive !== false,
                 })),
             ),
             rules: baseline?.rules.map(toUpdateRule) ?? [],
@@ -511,6 +515,7 @@ function toUpdatePrice(price: GenericModifierOption["prices"][number]) {
     id: price.id,
     dependsOnOptionId: price.dependsOnOptionId ?? undefined,
     price: price.price,
+    isActive: price.isActive !== false,
   };
 }
 

@@ -112,7 +112,7 @@ export function validateFlavorDrafts(
           item.flavorId === flavor.id,
       );
 
-      return Boolean(price) && parseMoney(price?.price) > 0;
+      return price?.isActive === true && parseMoney(price.price) > 0;
     });
 
     if (!hasAvailableSize) {
@@ -154,7 +154,7 @@ export function validateBorderDrafts(
           item.borderId === border.id,
       );
 
-      return !price || parseMoney(price.price) <= 0;
+      return !price || price.isActive !== true || parseMoney(price.price) <= 0;
     });
 
     if (missingPrice) {

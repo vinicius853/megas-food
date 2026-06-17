@@ -135,8 +135,11 @@ export function getV2ContextualOptionPrice(
   dependsOnOptionId: string,
 ) {
   return parseMoney(
-    option.prices.find((price) => price.dependsOnOptionId === dependsOnOptionId)
-      ?.price,
+    option.prices.find(
+      (price) =>
+        price.dependsOnOptionId === dependsOnOptionId &&
+        price.isActive !== false,
+    )?.price,
   );
 }
 

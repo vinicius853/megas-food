@@ -146,6 +146,7 @@ export class GenericMenuManagementService {
                       id: price.id,
                       dependsOnOptionId: price.dependsOnOptionId,
                       price: Number(price.price),
+                      isActive: price.isActive,
                     })),
                     rules: (
                       rulesByProductOption.get(`${product.id}:${option.id}`) ??

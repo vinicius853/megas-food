@@ -70,6 +70,7 @@ export type ContextualPriceDto = {
   id: string;
   dependsOnOptionId: string | null;
   price: number;
+  isActive: boolean;
 };
 
 export type ConditionalRuleDto = {

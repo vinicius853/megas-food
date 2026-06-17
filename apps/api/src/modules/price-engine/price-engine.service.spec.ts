@@ -65,6 +65,33 @@ describe('PriceEngineService', () => {
     expect(result.totalPrice).toBe(50);
   });
 
+  it('rejeita preco contextual inativo', async () => {
+    const product = pizzaProduct();
+    product.modifierOptionPrices = product.modifierOptionPrices.map((price) =>
+      price.modifierOptionId === 'flavor-calabresa' &&
+      price.dependsOnOptionId === 'size-large'
+        ? { ...price, isActive: false }
+        : price,
+    );
+    mockProduct(product);
+
+    const result = await service.calculate({
+      tenantId,
+      productId,
+      quantity: 1,
+      selectedModifiers: [
+        selected('pizza_size', 'size-large'),
+        selected('pizza_flavor', 'flavor-calabresa', 'size-large'),
+      ],
+    });
+
+    expect(result.validationErrors).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ code: 'CONTEXTUAL_PRICE_NOT_FOUND' }),
+      ]),
+    );
+  });
+
   it('calcula meio a meio usando o maior preco entre sabores', async () => {
     mockProduct(pizzaProduct());
 
@@ -327,12 +354,14 @@ function optionPrice(
   modifierOptionId: string,
   dependsOnOptionId: string,
   price: number,
+  isActive = true,
 ) {
   return {
     id: `price-${modifierOptionId}-${dependsOnOptionId}`,
     modifierOptionId,
     dependsOnOptionId,
     price,
+    isActive,
   };
 }
 

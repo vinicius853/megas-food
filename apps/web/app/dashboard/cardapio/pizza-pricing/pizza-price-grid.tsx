@@ -48,7 +48,7 @@ export function PizzaPriceGrid({
           flavor.id,
           size.id,
         );
-        const available = Boolean(price);
+        const available = price?.isActive === true;
         const disabled = !size.isActive;
 
         return (

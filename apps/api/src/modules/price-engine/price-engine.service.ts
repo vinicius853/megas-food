@@ -113,6 +113,7 @@ export class PriceEngineService {
         modifierOptionId: price.modifierOptionId,
         dependsOnOptionId: price.dependsOnOptionId,
         price: price.price,
+        isActive: price.isActive !== false,
       })),
     };
   }

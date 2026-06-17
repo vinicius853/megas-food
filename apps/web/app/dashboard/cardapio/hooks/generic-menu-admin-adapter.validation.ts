@@ -180,6 +180,7 @@ function run() {
 function validatesInactiveSizeKeepsContextualPrice() {
   const matrix = genericMenuToMatrix(response);
   matrix.sizeOptions[0].isActive = false;
+  matrix.flavorPrices[0].isActive = false;
 
   const payload = matrixToGenericUpdate(matrix, response);
   const pizza = payload.products[0];
@@ -189,6 +190,7 @@ function validatesInactiveSizeKeepsContextualPrice() {
   assert.equal(size.isActive, false);
   assert.equal(flavor.prices.length, 1);
   assert.equal(flavor.prices[0].price, 42);
+  assert.equal(flavor.prices[0].isActive, false);
   assert.equal(flavor.prices[0].dependsOnOptionId, "size-30");
 }
 
@@ -374,11 +376,17 @@ function option(id: string, name: string) {
   };
 }
 
-function price(id: string, dependsOnOptionId: string, value: number) {
+function price(
+  id: string,
+  dependsOnOptionId: string,
+  value: number,
+  isActive = true,
+) {
   return {
     id,
     dependsOnOptionId,
     price: value,
+    isActive,
   };
 }
 

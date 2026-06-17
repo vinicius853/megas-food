@@ -21,6 +21,7 @@ export type PublicMenuV2Price = {
   id: string;
   dependsOnOptionId: string | null;
   price: number;
+  isActive?: boolean;
 };
 
 export type PublicMenuV2Option = {

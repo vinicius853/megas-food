@@ -32,12 +32,20 @@ const duplicatedPrices = [
     flavorId: "four-cheese",
     sizeId: "size-0",
     price: 42,
+    isActive: true,
   },
   {
     productId: "round",
     flavorId: "four-cheese",
     sizeId: "size-0",
     price: 45,
+  },
+  {
+    productId: "round",
+    flavorId: "four-cheese",
+    sizeId: "size-1",
+    price: 48,
+    isActive: false,
   },
 ];
 
@@ -47,10 +55,14 @@ assert.equal(sizes.length, 10);
 assert.equal(getPizzaModelLabel(sizes), "Redondas e quadradas");
 assert.equal(getSizeSlices(sizes[0]), 4);
 assert.equal(formatSlices("12"), "12 fatias");
-assert.equal(prices.length, 1);
+assert.equal(prices.length, 2);
 assert.equal(prices[0].id, "persisted");
 assert.equal(prices[0].price, 45);
 assert.equal(countAvailableSizes(prices, "four-cheese"), 1);
+assert.equal(
+  findFlavorPriceRecord(prices, "round", "four-cheese", "size-1")?.price,
+  48,
+);
 assert.equal(
   findFlavorPriceRecord(
     prices,

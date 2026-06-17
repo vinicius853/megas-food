@@ -22,7 +22,7 @@ type PizzaPricingStateOptions = {
   flavorGroups: Category[];
   onError: (message: string) => void;
   onMoveSize: (sizeId: string, productId: string) => void;
-  onRemoveSize: (sizeId: string) => void;
+  onRemoveSize: (sizeId: string, removePrices: boolean) => void;
 };
 
 export function usePizzaPricingState({
@@ -48,6 +48,13 @@ export function usePizzaPricingState({
         sizeId,
         flavorId,
         price: value,
+        isActive:
+          current.find(
+            (price) =>
+              price.productId === productId &&
+              price.sizeId === sizeId &&
+              price.flavorId === flavorId,
+          )?.isActive ?? true,
       }),
     );
   }
@@ -59,22 +66,23 @@ export function usePizzaPricingState({
     enabled: boolean,
   ) {
     setFlavorPricesState((current) => {
-      if (!enabled) {
-        return current.filter(
-          (price) =>
-            !(
-              price.productId === productId &&
-              price.flavorId === flavorId &&
-              price.sizeId === sizeId
-            ),
-        );
+      const existing = current.find(
+        (price) =>
+          price.productId === productId &&
+          price.flavorId === flavorId &&
+          price.sizeId === sizeId,
+      );
+
+      if (!existing && !enabled) {
+        return current;
       }
 
       return upsertFlavorPrice(current, {
         productId,
         sizeId,
         flavorId,
-        price: "",
+        price: existing?.price ?? "",
+        isActive: enabled,
       });
     });
   }
@@ -227,10 +235,16 @@ export function usePizzaPricingState({
       setSizes((current) => current.filter((size) => size.id !== sizeId));
     }
 
-    setFlavorPricesState((current) =>
-      current.filter((price) => price.sizeId !== sizeId),
-    );
-    onRemoveSize(sizeId);
+    setFlavorPricesState((current) => {
+      if (isNewDraft) {
+        return current.filter((price) => price.sizeId !== sizeId);
+      }
+
+      return current.map((price) =>
+        price.sizeId === sizeId ? { ...price, isActive: false } : price,
+      );
+    });
+    onRemoveSize(sizeId, isNewDraft);
   }
 
   function setFlavorPrices(next: SetStateAction<FlavorPrice[]>) {

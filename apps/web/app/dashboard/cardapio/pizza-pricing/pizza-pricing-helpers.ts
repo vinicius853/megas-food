@@ -46,8 +46,7 @@ export function countAvailableSizes(
 ) {
   return new Set(
     prices
-      .filter((price) => price.flavorId === flavorId)
+      .filter((price) => price.flavorId === flavorId && price.isActive === true)
       .map((price) => `${price.productId}:${price.sizeId}`),
   ).size;
 }
-

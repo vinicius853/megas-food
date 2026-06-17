@@ -75,6 +75,7 @@ export type FlavorPrice = {
   sizeId: string
   flavorId: string
   price: string | number
+  isActive?: boolean
 }
 
 export type BorderPrice = {
@@ -83,6 +84,7 @@ export type BorderPrice = {
   sizeId: string
   borderId: string
   price: string | number
+  isActive?: boolean
 }
 
 export type MenuManagementResponse = {
@@ -162,6 +164,7 @@ export type GenericContextualPrice = {
   id: string
   dependsOnOptionId: string | null
   price: number
+  isActive: boolean
 }
 
 export type GenericConditionalRule = {

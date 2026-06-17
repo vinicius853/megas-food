@@ -199,7 +199,8 @@ function resolveOptionPrice(
     const contextualPrice = catalog.optionPrices.find(
       (price) =>
         price.modifierOptionId === selected.optionId &&
-        price.dependsOnOptionId === selected.dependsOnOptionId,
+        price.dependsOnOptionId === selected.dependsOnOptionId &&
+        price.isActive !== false,
     );
 
     if (!contextualPrice) {

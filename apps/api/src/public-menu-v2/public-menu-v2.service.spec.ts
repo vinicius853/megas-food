@@ -149,6 +149,7 @@ describe('PublicMenuV2Service', () => {
         id: 'price-option-flavor-calabresa-option-size-30',
         dependsOnOptionId: 'option-size-30',
         price: 40,
+        isActive: true,
       },
     ]);
   });
@@ -689,6 +690,7 @@ function optionPrice(
   optionId: string,
   dependsOnOptionId: string,
   price: number,
+  isActive = true,
 ) {
   return {
     id: `price-${optionId}-${dependsOnOptionId}`,
@@ -696,5 +698,6 @@ function optionPrice(
     modifierOptionId: optionId,
     dependsOnOptionId,
     price,
+    isActive,
   };
 }

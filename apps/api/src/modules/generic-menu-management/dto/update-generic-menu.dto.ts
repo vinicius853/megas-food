@@ -61,6 +61,10 @@ export class UpdateContextualPriceDto {
   @IsNumber()
   @Min(0)
   price: number;
+
+  @IsOptional()
+  @IsBoolean()
+  isActive?: boolean;
 }
 
 export class UpdateConditionalRuleDto {

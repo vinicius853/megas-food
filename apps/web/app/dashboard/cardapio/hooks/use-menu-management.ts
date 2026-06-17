@@ -134,9 +134,13 @@ export function useMenuManagement() {
         ),
       );
     },
-    onRemoveSize: (sizeId) => {
+    onRemoveSize: (sizeId, removePrices) => {
       setBorderPrices((current) =>
-        current.filter((price) => price.sizeId !== sizeId),
+        removePrices
+          ? current.filter((price) => price.sizeId !== sizeId)
+          : current.map((price) =>
+              price.sizeId === sizeId ? { ...price, isActive: false } : price,
+            ),
       );
     },
   });
@@ -452,6 +456,13 @@ export function useMenuManagement() {
         sizeId: size.id,
         borderId,
         price: value,
+        isActive:
+          prev.find(
+            (price) =>
+              price.productId === size.productId &&
+              price.sizeId === size.id &&
+              price.borderId === borderId,
+          )?.isActive ?? true,
       }),
     );
   }

@@ -125,6 +125,7 @@ export class PublicMenuV2Service {
                 productId: {
                   in: productIds,
                 },
+                isActive: true,
               },
             }),
             this.prisma.productModifierOptionRule.findMany({
@@ -327,6 +328,7 @@ function buildModifierGroups(
             id: price.id,
             dependsOnOptionId: price.dependsOnOptionId,
             price: Number(price.price),
+            isActive: price.isActive !== false,
           })),
         };
       }),
