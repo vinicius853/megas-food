@@ -64,7 +64,7 @@ function getStoreName(order: any) {
     order.tenant?.name ??
     order.tenantName ??
     order.storeName ??
-    "PARADA DA PIZZA"
+    "MEGAS FOOD"
   );
 }
 
@@ -196,13 +196,13 @@ function buildNormalizedGroupsHtml(
           const price = formatModifierPrice(option, showPrice);
 
           return `
-            <div class="item-detail">* ${escapeHtml(fraction)}${escapeHtml(option.optionName)}${escapeHtml(price)}</div>
+            <div class="item-detail">- ${escapeHtml(fraction)}${escapeHtml(option.optionName)}${escapeHtml(price)}</div>
           `;
         })
         .join("");
 
       return `
-        <div class="item-detail item-detail-title">${escapeHtml(group.groupName)}:</div>
+        <div class="item-detail-title">${escapeHtml(group.groupName)}:</div>
         ${optionsHtml}
       `;
     })
@@ -220,11 +220,11 @@ function buildAdditionsHtml(item: any) {
   if (!additions.length) return "";
 
   return `
-    <div class="item-detail">Adicionais:</div>
+    <div class="item-detail-title">Extras:</div>
     ${additions
       .map(
         (addition: string) => `
-          <div class="item-detail">+ ${escapeHtml(addition)}</div>
+          <div class="item-detail">- ${escapeHtml(addition)}</div>
         `,
       )
       .join("")}
@@ -248,6 +248,10 @@ function splitItemNotes(notes: unknown) {
           .map((addition) => addition.trim())
           .filter(Boolean),
       );
+      continue;
+    }
+
+    if (/^adicional de\s+/i.test(line)) {
       continue;
     }
 
@@ -385,13 +389,13 @@ export function buildPrintHtml(
           body {
             width: ${paperWidth};
             margin: 0;
-            padding: ${options.paperSize === "58mm" ? "6px" : "9px"};
+            padding: ${options.paperSize === "58mm" ? "5px" : "7px"};
             color: #000;
             background: #fff;
-            font-family: "Courier New", Courier, monospace;
+            font-family: Arial, Helvetica, sans-serif;
             font-size: ${options.paperSize === "58mm" ? "12px" : "14px"};
             font-weight: 800;
-            line-height: 1.38;
+            line-height: 1.28;
             -webkit-print-color-adjust: exact;
             print-color-adjust: exact;
           }
@@ -411,36 +415,22 @@ export function buildPrintHtml(
             text-transform: uppercase;
           }
 
-          .subtitle {
-            margin-top: 3px;
-            font-size: ${options.paperSize === "58mm" ? "11px" : "13px"};
-            font-weight: 900;
-            text-transform: uppercase;
-          }
-
           .dash {
             border-top: 2px dashed #000;
-            margin: 10px 0;
+            margin: 7px 0;
           }
 
           .equals {
             border-top: 3px solid #000;
-            margin: 12px 0 9px;
-          }
-
-          .order-label {
-            margin-top: 9px;
-            font-size: ${options.paperSize === "58mm" ? "12px" : "14px"};
-            font-weight: 900;
-            text-align: center;
+            margin: 9px 0 6px;
           }
 
           .order-number {
-            margin: 6px 0 10px;
-            padding: 5px 0;
+            margin: 6px 0 4px;
+            padding: 4px 0;
             border-top: 2px solid #000;
             border-bottom: 2px solid #000;
-            font-size: ${options.paperSize === "58mm" ? "27px" : "34px"};
+            font-size: ${options.paperSize === "58mm" ? "21px" : "27px"};
             font-weight: 900;
             text-align: center;
           }
@@ -453,12 +443,12 @@ export function buildPrintHtml(
           }
 
           .spacer {
-            height: 7px;
+            height: 4px;
           }
 
           .item {
-            margin-bottom: 12px;
-            padding-bottom: 9px;
+            margin-bottom: 8px;
+            padding-bottom: 7px;
             border-bottom: 1px dashed #000;
             break-inside: avoid;
           }
@@ -490,20 +480,20 @@ export function buildPrintHtml(
           }
 
           .item-detail {
-            margin-top: 4px;
+            margin-top: 2px;
             padding-left: 8px;
             font-weight: 800;
           }
 
           .item-detail-title {
+            margin-top: 4px;
             padding-left: 0;
             font-weight: 900;
-            text-transform: uppercase;
           }
 
           .note-line {
-            margin-top: 7px;
-            padding: 5px 4px;
+            margin-top: 5px;
+            padding: 4px;
             border: 2px solid #000;
             font-size: ${options.paperSize === "58mm" ? "12px" : "14px"};
             font-weight: 900;
@@ -527,17 +517,17 @@ export function buildPrintHtml(
           }
 
           .total-value {
-            margin-top: 6px;
-            padding: 5px 0;
+            margin-top: 4px;
+            padding: 4px 0;
             border-top: 2px solid #000;
             border-bottom: 2px solid #000;
-            font-size: ${options.paperSize === "58mm" ? "23px" : "30px"};
+            font-size: ${options.paperSize === "58mm" ? "22px" : "28px"};
             font-weight: 900;
             text-align: right;
           }
 
           .footer {
-            margin-top: 14px;
+            margin-top: 9px;
             text-align: center;
             font-size: ${options.paperSize === "58mm" ? "11px" : "13px"};
             font-weight: 900;
@@ -554,18 +544,14 @@ export function buildPrintHtml(
       <body>
         <div class="center">
           <div class="store">${escapeHtml(getStoreName(order))}</div>
-          <div class="subtitle">
-            ${isKitchen ? "COMANDA COZINHA" : "COMPROVANTE DE PEDIDO"}
-          </div>
         </div>
 
-        <div class="dash"></div>
+        <div class="order-number">
+          ${isKitchen ? "COMANDA " : "PEDIDO "}${escapeHtml(shortOrderNumber(order))}
+        </div>
 
-        <div class="order-label">${isKitchen ? "COZINHA" : "PEDIDO ONLINE"}</div>
-        <div class="order-number">${escapeHtml(shortOrderNumber(order))}</div>
-
-        <p>Tipo: ${escapeHtml(orderType)}</p>
-        <p>Data: ${escapeHtml(formatDateTime(order.createdAt))}</p>
+        <p>Data/hora: ${escapeHtml(formatDateTime(order.createdAt))}</p>
+        <p>${escapeHtml(orderType)}</p>
 
         <div class="dash"></div>
         <p>Cliente: ${escapeHtml(cleanText(order.customerName).toUpperCase() || "NAO INFORMADO")}</p>

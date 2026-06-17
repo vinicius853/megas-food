@@ -38,6 +38,11 @@ export class OrdersService {
         },
       },
       include: {
+        tenant: {
+          select: {
+            name: true,
+          },
+        },
         items: {
           include: {
             modifiers: true,
@@ -58,6 +63,11 @@ export class OrdersService {
         tenantId,
       },
       include: {
+        tenant: {
+          select: {
+            name: true,
+          },
+        },
         items: {
           include: {
             modifiers: true,
@@ -86,6 +96,11 @@ export class OrdersService {
         notes: dto.notes,
       },
       include: {
+        tenant: {
+          select: {
+            name: true,
+          },
+        },
         items: {
           include: {
             modifiers: true,

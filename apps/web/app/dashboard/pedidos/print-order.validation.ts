@@ -28,9 +28,9 @@ function validatesGenericWholePizza() {
 
   assert.match(html, /Pizza calabresa/);
   assert.match(html, /Tamanho:/);
-  assert.match(html, /\* 30cm/);
+  assert.match(html, /- 30cm/);
   assert.match(html, /Sabores:/);
-  assert.match(html, /\* calabresa/);
+  assert.match(html, /- calabresa/);
 }
 
 function validatesGenericHalfAndHalf() {
@@ -45,8 +45,8 @@ function validatesGenericHalfAndHalf() {
     printOptions,
   );
 
-  assert.match(html, /\* 1\/2 calabresa/);
-  assert.match(html, /\* 1\/2 mussarela/);
+  assert.match(html, /- 1\/2 calabresa/);
+  assert.match(html, /- 1\/2 mussarela/);
   assert.match(html, /Pizza 1\/2 calabresa \+ 1\/2 mussarela/);
 }
 
@@ -63,7 +63,7 @@ function validatesGenericPizzaWithBorder() {
   );
 
   assert.match(html, /Borda:/);
-  assert.match(html, /\* catupiry \(\+ R\$\s*8,00\)/);
+  assert.match(html, /- catupiry \(\+ R\$\s*8,00\)/);
 }
 
 function validatesGenericBurger() {
@@ -83,11 +83,11 @@ function validatesGenericBurger() {
 
   assert.match(html, /Hamburguer artesanal/);
   assert.match(html, /Ponto da carne:/);
-  assert.match(html, /\* Ao ponto/);
+  assert.match(html, /- Ao ponto/);
   assert.match(html, /Queijos:/);
-  assert.match(html, /\* Cheddar \(\+ R\$\s*3,00\)/);
+  assert.match(html, /- Cheddar \(\+ R\$\s*3,00\)/);
   assert.match(html, /Extras:/);
-  assert.match(html, /\* Bacon \(\+ R\$\s*5,00\)/);
+  assert.match(html, /- Bacon \(\+ R\$\s*5,00\)/);
 }
 
 function baseOrder(items: any[]) {
