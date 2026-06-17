@@ -393,9 +393,9 @@ export function buildPrintHtml(
             color: #000;
             background: #fff;
             font-family: Arial, Helvetica, sans-serif;
-            font-size: ${options.paperSize === "58mm" ? "12px" : "14px"};
-            font-weight: 800;
-            line-height: 1.28;
+            font-size: ${options.paperSize === "58mm" ? "11px" : "13px"};
+            font-weight: 600;
+            line-height: 1.24;
             -webkit-print-color-adjust: exact;
             print-color-adjust: exact;
           }
@@ -410,45 +410,47 @@ export function buildPrintHtml(
           }
 
           .store {
-            font-size: ${options.paperSize === "58mm" ? "15px" : "18px"};
-            font-weight: 900;
+            font-size: ${options.paperSize === "58mm" ? "13px" : "16px"};
+            font-weight: 700;
             text-transform: uppercase;
+            letter-spacing: 0;
+            line-height: 1.15;
           }
 
           .dash {
-            border-top: 2px dashed #000;
-            margin: 7px 0;
+            border-top: 1px dashed #000;
+            margin: 5px 0;
           }
 
           .equals {
-            border-top: 3px solid #000;
-            margin: 9px 0 6px;
+            border-top: 1px solid #000;
+            margin: 7px 0 5px;
           }
 
           .order-number {
-            margin: 6px 0 4px;
-            padding: 4px 0;
-            border-top: 2px solid #000;
-            border-bottom: 2px solid #000;
-            font-size: ${options.paperSize === "58mm" ? "21px" : "27px"};
-            font-weight: 900;
+            margin: 5px 0 4px;
+            padding: 3px 0;
+            border-top: 1px dashed #000;
+            border-bottom: 1px dashed #000;
+            font-size: ${options.paperSize === "58mm" ? "16px" : "20px"};
+            font-weight: 700;
             text-align: center;
           }
 
           .section-title {
             margin-bottom: 2px;
-            font-size: ${options.paperSize === "58mm" ? "12px" : "14px"};
-            font-weight: 900;
+            font-size: ${options.paperSize === "58mm" ? "11px" : "13px"};
+            font-weight: 700;
             text-transform: uppercase;
           }
 
           .spacer {
-            height: 4px;
+            height: 2px;
           }
 
           .item {
-            margin-bottom: 8px;
-            padding-bottom: 7px;
+            margin-bottom: 6px;
+            padding-bottom: 5px;
             border-bottom: 1px dashed #000;
             break-inside: avoid;
           }
@@ -458,8 +460,8 @@ export function buildPrintHtml(
           }
 
           .item-head {
-            font-size: ${options.paperSize === "58mm" ? "13px" : "15px"};
-            font-weight: 900;
+            font-size: ${options.paperSize === "58mm" ? "12px" : "14px"};
+            font-weight: 700;
           }
 
           .item-row {
@@ -467,7 +469,7 @@ export function buildPrintHtml(
             align-items: flex-start;
             justify-content: space-between;
             gap: 8px;
-            margin-top: 4px;
+            margin-top: 3px;
           }
 
           .item-row span {
@@ -476,28 +478,30 @@ export function buildPrintHtml(
 
           .item-row strong {
             flex-shrink: 0;
+            font-weight: 700;
             text-align: right;
           }
 
           .item-detail {
-            margin-top: 2px;
-            padding-left: 8px;
-            font-weight: 800;
+            margin-top: 1px;
+            padding-left: 10px;
+            font-size: ${options.paperSize === "58mm" ? "10px" : "12px"};
+            font-weight: 500;
           }
 
           .item-detail-title {
-            margin-top: 4px;
+            margin-top: 3px;
             padding-left: 0;
-            font-weight: 900;
+            font-size: ${options.paperSize === "58mm" ? "10px" : "12px"};
+            font-weight: 700;
           }
 
           .note-line {
-            margin-top: 5px;
-            padding: 4px;
-            border: 2px solid #000;
-            font-size: ${options.paperSize === "58mm" ? "12px" : "14px"};
-            font-weight: 900;
-            text-transform: uppercase;
+            margin-top: 4px;
+            padding: 3px;
+            border: 1px solid #000;
+            font-size: ${options.paperSize === "58mm" ? "11px" : "13px"};
+            font-weight: 700;
           }
 
           .item-note {
@@ -505,32 +509,32 @@ export function buildPrintHtml(
           }
 
           .payment-line {
-            margin-top: 4px;
-            font-size: ${options.paperSize === "58mm" ? "13px" : "15px"};
-            font-weight: 900;
+            margin-top: 3px;
+            font-size: ${options.paperSize === "58mm" ? "11px" : "13px"};
+            font-weight: 600;
           }
 
           .total-label {
             text-align: center;
-            font-size: ${options.paperSize === "58mm" ? "14px" : "17px"};
-            font-weight: 900;
+            font-size: ${options.paperSize === "58mm" ? "12px" : "15px"};
+            font-weight: 700;
           }
 
           .total-value {
-            margin-top: 4px;
-            padding: 4px 0;
-            border-top: 2px solid #000;
-            border-bottom: 2px solid #000;
-            font-size: ${options.paperSize === "58mm" ? "22px" : "28px"};
-            font-weight: 900;
+            margin-top: 3px;
+            padding: 3px 0;
+            border-top: 1px solid #000;
+            border-bottom: 1px solid #000;
+            font-size: ${options.paperSize === "58mm" ? "17px" : "21px"};
+            font-weight: 700;
             text-align: right;
           }
 
           .footer {
-            margin-top: 9px;
+            margin-top: 7px;
             text-align: center;
-            font-size: ${options.paperSize === "58mm" ? "11px" : "13px"};
-            font-weight: 900;
+            font-size: ${options.paperSize === "58mm" ? "9px" : "11px"};
+            font-weight: 500;
           }
 
           @media print {
@@ -614,14 +618,13 @@ export function buildPrintHtml(
               ${buildPaymentHtml(order, parsedNotes)}
 
               <div class="footer">
-                <div>IMPRESSO AUTOMATICAMENTE</div>
-                <div>MEGAS FOOD</div>
+                <div>Sistema Megas Food</div>
               </div>
             `
             : `
               <div class="footer">
-                <div>CONFERIR ITENS ANTES DE FINALIZAR</div>
-                <div>MEGAS FOOD</div>
+                <div>Conferir itens antes de finalizar</div>
+                <div>Sistema Megas Food</div>
               </div>
             `
         }
