@@ -2,6 +2,7 @@ import {
   BadGatewayException,
   BadRequestException,
   Injectable,
+  Logger,
   UnauthorizedException,
 } from '@nestjs/common'
 import { ConfigService } from '@nestjs/config'
@@ -55,6 +56,8 @@ type MercadoPagoPreapprovalResponse = {
 
 @Injectable()
 export class MercadoPagoService {
+  private readonly logger = new Logger(MercadoPagoService.name)
+
   constructor(private readonly configService: ConfigService) {}
 
   async createPreference(input: MercadoPagoPreferenceInput) {
@@ -93,6 +96,18 @@ export class MercadoPagoService {
       }
     }
 
+    const tokenMode = this.isTestAccessToken(accessToken) ? 'TEST' : 'PROD'
+
+    this.logger.log(
+      `Creating Mercado Pago preference ${JSON.stringify({
+        invoiceId: input.invoiceId,
+        tenantId: input.tenantId,
+        amount: input.amount,
+        tokenMode,
+        payload,
+      })}`,
+    )
+
     const response = await fetch('https://api.mercadopago.com/checkout/preferences', {
       method: 'POST',
       headers: {
@@ -105,10 +120,34 @@ export class MercadoPagoService {
     const data = (await response.json().catch(() => ({}))) as MercadoPagoPreferenceResponse
 
     if (!response.ok || !data.id) {
+      this.logger.warn(
+        `Mercado Pago preference failed ${JSON.stringify({
+          invoiceId: input.invoiceId,
+          tenantId: input.tenantId,
+          amount: input.amount,
+          tokenMode,
+          status: response.status,
+          statusText: response.statusText,
+          body: data,
+        })}`,
+      )
+
       throw new BadGatewayException(
         data.message || data.error || 'Nao foi possivel criar a cobranca no Mercado Pago.',
       )
     }
+
+    this.logger.log(
+      `Mercado Pago preference created ${JSON.stringify({
+        invoiceId: input.invoiceId,
+        tenantId: input.tenantId,
+        tokenMode,
+        status: response.status,
+        preferenceId: data.id,
+        hasInitPoint: Boolean(data.init_point),
+        hasSandboxInitPoint: Boolean(data.sandbox_init_point),
+      })}`,
+    )
 
     return {
       preferenceId: data.id,
