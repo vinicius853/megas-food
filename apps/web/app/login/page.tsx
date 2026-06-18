@@ -70,8 +70,8 @@ const benefits = [
 export default function LoginPage() {
   const router = useRouter()
 
-  const [email, setEmail] = useState('admin@megastech.com')
-  const [password, setPassword] = useState('123456')
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
   const [remember, setRemember] = useState(true)
   const [loading, setLoading] = useState(false)
