@@ -36,8 +36,23 @@ export type OrderItem = {
   modifiers: OrderItemModifier[];
 };
 
+export type OrderListItem = {
+  id: string;
+  number?: number | null;
+  displayNumber?: string | number | null;
+  customerName?: string | null;
+  customerPhone?: string | null;
+  type: OrderType;
+  status: OrderStatus;
+  total: string | number;
+  createdAt: string;
+  itemsCount: number;
+  itemsSummary: string;
+};
+
 export type Order = {
   id: string;
+  number?: number | null;
   displayNumber?: string | number | null;
   tenant?: {
     name?: string | null;

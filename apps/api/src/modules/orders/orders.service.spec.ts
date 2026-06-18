@@ -41,6 +41,11 @@ describe('OrdersService', () => {
           tenantId: 'tenant-1',
         },
         include: {
+          tenant: {
+            select: {
+              name: true,
+            },
+          },
           items: {
             include: {
               modifiers: true,
@@ -49,6 +54,75 @@ describe('OrdersService', () => {
         },
       }),
     );
+  });
+
+  it('retorna listagem operacional sem detalhes completos', async () => {
+    const prisma = {
+      order: {
+        findMany: jest.fn().mockResolvedValue([
+          {
+            id: 'order-1',
+            number: 123,
+            customerName: 'Cliente',
+            customerPhone: '24999999999',
+            type: 'DELIVERY',
+            status: 'PENDING',
+            total: 48,
+            createdAt: new Date('2026-06-17T12:00:00.000Z'),
+            items: [
+              {
+                name: 'Nova pizza redonda',
+                quantity: 1,
+                modifiers: [
+                  { optionName: '25cm', sortOrder: 0 },
+                  { optionName: 'Mussarela', sortOrder: 1 },
+                ],
+              },
+            ],
+          },
+        ]),
+      },
+    };
+    const service = new OrdersService(
+      prisma as never,
+      {} as never,
+      {} as never,
+    );
+
+    const result = await service.findAll('tenant-1');
+
+    expect(prisma.order.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        select: expect.objectContaining({
+          id: true,
+          number: true,
+          items: {
+            select: {
+              name: true,
+              quantity: true,
+              modifiers: {
+                select: {
+                  optionName: true,
+                  sortOrder: true,
+                },
+                orderBy: {
+                  sortOrder: 'asc',
+                },
+              },
+            },
+          },
+        }),
+      }),
+    );
+    expect(result).toEqual([
+      expect.objectContaining({
+        id: 'order-1',
+        itemsCount: 1,
+        itemsSummary: '1x Nova pizza redonda - 25cm, Mussarela',
+      }),
+    ]);
+    expect(result[0]).not.toHaveProperty('items');
+    expect(result[0]).not.toHaveProperty('tenant');
   });
 
   it('informa ao painel quando a notificacao automatica foi agendada', async () => {

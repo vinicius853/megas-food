@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 
 import { Bell, Plus, RefreshCw } from 'lucide-react'
 
@@ -15,6 +15,7 @@ import { useOrderSound } from './use-order-sound'
 import { useOrdersSocket } from './use-orders-socket'
 
 import { OrderModal } from './order-modal'
+import { OrderModalLoading } from './order-modal-loading'
 import { OrdersTable } from './orders-table'
 
 import { useOrders } from './use-orders'
@@ -68,6 +69,9 @@ const periodOptions: Array<{
 export default function PedidosPage() {
   const [selectedOrder, setSelectedOrder] =
     useState<Order | null>(null)
+  const [selectedOrderId, setSelectedOrderId] =
+    useState<string | null>(null)
+  const detailRequestRef = useRef(0)
 
   const {
     orders,
@@ -80,6 +84,7 @@ export default function PedidosPage() {
     setPeriod,
     updateStatus,
     openManualWhatsApp,
+    loadOrderDetails,
   } = useOrders()
 
   const { soundEnabled, enableSound, playNewOrderSound } =
@@ -93,6 +98,50 @@ export default function PedidosPage() {
     loadOrders,
     playNewOrderSound,
   })
+
+  async function openOrderDetails(orderId: string) {
+    const requestId = ++detailRequestRef.current
+
+    setSelectedOrderId(orderId)
+    setSelectedOrder(null)
+
+    try {
+      const order = await loadOrderDetails(orderId)
+
+      if (detailRequestRef.current === requestId) {
+        setSelectedOrder(order)
+      }
+    } catch {
+      if (detailRequestRef.current === requestId) {
+        setSelectedOrderId(null)
+        alert('Nao foi possivel carregar os detalhes do pedido.')
+      }
+    }
+  }
+
+  function closeOrderDetails() {
+    detailRequestRef.current += 1
+    setSelectedOrderId(null)
+    setSelectedOrder(null)
+  }
+
+  async function updateStatusAndDetail(
+    orderId: string,
+    status: OrderStatus,
+  ) {
+    const automaticScheduled = await updateStatus(orderId, status)
+
+    setSelectedOrder((current) =>
+      current?.id === orderId
+        ? {
+            ...current,
+            status,
+          }
+        : current,
+    )
+
+    return automaticScheduled
+  }
 
   return (
     <PageContainer>
@@ -168,14 +217,18 @@ export default function PedidosPage() {
         statusVariants={statusVariants}
         updateStatus={updateStatus}
         openManualWhatsApp={openManualWhatsApp}
-        onOpenOrder={setSelectedOrder}
+        onOpenOrder={openOrderDetails}
       />
+
+      {selectedOrderId && !selectedOrder && (
+        <OrderModalLoading onClose={closeOrderDetails} />
+      )}
 
       {selectedOrder && (
         <OrderModal
           order={selectedOrder}
-          onClose={() => setSelectedOrder(null)}
-          updateStatus={updateStatus}
+          onClose={closeOrderDetails}
+          updateStatus={updateStatusAndDetail}
           openManualWhatsApp={openManualWhatsApp}
           statusLabels={statusLabels}
           statusVariants={statusVariants}

@@ -29,7 +29,7 @@ export class OrdersService {
   async findAll(tenantId: string, filters: FindOrdersFilters = {}) {
     const range = this.resolveOrdersDateRange(filters);
 
-    return this.prisma.order.findMany({
+    const orders = await this.prisma.order.findMany({
       where: {
         tenantId,
         createdAt: {
@@ -37,15 +37,28 @@ export class OrdersService {
           lt: range.dateTo,
         },
       },
-      include: {
-        tenant: {
+      select: {
+        id: true,
+        number: true,
+        customerName: true,
+        customerPhone: true,
+        type: true,
+        status: true,
+        total: true,
+        createdAt: true,
+        items: {
           select: {
             name: true,
-          },
-        },
-        items: {
-          include: {
-            modifiers: true,
+            quantity: true,
+            modifiers: {
+              select: {
+                optionName: true,
+                sortOrder: true,
+              },
+              orderBy: {
+                sortOrder: 'asc',
+              },
+            },
           },
         },
       },
@@ -54,6 +67,22 @@ export class OrdersService {
       },
       take: 200,
     });
+
+    return orders.map((order) => ({
+      id: order.id,
+      number: order.number,
+      customerName: order.customerName,
+      customerPhone: order.customerPhone,
+      type: order.type,
+      status: order.status,
+      total: order.total,
+      createdAt: order.createdAt,
+      itemsCount: order.items.reduce(
+        (total, item) => total + item.quantity,
+        0,
+      ),
+      itemsSummary: this.buildItemsSummary(order.items),
+    }));
   }
 
   async findOne(tenantId: string, id: string) {
@@ -265,5 +294,33 @@ export class OrdersService {
     };
 
     return status ? events[status] : undefined;
+  }
+
+  private buildItemsSummary(
+    items: Array<{
+      name: string;
+      quantity: number;
+      modifiers: Array<{
+        optionName: string;
+        sortOrder: number;
+      }>;
+    }>,
+  ) {
+    const visibleItems = items.slice(0, 2).map((item) => {
+      const options = [
+        ...new Set(
+          item.modifiers
+            .map((modifier) => modifier.optionName.trim())
+            .filter(Boolean),
+        ),
+      ].slice(0, 2);
+      const details = options.length ? ` - ${options.join(', ')}` : '';
+
+      return `${item.quantity}x ${item.name}${details}`;
+    });
+    const hiddenItems = items.length - visibleItems.length;
+    const suffix = hiddenItems > 0 ? ` +${hiddenItems} item(ns)` : '';
+
+    return `${visibleItems.join('; ')}${suffix}`.slice(0, 180);
   }
 }

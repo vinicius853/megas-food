@@ -8,7 +8,7 @@ import {
 
 import { apiFetch } from "@/lib/api";
 
-import type { Order, OrderStatus } from "./types";
+import type { Order, OrderListItem, OrderStatus } from "./types";
 
 export type OrdersPeriod = "today" | "yesterday" | "last7" | "last30";
 
@@ -76,7 +76,7 @@ function getErrorMessage(error: unknown, fallback: string) {
 }
 
 export function useOrders() {
-  const [orders, setOrders] = useState<Order[]>([]);
+  const [orders, setOrders] = useState<OrderListItem[]>([]);
   const [period, setPeriod] = useState<OrdersPeriod>("today");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -107,7 +107,7 @@ export function useOrders() {
           try {
             setError("");
 
-            const data = await apiFetch<Order[]>(
+            const data = await apiFetch<OrderListItem[]>(
               buildOrdersUrl(requestedPeriod),
             );
 
@@ -196,6 +196,10 @@ export function useOrders() {
     }
   }
 
+  const loadOrderDetails = useCallback((orderId: string) => {
+    return apiFetch<Order>(`/orders/${orderId}`);
+  }, []);
+
   return {
     orders,
     loading,
@@ -207,5 +211,6 @@ export function useOrders() {
     setPeriod,
     updateStatus,
     openManualWhatsApp,
+    loadOrderDetails,
   };
 }

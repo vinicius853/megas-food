@@ -13,13 +13,12 @@ import {
 } from '@/components/ui/table'
 
 import { renderOrderActions } from './order-actions'
-import { normalizeOrderItemForDisplay } from './order-item-display'
 import { getOrderDisplayNumber } from './order-display-number'
 import { formatMoney } from './print-order'
-import type { Order, OrderStatus, OrderType } from './types'
+import type { OrderListItem, OrderStatus, OrderType } from './types'
 
 type OrdersTableProps = {
-  orders: Order[]
+  orders: OrderListItem[]
   loading: boolean
   typeLabels: Record<OrderType, string>
   statusLabels: Record<OrderStatus, string>
@@ -35,7 +34,7 @@ type OrdersTableProps = {
   >
   updateStatus: (orderId: string, status: OrderStatus) => Promise<boolean>
   openManualWhatsApp: (orderId: string, status: OrderStatus) => Promise<void>
-  onOpenOrder: (order: Order) => void
+  onOpenOrder: (orderId: string) => void
 }
 
 function formatTime(value: string) {
@@ -43,39 +42,6 @@ function formatTime(value: string) {
     hour: '2-digit',
     minute: '2-digit',
   })
-}
-
-function getOrderForDetails(orders: Order[], index: number) {
-  const order = orders[index]
-
-  return {
-    ...order,
-    displayNumber: getOrderDisplayNumber(order, {
-      orders,
-      index,
-    }),
-  }
-}
-
-function getItemsQuantity(order: Order) {
-  return order.items.reduce((total, item) => total + item.quantity, 0)
-}
-
-function getItemsSummary(order: Order) {
-  return order.items
-    .map((item) => {
-      const normalized = normalizeOrderItemForDisplay(item)
-      const firstGroup = normalized.groups[0]
-      const firstOption = firstGroup?.options[0]?.optionName
-
-      return [
-        `${normalized.quantity}x ${normalized.name}`,
-        firstOption ? `(${firstOption})` : '',
-      ]
-        .filter(Boolean)
-        .join(' ')
-    })
-    .join(', ')
 }
 
 export function OrdersTable({
@@ -141,7 +107,7 @@ export function OrdersTable({
                     {order.customerName || 'Cliente nao informado'}
                   </TableCell>
 
-                  <TableCell>{getItemsQuantity(order)}</TableCell>
+                  <TableCell>{order.itemsCount}</TableCell>
 
                   <TableCell className="font-medium">
                     {formatMoney(order.total)}
@@ -169,9 +135,7 @@ export function OrdersTable({
                     <Button
                       size="sm"
                       variant="outline"
-                      onClick={() =>
-                        onOpenOrder(getOrderForDetails(orders, index))
-                      }
+                      onClick={() => onOpenOrder(order.id)}
                     >
                       <Eye className="h-4 w-4" />
                       Ver
@@ -230,7 +194,7 @@ export function OrdersTable({
                 <div>
                   <p className="text-xs font-bold text-slate-400">Itens</p>
                   <p className="mt-1 font-black text-slate-900">
-                    {getItemsQuantity(order)}
+                    {order.itemsCount}
                   </p>
                 </div>
 
@@ -243,7 +207,7 @@ export function OrdersTable({
               </div>
 
               <p className="mt-3 line-clamp-2 text-xs font-medium text-slate-500">
-                {getItemsSummary(order)}
+                {order.itemsSummary}
               </p>
 
               <div className="mt-4 flex flex-col gap-2">
@@ -258,7 +222,7 @@ export function OrdersTable({
                 <Button
                   size="sm"
                   variant="outline"
-                  onClick={() => onOpenOrder(getOrderForDetails(orders, index))}
+                  onClick={() => onOpenOrder(order.id)}
                   className="w-full"
                 >
                   <Eye className="h-4 w-4" />
