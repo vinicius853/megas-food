@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { Banknote, CreditCard, MapPin, QrCode, Search, X } from 'lucide-react'
 
 import { apiFetch } from '@/lib/api'
+import { isLoadTestOrder } from '@/lib/order-external-effects'
 import {
   formatMoney,
   getErrorMessage,
@@ -423,6 +424,16 @@ export function CheckoutModal({
         },
       )
 
+      if (isLoadTestOrder({ customerName })) {
+        setPrivacyAccepted(true)
+        setSuccess({
+          orderNumber: order.number,
+          popupBlocked: false,
+          loadTest: true,
+        })
+        return
+      }
+
       const message = buildCheckoutWhatsAppMessage({
         orderNumber: order.number,
         tenantName,
@@ -486,6 +497,7 @@ export function CheckoutModal({
             orderNumber={success.orderNumber}
             whatsappUrl={success.whatsappUrl}
             popupBlocked={success.popupBlocked}
+            loadTest={success.loadTest}
             primaryColor={theme.primary}
             textOnPrimary={theme.textOnPrimary}
             onConfirm={() => {

@@ -2,6 +2,7 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { WhatsAppEventType } from '@prisma/client';
 
 import { PrismaService } from '../../prisma/prisma.service';
+import { isLoadTestOrder } from '../orders/order-external-effects';
 import { WhatsAppTemplateService } from './whatsapp-template.service';
 
 @Injectable()
@@ -27,7 +28,22 @@ export class WhatsAppManualService {
       },
     });
 
-    if (!order?.customerPhone) {
+    if (!order) {
+      throw new NotFoundException(
+        'Pedido ou telefone do cliente nao encontrado.',
+      );
+    }
+
+    if (isLoadTestOrder(order)) {
+      return {
+        message:
+          'WhatsApp desativado para pedido identificado como teste de carga.',
+        url: null,
+        suppressed: true,
+      };
+    }
+
+    if (!order.customerPhone) {
       throw new NotFoundException(
         'Pedido ou telefone do cliente nao encontrado.',
       );
@@ -39,6 +55,7 @@ export class WhatsAppManualService {
     return {
       message,
       url: `https://wa.me/${phone}?text=${encodeURIComponent(message)}`,
+      suppressed: false,
     };
   }
 

@@ -12,6 +12,7 @@ import {
 import { randomUUID } from 'crypto';
 
 import { PrismaService } from '../../prisma/prisma.service';
+import { isLoadTestOrder } from '../orders/order-external-effects';
 import { TestWhatsAppDto } from './dto/test-whatsapp.dto';
 import { EnqueueOrderEventInput } from './types/whatsapp.types';
 import { canUseAutomaticWhatsAppNotification } from './whatsapp-automation-policy';
@@ -31,6 +32,8 @@ export class WhatsAppNotificationService {
   ) {}
 
   async enqueueOrderEvent(input: EnqueueOrderEventInput) {
+    let loadTest = false;
+
     try {
       const [connection, order] = await Promise.all([
         this.prisma.whatsAppConnection.findUnique({
@@ -39,6 +42,7 @@ export class WhatsAppNotificationService {
         this.prisma.order.findFirst({
           where: { id: input.orderId, tenantId: input.tenantId },
           select: {
+            customerName: true,
             customerPhone: true,
             type: true,
           },
@@ -53,11 +57,14 @@ export class WhatsAppNotificationService {
         return { automaticScheduled: false };
       }
 
-      const enabled = canUseAutomaticWhatsAppNotification(
-        connection,
-        input.eventType,
-        this.provider.isConfigured(),
-      );
+      loadTest = isLoadTestOrder(order);
+      const enabled =
+        !loadTest &&
+        canUseAutomaticWhatsAppNotification(
+          connection,
+          input.eventType,
+          this.provider.isConfigured(),
+        );
       const status = enabled
         ? WhatsAppNotificationStatus.PENDING
         : WhatsAppNotificationStatus.SKIPPED;
@@ -83,7 +90,7 @@ export class WhatsAppNotificationService {
         error instanceof Prisma.PrismaClientKnownRequestError &&
         error.code === 'P2002'
       ) {
-        return { automaticScheduled: true };
+        return { automaticScheduled: !loadTest };
       }
       this.logger.warn(
         `Falha ao registrar evento WhatsApp: ${

@@ -9,6 +9,7 @@ describe('WhatsAppNotificationService', () => {
       status?: 'CONNECTED' | 'DISCONNECTED';
       instanceName?: string | null;
       providerConfigured?: boolean;
+      customerName?: string;
     },
   ) {
     const createdNotifications: Array<{
@@ -29,6 +30,7 @@ describe('WhatsAppNotificationService', () => {
       },
       order: {
         findFirst: jest.fn().mockResolvedValue({
+          customerName: input?.customerName ?? 'Cliente real',
           customerPhone: '24999999999',
           type: 'TAKEAWAY',
         }),
@@ -115,6 +117,27 @@ describe('WhatsAppNotificationService', () => {
     });
 
     expect(result).toEqual({ automaticScheduled: false });
+    expect(outbox.schedule).not.toHaveBeenCalled();
+  });
+
+  it('nao agenda notificacao para pedido de teste de carga', async () => {
+    const { createdNotifications, outbox, service } = setup(true, {
+      customerName: '  [LOAD_TEST] Cliente 001',
+    });
+
+    const result = await service.enqueueOrderEvent({
+      tenantId: 'tenant-1',
+      orderId: 'order-1',
+      eventType: WhatsAppEventType.ORDER_CONFIRMED,
+    });
+
+    expect(result).toEqual({ automaticScheduled: false });
+    expect(createdNotifications).toContainEqual(
+      expect.objectContaining({
+        dedupeKey: 'order-1:ORDER_CONFIRMED',
+        status: WhatsAppNotificationStatus.SKIPPED,
+      }),
+    );
     expect(outbox.schedule).not.toHaveBeenCalled();
   });
 });

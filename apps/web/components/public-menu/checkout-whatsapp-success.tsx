@@ -6,6 +6,7 @@ type CheckoutWhatsAppSuccessProps = {
   orderNumber?: number
   whatsappUrl?: string
   popupBlocked: boolean
+  loadTest?: boolean
   primaryColor: string
   textOnPrimary: string
   onConfirm: () => void
@@ -16,6 +17,7 @@ export function CheckoutWhatsAppSuccess({
   orderNumber,
   whatsappUrl,
   popupBlocked,
+  loadTest = false,
   primaryColor,
   textOnPrimary,
   onConfirm,
@@ -40,7 +42,9 @@ export function CheckoutWhatsAppSuccess({
         </span>
 
         <h2 className="mt-5 text-2xl font-black text-slate-900">
-          Pedido registrado com sucesso
+          {loadTest
+            ? 'Pedido de teste registrado'
+            : 'Pedido registrado com sucesso'}
         </h2>
 
         {orderNumber && (
@@ -50,18 +54,19 @@ export function CheckoutWhatsAppSuccess({
         )}
 
         <p className="mt-4 max-w-md text-sm leading-relaxed text-slate-600">
-          Agora confirme pelo WhatsApp da loja. A mensagem completa do pedido já
-          está preenchida para você enviar.
+          {loadTest
+            ? 'O pedido foi salvo e aparecerá normalmente no painel, sem enviar mensagens ou acionar impressão.'
+            : 'Agora confirme pelo WhatsApp da loja. A mensagem completa do pedido já está preenchida para você enviar.'}
         </p>
 
-        {popupBlocked && whatsappUrl && (
+        {!loadTest && popupBlocked && whatsappUrl && (
           <p className="mt-3 rounded-xl bg-amber-50 px-4 py-3 text-xs font-semibold text-amber-800">
             O navegador não abriu o WhatsApp automaticamente. Use o botão
             abaixo.
           </p>
         )}
 
-        {!whatsappUrl && (
+        {!loadTest && !whatsappUrl && (
           <p className="mt-3 rounded-xl bg-amber-50 px-4 py-3 text-xs font-semibold text-amber-800">
             O pedido foi registrado, mas o WhatsApp da loja não está
             configurado.
@@ -72,13 +77,17 @@ export function CheckoutWhatsAppSuccess({
       <div className="border-t border-slate-200 bg-white p-5">
         <button
           type="button"
-          onClick={onConfirm}
-          disabled={!whatsappUrl}
+          onClick={loadTest ? onClose : onConfirm}
+          disabled={!loadTest && !whatsappUrl}
           className="flex w-full items-center justify-center gap-2 rounded-2xl px-5 py-4 font-bold transition disabled:cursor-not-allowed disabled:opacity-50"
           style={{ backgroundColor: primaryColor, color: textOnPrimary }}
         >
-          <MessageCircle className="h-5 w-5" />
-          Confirmar no WhatsApp
+          {loadTest ? (
+            <CheckCircle2 className="h-5 w-5" />
+          ) : (
+            <MessageCircle className="h-5 w-5" />
+          )}
+          {loadTest ? 'Concluir teste' : 'Confirmar no WhatsApp'}
         </button>
       </div>
     </div>

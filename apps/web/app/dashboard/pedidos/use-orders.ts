@@ -139,9 +139,20 @@ export function useOrders() {
     if (!event) return;
 
     try {
-      const result = await apiFetch<{ url: string }>(
+      const result = await apiFetch<{
+        url: string | null;
+        message?: string;
+        suppressed?: boolean;
+      }>(
         `/whatsapp/orders/${orderId}/manual-link?event=${event}`,
       );
+      if (result.suppressed || !result.url) {
+        alert(
+          result.message ??
+            "WhatsApp indisponivel para este pedido.",
+        );
+        return;
+      }
       window.open(result.url, "_blank", "noopener,noreferrer");
     } catch (error: unknown) {
       alert(getErrorMessage(error, "Erro ao preparar mensagem do WhatsApp."));

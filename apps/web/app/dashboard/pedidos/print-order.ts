@@ -1,3 +1,5 @@
+import { isLoadTestOrder } from "@/lib/order-external-effects";
+
 import { getOrderDisplayNumber } from "./order-display-number";
 import {
   normalizeOrderItemForDisplay,
@@ -634,6 +636,11 @@ export function buildPrintHtml(
 }
 
 export function printOrder(order: any, options?: PrintOrderOptions) {
+  if (isLoadTestOrder(order)) {
+    alert("Impressao desativada para pedido de teste de carga.");
+    return;
+  }
+
   const finalOptions: Required<PrintOrderOptions> = {
     paperSize: options?.paperSize ?? "80mm",
     mode: options?.mode ?? "customer",

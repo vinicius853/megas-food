@@ -5,6 +5,7 @@ import {
 } from '@prisma/client';
 
 import { PrismaService } from '../../prisma/prisma.service';
+import { isLoadTestOrder } from '../orders/order-external-effects';
 import { WHATSAPP_PROVIDER } from './providers/whatsapp-provider.interface';
 import type { WhatsAppProviderAdapter } from './providers/whatsapp-provider.interface';
 import { WhatsAppTemplateService } from './whatsapp-template.service';
@@ -51,6 +52,17 @@ export class WhatsAppOutboxService {
       !notification ||
       notification.status !== WhatsAppNotificationStatus.PENDING
     ) {
+      return;
+    }
+
+    if (isLoadTestOrder(notification.order)) {
+      await this.prisma.whatsAppNotification.update({
+        where: { id: notificationId },
+        data: {
+          status: WhatsAppNotificationStatus.SKIPPED,
+          error: 'Efeito externo suprimido para pedido de teste de carga.',
+        },
+      });
       return;
     }
 

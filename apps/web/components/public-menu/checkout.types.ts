@@ -65,4 +65,5 @@ export type CheckoutSuccessState = {
   orderNumber?: number
   whatsappUrl?: string
   popupBlocked: boolean
+  loadTest?: boolean
 }
