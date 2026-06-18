@@ -1,4 +1,10 @@
-import { useCallback, useMemo, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 
 import { apiFetch } from "@/lib/api";
 
@@ -72,27 +78,58 @@ function getErrorMessage(error: unknown, fallback: string) {
 export function useOrders() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [period, setPeriod] = useState<OrdersPeriod>("today");
-
   const [loading, setLoading] = useState(true);
-
   const [error, setError] = useState("");
+  const periodRef = useRef(period);
+  const loadInFlightRef = useRef<Promise<void> | null>(null);
+  const refreshPendingRef = useRef(false);
+
+  useEffect(() => {
+    periodRef.current = period;
+  }, [period]);
+
   const periodLabel = useMemo(() => periodLabels[period], [period]);
 
-  const loadOrders = useCallback(async () => {
-    try {
+  const loadOrders = useCallback(() => {
+    if (loadInFlightRef.current) {
+      refreshPendingRef.current = true;
+      return loadInFlightRef.current;
+    }
+
+    const run = async () => {
       setLoading(true);
 
-      setError("");
+      try {
+        do {
+          refreshPendingRef.current = false;
+          const requestedPeriod = periodRef.current;
 
-      const data = await apiFetch<Order[]>(buildOrdersUrl(period));
+          try {
+            setError("");
 
-      setOrders(data);
-    } catch (error: unknown) {
-      setError(getErrorMessage(error, "Erro ao carregar pedidos."));
-    } finally {
-      setLoading(false);
-    }
-  }, [period]);
+            const data = await apiFetch<Order[]>(
+              buildOrdersUrl(requestedPeriod),
+            );
+
+            setOrders(data);
+          } catch (error: unknown) {
+            setError(getErrorMessage(error, "Erro ao carregar pedidos."));
+          }
+
+          if (periodRef.current !== requestedPeriod) {
+            refreshPendingRef.current = true;
+          }
+        } while (refreshPendingRef.current);
+      } finally {
+        setLoading(false);
+        loadInFlightRef.current = null;
+      }
+    };
+
+    const request = run();
+    loadInFlightRef.current = request;
+    return request;
+  }, []);
 
   async function updateStatus(orderId: string, status: OrderStatus) {
     try {

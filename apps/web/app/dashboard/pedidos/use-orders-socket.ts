@@ -2,6 +2,8 @@ import { useEffect, useRef } from 'react'
 
 import { io } from 'socket.io-client'
 
+const socketRefreshWindowMs = 500
+
 type UseOrdersSocketProps = {
   loadOrders: () => void | Promise<void>
   playNewOrderSound: () => void
@@ -51,30 +53,52 @@ export function useOrdersSocket({
       tenantId,
     )
 
+    let refreshTimer: ReturnType<typeof setTimeout> | null = null
+    let hasCreatedOrder = false
+
+    const scheduleRefresh = (createdOrder = false) => {
+      hasCreatedOrder = hasCreatedOrder || createdOrder
+
+      if (refreshTimer) return
+
+      refreshTimer = setTimeout(() => {
+        refreshTimer = null
+
+        void loadOrdersRef.current()
+
+        if (hasCreatedOrder) {
+          playNewOrderSoundRef.current()
+          hasCreatedOrder = false
+        }
+      }, socketRefreshWindowMs)
+    }
+
     socket.on(
       'order.created',
       () => {
-        loadOrdersRef.current()
-
-        playNewOrderSoundRef.current()
+        scheduleRefresh(true)
       },
     )
 
     socket.on(
       'order.updated',
       () => {
-        loadOrdersRef.current()
+        scheduleRefresh()
       },
     )
 
     socket.on(
       'order.cancelled',
       () => {
-        loadOrdersRef.current()
+        scheduleRefresh()
       },
     )
 
     return () => {
+      if (refreshTimer) {
+        clearTimeout(refreshTimer)
+      }
+
       socket.disconnect()
     }
   }, [])

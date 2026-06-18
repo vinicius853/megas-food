@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 
 export function useOrderSound() {
   const soundEnabledRef = useRef(false)
+  const audioContextRef = useRef<AudioContext | null>(null)
 
   const [soundEnabled, setSoundEnabled] = useState(false)
 
@@ -10,38 +11,53 @@ export function useOrderSound() {
 
     const AudioContextClass =
       window.AudioContext ||
-      (window as any).webkitAudioContext
+      (
+        window as Window & {
+          webkitAudioContext?: typeof AudioContext
+        }
+      ).webkitAudioContext
 
     if (!AudioContextClass) return
 
-    const audioContext = new AudioContextClass()
+    const audioContext =
+      audioContextRef.current ?? new AudioContextClass()
 
-    const oscillator = audioContext.createOscillator()
-    const gainNode = audioContext.createGain()
+    audioContextRef.current = audioContext
 
-    oscillator.type = 'sine'
+    const playTone = () => {
+      const oscillator = audioContext.createOscillator()
+      const gainNode = audioContext.createGain()
 
-    oscillator.frequency.setValueAtTime(
-      880,
-      audioContext.currentTime,
-    )
+      oscillator.type = 'sine'
 
-    gainNode.gain.setValueAtTime(
-      0.25,
-      audioContext.currentTime,
-    )
+      oscillator.frequency.setValueAtTime(
+        880,
+        audioContext.currentTime,
+      )
 
-    gainNode.gain.exponentialRampToValueAtTime(
-      0.01,
-      audioContext.currentTime + 0.5,
-    )
+      gainNode.gain.setValueAtTime(
+        0.25,
+        audioContext.currentTime,
+      )
 
-    oscillator.connect(gainNode)
-    gainNode.connect(audioContext.destination)
+      gainNode.gain.exponentialRampToValueAtTime(
+        0.01,
+        audioContext.currentTime + 0.5,
+      )
 
-    oscillator.start()
+      oscillator.connect(gainNode)
+      gainNode.connect(audioContext.destination)
 
-    oscillator.stop(audioContext.currentTime + 0.5)
+      oscillator.start()
+      oscillator.stop(audioContext.currentTime + 0.5)
+    }
+
+    if (audioContext.state === 'suspended') {
+      void audioContext.resume().then(playTone).catch(() => undefined)
+      return
+    }
+
+    playTone()
   }
 
   function enableSound() {
@@ -58,12 +74,25 @@ export function useOrderSound() {
   }
 
   useEffect(() => {
-    const storedSoundEnabled =
-      localStorage.getItem('ordersSoundEnabled')
+    const restoreTimer = window.setTimeout(() => {
+      const storedSoundEnabled =
+        localStorage.getItem('ordersSoundEnabled')
 
-    if (storedSoundEnabled === 'true') {
-      soundEnabledRef.current = true
-      setSoundEnabled(true)
+      if (storedSoundEnabled === 'true') {
+        soundEnabledRef.current = true
+        setSoundEnabled(true)
+      }
+    }, 0)
+
+    return () => {
+      clearTimeout(restoreTimer)
+
+      const audioContext = audioContextRef.current
+      audioContextRef.current = null
+
+      if (audioContext && audioContext.state !== 'closed') {
+        void audioContext.close()
+      }
     }
   }, [])
 
