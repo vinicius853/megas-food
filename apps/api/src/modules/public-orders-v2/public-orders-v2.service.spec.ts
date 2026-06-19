@@ -1,5 +1,13 @@
-import { BadRequestException, NotFoundException } from '@nestjs/common';
-import { ModifierPricingMode, PaymentType } from '@prisma/client';
+import {
+  BadRequestException,
+  ForbiddenException,
+  NotFoundException,
+} from '@nestjs/common';
+import {
+  ModifierPricingMode,
+  PaymentType,
+  SubscriptionStatus,
+} from '@prisma/client';
 
 import { PublicOrdersV2Service } from './public-orders-v2.service';
 
@@ -8,6 +16,9 @@ describe('PublicOrdersV2Service', () => {
   let prisma: any;
   let priceEngineService: {
     calculate: jest.Mock;
+  };
+  let subscriptionAccessService: {
+    assertTenantCanAcceptOrders: jest.Mock;
   };
   let couponsService: {
     validateCoupon: jest.Mock;
@@ -34,6 +45,12 @@ describe('PublicOrdersV2Service', () => {
     priceEngineService = {
       calculate: jest.fn(),
     };
+    subscriptionAccessService = {
+      assertTenantCanAcceptOrders: jest.fn().mockResolvedValue({
+        status: SubscriptionStatus.ACTIVE,
+        canAcceptOrders: true,
+      }),
+    };
     couponsService = {
       validateCoupon: jest.fn(),
     };
@@ -45,6 +62,7 @@ describe('PublicOrdersV2Service', () => {
     };
     service = new PublicOrdersV2Service(
       prisma,
+      subscriptionAccessService as any,
       priceEngineService as any,
       couponsService as any,
       ordersGateway as any,
@@ -104,7 +122,70 @@ describe('PublicOrdersV2Service', () => {
       orderId: order.id,
       eventType: 'ORDER_CREATED',
     });
+    expect(
+      subscriptionAccessService.assertTenantCanAcceptOrders,
+    ).toHaveBeenCalledWith('tenant-1');
   });
+
+  it.each([
+    ['ACTIVE', SubscriptionStatus.ACTIVE],
+    ['LEGACY', 'LEGACY'],
+    ['PAST_DUE dentro da tolerancia', SubscriptionStatus.PAST_DUE],
+    [
+      'CANCEL_SCHEDULED dentro de accessUntil',
+      SubscriptionStatus.CANCEL_SCHEDULED,
+    ],
+  ])('permite criar pedido para tenant %s', async (_label, status) => {
+    mockTenant();
+    mockProduct();
+    mockPriceResult(40, []);
+    mockOrderCreate();
+    mockBillingAllowed(status);
+
+    await expect(
+      service.createByTenantSlug('tenant-slug', orderDto(['size-30'])),
+    ).resolves.toEqual(expect.objectContaining({ tenantId: 'tenant-1' }));
+
+    expect(
+      subscriptionAccessService.assertTenantCanAcceptOrders,
+    ).toHaveBeenCalledWith('tenant-1');
+    expect(prisma.order.create).toHaveBeenCalledTimes(1);
+  });
+
+  it.each([
+    ['BLOCKED', SubscriptionStatus.BLOCKED],
+    ['PENDING', SubscriptionStatus.PENDING],
+    ['CANCELED', SubscriptionStatus.CANCELED],
+    [
+      'CANCEL_SCHEDULED expirado',
+      SubscriptionStatus.CANCEL_SCHEDULED,
+    ],
+  ])(
+    'bloqueia tenant %s antes de validar ou persistir o pedido',
+    async (_label, status) => {
+      mockTenant();
+      mockBillingBlocked(status);
+
+      const creation = service.createByTenantSlug('tenant-slug', {
+          ...orderDto(['size-30']),
+          couponCode: 'PROMO10',
+          privacyAccepted: false,
+        });
+
+      await expect(creation).rejects.toBeInstanceOf(ForbiddenException);
+      await expect(creation).rejects.toMatchObject({ status: 403 });
+
+      expect(
+        subscriptionAccessService.assertTenantCanAcceptOrders,
+      ).toHaveBeenCalledWith('tenant-1');
+      expect(prisma.product.findFirst).not.toHaveBeenCalled();
+      expect(priceEngineService.calculate).not.toHaveBeenCalled();
+      expect(couponsService.validateCoupon).not.toHaveBeenCalled();
+      expect(prisma.order.create).not.toHaveBeenCalled();
+      expect(ordersGateway.emitOrderCreated).not.toHaveBeenCalled();
+      expect(whatsappNotifications.enqueueOrderEvent).not.toHaveBeenCalled();
+    },
+  );
 
   it('cria pedido V2 meio a meio com fraction no snapshot', async () => {
     mockTenant();
@@ -307,6 +388,22 @@ describe('PublicOrdersV2Service', () => {
     await expect(
       service.createByTenantSlug('missing', orderDto(['size-30'])),
     ).rejects.toBeInstanceOf(NotFoundException);
+
+    expect(
+      subscriptionAccessService.assertTenantCanAcceptOrders,
+    ).not.toHaveBeenCalled();
+  });
+
+  it('falha para tenant inativo sem consultar billing', async () => {
+    mockTenant(false);
+
+    await expect(
+      service.createByTenantSlug('tenant-slug', orderDto(['size-30'])),
+    ).rejects.toBeInstanceOf(NotFoundException);
+
+    expect(
+      subscriptionAccessService.assertTenantCanAcceptOrders,
+    ).not.toHaveBeenCalled();
   });
 
   it('rejeita pedido sem aceite de privacidade antes de escrever no banco', async () => {
@@ -344,11 +441,24 @@ describe('PublicOrdersV2Service', () => {
     );
   });
 
-  function mockTenant() {
+  function mockTenant(isActive = true) {
     prisma.tenant.findUnique.mockResolvedValue({
       id: 'tenant-1',
-      isActive: true,
+      isActive,
     });
+  }
+
+  function mockBillingAllowed(status: SubscriptionStatus | 'LEGACY') {
+    subscriptionAccessService.assertTenantCanAcceptOrders.mockResolvedValue({
+      status,
+      canAcceptOrders: true,
+    });
+  }
+
+  function mockBillingBlocked(status: SubscriptionStatus) {
+    subscriptionAccessService.assertTenantCanAcceptOrders.mockRejectedValue(
+      new ForbiddenException(`Assinatura ${status} bloqueada.`),
+    );
   }
 
   function mockProduct() {

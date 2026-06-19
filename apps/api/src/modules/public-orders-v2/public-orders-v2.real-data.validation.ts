@@ -1,6 +1,7 @@
 import { PaymentType } from '@prisma/client';
 
 import { PrismaService } from '../../prisma/prisma.service';
+import { SubscriptionAccessService } from '../billing/subscription-access.service';
 import { CouponsService } from '../coupons/coupons.service';
 import { OrdersService } from '../orders/orders.service';
 import { PriceEngineService } from '../price-engine/price-engine.service';
@@ -29,6 +30,7 @@ async function main() {
     };
     const publicOrders = new PublicOrdersV2Service(
       prisma,
+      new SubscriptionAccessService(prisma),
       new PriceEngineService(prisma),
       new CouponsService(prisma),
       gateway as never,

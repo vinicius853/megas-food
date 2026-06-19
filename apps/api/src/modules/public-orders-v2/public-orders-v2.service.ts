@@ -6,6 +6,7 @@ import {
 import { randomUUID } from 'crypto';
 
 import { PrismaService } from '../../prisma/prisma.service';
+import { SubscriptionAccessService } from '../billing/subscription-access.service';
 import { CouponsService } from '../coupons/coupons.service';
 import { OrdersGateway } from '../orders/gateways/orders.gateway';
 import { PriceEngineService } from '../price-engine/price-engine.service';
@@ -24,6 +25,7 @@ import {
 export class PublicOrdersV2Service {
   constructor(
     private readonly prisma: PrismaService,
+    private readonly subscriptionAccessService: SubscriptionAccessService,
     private readonly priceEngineService: PriceEngineService,
     private readonly couponsService: CouponsService,
     private readonly ordersGateway: OrdersGateway,
@@ -57,6 +59,8 @@ export class PublicOrdersV2Service {
     dto: CreatePublicOrderV2Dto,
     privacyContext?: PrivacyRequestContext,
   ) {
+    await this.subscriptionAccessService.assertTenantCanAcceptOrders(tenantId);
+
     assertCurrentPrivacyConsent(dto.privacyAccepted, dto.privacyPolicyVersion);
 
     if (!dto.items?.length) {
