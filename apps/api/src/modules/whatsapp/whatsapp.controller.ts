@@ -10,8 +10,9 @@ import {
   Req,
   UseGuards,
 } from '@nestjs/common';
-import { WhatsAppEventType } from '@prisma/client';
+import { UserRole, WhatsAppEventType } from '@prisma/client';
 
+import { Roles } from '../auth/decorators/roles.decorator';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { TestWhatsAppDto } from './dto/test-whatsapp.dto';
@@ -22,6 +23,7 @@ import { WhatsAppNotificationService } from './whatsapp-notification.service';
 
 @Controller('whatsapp')
 @UseGuards(JwtAuthGuard, RolesGuard)
+@Roles(UserRole.CLIENT_OWNER)
 export class WhatsAppController {
   constructor(
     private readonly connections: WhatsAppConnectionService,
@@ -41,6 +43,7 @@ export class WhatsAppController {
 
   @Post('test')
   test(@Req() req: any, @Body() dto: TestWhatsAppDto) {
+    // TODO(security): aplicar throttle por usuario/tenant quando houver infraestrutura compartilhada.
     return this.notifications.enqueueTest(req.user.tenantId, dto);
   }
 

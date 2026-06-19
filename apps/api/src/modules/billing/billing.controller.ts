@@ -44,7 +44,7 @@ export class BillingController {
 
   @Get('my-subscription')
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('CLIENT_OWNER', 'CLIENT_ADMIN', 'CASHIER')
+  @Roles('CLIENT_OWNER')
   getMySubscription(@CurrentUser() user: CurrentActor) {
     return this.billingService.getMySubscription(user.tenantId)
   }
@@ -105,10 +105,7 @@ export class BillingController {
   @Post('events/:id/reprocess')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('MASTER_OWNER', 'MASTER_ADMIN', 'FINANCE_ADMIN')
-  reprocessWebhook(
-    @Param('id') id: string,
-    @CurrentUser() user: CurrentActor,
-  ) {
+  reprocessWebhook(@Param('id') id: string, @CurrentUser() user: CurrentActor) {
     return this.billingService.reprocessWebhook(id, user)
   }
 

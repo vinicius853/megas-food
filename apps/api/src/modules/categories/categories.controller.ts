@@ -8,9 +8,12 @@ import {
   Post,
   UseGuards,
 } from '@nestjs/common'
+import { UserRole } from '@prisma/client'
 
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard'
 import { CurrentTenant } from '../auth/decorators/current-tenant.decorator'
+import { Roles } from '../auth/decorators/roles.decorator'
+import { RolesGuard } from '../auth/guards/roles.guard'
 
 import { CategoriesService } from './categories.service'
 
@@ -18,7 +21,8 @@ import { CreateCategoryDto } from './dto/create-category.dto'
 import { UpdateCategoryDto } from './dto/update-category.dto'
 
 @Controller('categories')
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, RolesGuard)
+@Roles(UserRole.CLIENT_OWNER)
 export class CategoriesController {
   constructor(private readonly categoriesService: CategoriesService) {}
 
@@ -45,10 +49,7 @@ export class CategoriesController {
   }
 
   @Delete(':id')
-  async remove(
-    @CurrentTenant() tenantId: string,
-    @Param('id') id: string,
-  ) {
+  async remove(@CurrentTenant() tenantId: string, @Param('id') id: string) {
     return this.categoriesService.remove(tenantId, id)
   }
 }

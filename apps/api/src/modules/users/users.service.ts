@@ -6,13 +6,26 @@ import {
 } from '@nestjs/common'
 
 import * as bcrypt from 'bcryptjs'
-import { AuditLogLevel } from '@prisma/client'
+import { AuditLogLevel, Prisma, UserRole } from '@prisma/client'
 
 import { PrismaService } from '../../prisma/prisma.service'
 import { AuditLogsService } from '../audit-logs/audit-logs.service'
 
 import { CreateUserDto } from './dto/create-user.dto'
 import { UpdateUserDto } from './dto/update-user.dto'
+
+type CurrentActor = {
+  userId?: string
+  tenantId?: string
+  role?: string
+  permissions?: string[]
+}
+
+const clientAssignableRoles = new Set<UserRole>([
+  UserRole.CLIENT_OWNER,
+  UserRole.CLIENT_ADMIN,
+  UserRole.CASHIER,
+])
 
 @Injectable()
 export class UsersService {
@@ -21,10 +34,7 @@ export class UsersService {
     private readonly auditLogsService: AuditLogsService,
   ) {}
 
-  async create(
-    dto: CreateUserDto,
-    actor?: { userId?: string; role?: string; permissions?: string[] },
-  ) {
+  async create(dto: CreateUserDto, actor?: CurrentActor) {
     if (
       actor?.role === 'SUPPORT' &&
       (!actor.permissions?.includes('CREATE_USERS') ||
@@ -37,33 +47,34 @@ export class UsersService {
       )
     }
 
-    const emailAlreadyExists =
-      await this.prisma.user.findFirst({
-        where: {
-          tenantId: dto.tenantId,
-          email: dto.email,
-        },
-      })
+    const tenantId = this.resolveCreateTenantId(dto, actor)
+    const permissions = this.resolveClientPermissions(dto.permissions, actor)
 
-    if (emailAlreadyExists) {
-      throw new BadRequestException(
-        'Já existe um usuário com este email.',
-      )
+    if (actor?.role === UserRole.CLIENT_OWNER) {
+      this.assertClientAssignableRole(dto.role)
     }
 
-    const hashedPassword = await bcrypt.hash(
-      dto.password,
-      10,
-    )
+    const emailAlreadyExists = await this.prisma.user.findFirst({
+      where: {
+        tenantId,
+        email: dto.email,
+      },
+    })
+
+    if (emailAlreadyExists) {
+      throw new BadRequestException('Já existe um usuário com este email.')
+    }
+
+    const hashedPassword = await bcrypt.hash(dto.password, 10)
 
     const user = await this.prisma.user.create({
       data: {
-        tenantId: dto.tenantId,
+        tenantId,
         name: dto.name,
         email: dto.email,
         password: hashedPassword,
         role: dto.role,
-        permissions: dto.permissions || [],
+        permissions,
         isActive: dto.isActive ?? true,
       },
       select: {
@@ -93,8 +104,9 @@ export class UsersService {
     return user
   }
 
-  async findAll() {
+  async findAll(actor?: CurrentActor) {
     return this.prisma.user.findMany({
+      where: this.getClientTenantWhere(actor),
       orderBy: {
         createdAt: 'desc',
       },
@@ -118,10 +130,11 @@ export class UsersService {
     })
   }
 
-  async findOne(id: string) {
-    const user = await this.prisma.user.findUnique({
+  async findOne(id: string, actor?: CurrentActor) {
+    const user = await this.prisma.user.findFirst({
       where: {
         id,
+        ...this.getClientTenantWhere(actor),
       },
       select: {
         id: true,
@@ -143,23 +156,19 @@ export class UsersService {
     })
 
     if (!user) {
-      throw new NotFoundException(
-        'Usuário não encontrado.',
-      )
+      throw new NotFoundException('Usuário não encontrado.')
     }
 
     return user
   }
 
-  async update(
-    id: string,
-    dto: UpdateUserDto,
-    actor?: { userId?: string; role?: string; permissions?: string[] },
-  ) {
-    const currentUser = await this.findOne(id)
+  async update(id: string, dto: UpdateUserDto, actor?: CurrentActor) {
+    const currentUser = await this.findOne(id, actor)
 
     if (actor?.role === 'SUPPORT') {
-      const changedFields = Object.keys(dto).filter((key) => dto[key as keyof UpdateUserDto] !== undefined)
+      const changedFields = Object.keys(dto).filter(
+        (key) => dto[key as keyof UpdateUserDto] !== undefined,
+      )
       const canOnlyResetPassword =
         actor.permissions?.includes('RESET_PASSWORDS') &&
         changedFields.length === 1 &&
@@ -175,7 +184,21 @@ export class UsersService {
       }
     }
 
-    const data: any = {
+    if (actor?.role === UserRole.CLIENT_OWNER) {
+      if (!clientAssignableRoles.has(currentUser.role)) {
+        throw new ForbiddenException(
+          'Dono da loja pode administrar apenas usuarios do proprio tenant.',
+        )
+      }
+
+      if (dto.role) {
+        this.assertClientAssignableRole(dto.role)
+      }
+
+      this.resolveClientPermissions(dto.permissions, actor)
+    }
+
+    const data: Prisma.UserUncheckedUpdateInput = {
       name: dto.name,
       email: dto.email,
       role: dto.role,
@@ -184,10 +207,7 @@ export class UsersService {
     }
 
     if (dto.password) {
-      data.password = await bcrypt.hash(
-        dto.password,
-        10,
-      )
+      data.password = await bcrypt.hash(dto.password, 10)
     }
 
     const user = await this.prisma.user.update({
@@ -218,7 +238,10 @@ export class UsersService {
       actor,
       action,
       target: user.email,
-      level: action === 'Desativou usuario' ? AuditLogLevel.WARNING : AuditLogLevel.INFO,
+      level:
+        action === 'Desativou usuario'
+          ? AuditLogLevel.WARNING
+          : AuditLogLevel.INFO,
       metadata: {
         userId: user.id,
         changedFields: Object.keys(dto),
@@ -247,5 +270,64 @@ export class UsersService {
         id,
       },
     })
+  }
+
+  private resolveCreateTenantId(dto: CreateUserDto, actor?: CurrentActor) {
+    if (actor?.role === UserRole.CLIENT_OWNER) {
+      if (!actor.tenantId) {
+        throw new ForbiddenException(
+          'Tenant do usuario autenticado nao encontrado.',
+        )
+      }
+
+      return actor.tenantId
+    }
+
+    if (!dto.tenantId) {
+      throw new BadRequestException('Tenant e obrigatorio para criar usuario.')
+    }
+
+    return dto.tenantId
+  }
+
+  private resolveClientPermissions(
+    permissions: string[] | undefined,
+    actor?: CurrentActor,
+  ) {
+    if (actor?.role !== UserRole.CLIENT_OWNER) {
+      return permissions || []
+    }
+
+    if (permissions?.length) {
+      throw new ForbiddenException(
+        'Dono da loja nao pode atribuir permissoes administrativas.',
+      )
+    }
+
+    return []
+  }
+
+  private assertClientAssignableRole(role: UserRole) {
+    if (!clientAssignableRoles.has(role)) {
+      throw new ForbiddenException(
+        'Dono da loja nao pode atribuir funcoes administrativas da plataforma.',
+      )
+    }
+  }
+
+  private getClientTenantWhere(actor?: CurrentActor) {
+    if (actor?.role !== UserRole.CLIENT_OWNER) {
+      return {}
+    }
+
+    if (!actor.tenantId) {
+      throw new ForbiddenException(
+        'Tenant do usuario autenticado nao encontrado.',
+      )
+    }
+
+    return {
+      tenantId: actor.tenantId,
+    }
   }
 }

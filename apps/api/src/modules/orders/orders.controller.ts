@@ -9,6 +9,7 @@ import {
   Req,
   UseGuards,
 } from '@nestjs/common';
+import { UserRole } from '@prisma/client';
 
 import { OrdersService } from './orders.service';
 
@@ -16,9 +17,11 @@ import { UpdateOrderDto } from './dto/update-order.dto';
 
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
+import { Roles } from '../auth/decorators/roles.decorator';
 
 @Controller('orders')
 @UseGuards(JwtAuthGuard, RolesGuard)
+@Roles(UserRole.CLIENT_OWNER)
 export class OrdersController {
   constructor(private readonly ordersService: OrdersService) {}
 

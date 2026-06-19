@@ -20,32 +20,46 @@ import { RolesGuard } from '../auth/guards/roles.guard'
 import { Roles } from '../auth/decorators/roles.decorator'
 import { CurrentUser } from '../auth/decorators/current-user.decorator'
 
+type CurrentActor = {
+  userId?: string
+  tenantId?: string
+  role?: string
+  permissions?: string[]
+}
+
 @Controller('users')
 @UseGuards(JwtAuthGuard, RolesGuard)
 export class UsersController {
-  constructor(
-    private readonly usersService: UsersService,
-  ) {}
+  constructor(private readonly usersService: UsersService) {}
 
   @Post()
   @Roles('MASTER_OWNER', 'MASTER_ADMIN', 'SUPPORT', 'CLIENT_OWNER')
-  create(
-    @Body() dto: CreateUserDto,
-    @CurrentUser() user: { userId?: string; role?: string; permissions?: string[] },
-  ) {
+  create(@Body() dto: CreateUserDto, @CurrentUser() user: CurrentActor) {
     return this.usersService.create(dto, user)
   }
 
   @Get()
-  @Roles('MASTER_OWNER', 'MASTER_ADMIN', 'FINANCE_ADMIN', 'SUPPORT', 'CLIENT_OWNER')
-  findAll() {
-    return this.usersService.findAll()
+  @Roles(
+    'MASTER_OWNER',
+    'MASTER_ADMIN',
+    'FINANCE_ADMIN',
+    'SUPPORT',
+    'CLIENT_OWNER',
+  )
+  findAll(@CurrentUser() user: CurrentActor) {
+    return this.usersService.findAll(user)
   }
 
   @Get(':id')
-  @Roles('MASTER_OWNER', 'MASTER_ADMIN', 'FINANCE_ADMIN', 'SUPPORT', 'CLIENT_OWNER')
-  findOne(@Param('id') id: string) {
-    return this.usersService.findOne(id)
+  @Roles(
+    'MASTER_OWNER',
+    'MASTER_ADMIN',
+    'FINANCE_ADMIN',
+    'SUPPORT',
+    'CLIENT_OWNER',
+  )
+  findOne(@Param('id') id: string, @CurrentUser() user: CurrentActor) {
+    return this.usersService.findOne(id, user)
   }
 
   @Patch(':id')
@@ -53,17 +67,14 @@ export class UsersController {
   update(
     @Param('id') id: string,
     @Body() dto: UpdateUserDto,
-    @CurrentUser() user: { userId?: string; role?: string; permissions?: string[] },
+    @CurrentUser() user: CurrentActor,
   ) {
     return this.usersService.update(id, dto, user)
   }
 
   @Delete(':id')
   @Roles('MASTER_OWNER')
-  remove(
-    @Param('id') id: string,
-    @CurrentUser() user: { userId?: string },
-  ) {
+  remove(@Param('id') id: string, @CurrentUser() user: { userId?: string }) {
     return this.usersService.remove(id, user)
   }
 }
