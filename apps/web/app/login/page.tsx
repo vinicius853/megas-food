@@ -11,6 +11,7 @@ import logoImage from './imagens/megas-food-logo.png'
 import restaurantImage from './imagens/login-restaurante-bg.png'
 import { clearAuthSession } from '@/lib/auth-session'
 import type { TenantSegment } from '@/lib/segments/segment-types'
+import { getLoginErrorMessage } from './login-error'
 
 type LoginResponse = {
   accessToken: string
@@ -119,9 +120,7 @@ export default function LoginPage() {
 
       router.push('/dashboard')
     } catch (err) {
-      const message = err instanceof Error ? err.message : ''
-
-      setError(message || 'Email ou senha inválidos')
+      setError(getLoginErrorMessage(err))
     } finally {
       setLoading(false)
     }

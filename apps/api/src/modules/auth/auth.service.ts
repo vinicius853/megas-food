@@ -71,7 +71,6 @@ export class AuthService {
     const users = await this.prisma.user.findMany({
       where: {
         email: dto.email,
-        isActive: true,
       },
       include: {
         tenant: true,
@@ -79,19 +78,31 @@ export class AuthService {
     })
 
     if (users.length !== 1) {
-      throw new UnauthorizedException('Credenciais inválidas')
+      throw new UnauthorizedException('Email ou senha inválidos.')
     }
 
     const user = users[0]
 
     if (!user.tenant) {
-      throw new UnauthorizedException('Credenciais inválidas')
+      throw new UnauthorizedException('Email ou senha inválidos.')
+    }
+
+    if (!user.isActive) {
+      throw new UnauthorizedException(
+        'Sua conta está desativada. Entre em contato com o responsável pela loja ou com o suporte.',
+      )
+    }
+
+    if (!user.tenant.isActive) {
+      throw new UnauthorizedException(
+        'Esta loja está temporariamente desativada. Entre em contato com o suporte Megas Food.',
+      )
     }
 
     const passwordMatches = await bcrypt.compare(dto.password, user.password)
 
     if (!passwordMatches) {
-      throw new UnauthorizedException('Credenciais inválidas')
+      throw new UnauthorizedException('Email ou senha inválidos.')
     }
 
     await this.subscriptionAccessService.assertClientDashboardAccess(
