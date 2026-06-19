@@ -34,6 +34,7 @@ import {
   getBestSellers,
   getDeliverySummary,
   getOrderDisplayNumber,
+  getOrderItems,
   getValidOrders,
   hasCustomization,
   orderStatusLabels,
@@ -280,8 +281,8 @@ export default function PizzariaDashboardPage() {
                       {order.customerName || "Cliente não informado"}
                     </p>
                     <p className="mt-1 text-xs text-slate-500">
-                      {order.items.reduce(
-                        (total, item) => total + item.quantity,
+                      {getOrderItems(order).reduce(
+                        (total, item) => total + Number(item.quantity || 0),
                         0,
                       )}{" "}
                       itens no pedido

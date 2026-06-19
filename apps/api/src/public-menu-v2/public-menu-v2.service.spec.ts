@@ -493,6 +493,26 @@ describe('PublicMenuV2Service', () => {
     ]);
   });
 
+  it('retorna erro de contexto nao selecionado do PriceEngine', async () => {
+    mockTenant();
+    mockPriceResult(0, ['CONTEXT_OPTION_NOT_SELECTED']);
+
+    const request = priceRequest(['size-large', 'flavor-calabresa']);
+    request.selectedModifiers[1].dependsOnOptionId = 'size-small';
+
+    const result = await service.calculatePriceBySlug('tenant-slug', request);
+
+    expect(priceEngineService.calculate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        tenantId: 'tenant-1',
+        selectedModifiers: request.selectedModifiers,
+      }),
+    );
+    expect(result.validationErrors).toEqual([
+      expect.objectContaining({ code: 'CONTEXT_OPTION_NOT_SELECTED' }),
+    ]);
+  });
+
   it('retorna erro de grupo obrigatorio ausente do PriceEngine', async () => {
     mockTenant();
     mockPriceResult(40, ['REQUIRED_GROUP_MISSING']);

@@ -31,11 +31,20 @@ export function calculatePrice(
   const validationErrors: PriceEngineValidationError[] = [];
   const productQuantity = normalizeQuantity(quantity);
   const groupRules = getGroupRules(catalog);
+  const validSelectedOptionIds = getValidSelectedOptionIds(
+    catalog,
+    selectedModifiers,
+  );
   const selectedByGroup = new Map<string, PreparedSelection[]>();
   const appliedModifiers: AppliedModifier[] = [];
 
   for (const selected of selectedModifiers) {
-    const prepared = prepareSelection(catalog, selected, validationErrors);
+    const prepared = prepareSelection(
+      catalog,
+      selected,
+      validSelectedOptionIds,
+      validationErrors,
+    );
 
     if (!prepared) {
       continue;
@@ -128,9 +137,39 @@ function getGroupRules(catalog: PriceEngineCatalog) {
   });
 }
 
+function getValidSelectedOptionIds(
+  catalog: PriceEngineCatalog,
+  selectedModifiers: SelectedModifierInput[],
+) {
+  const validGroupIds = new Set(
+    catalog.productGroups.map(
+      (productGroup) => productGroup.modifierGroup.id,
+    ),
+  );
+  const validOptionIds = new Set<string>();
+
+  for (const selected of selectedModifiers) {
+    const productOption = catalog.productOptions.find(
+      (option) => option.modifierOptionId === selected.optionId,
+    );
+
+    if (
+      productOption &&
+      validGroupIds.has(productOption.modifierGroupId) &&
+      productOption.isActive &&
+      productOption.modifierOption.isActive
+    ) {
+      validOptionIds.add(productOption.modifierOptionId);
+    }
+  }
+
+  return validOptionIds;
+}
+
 function prepareSelection(
   catalog: PriceEngineCatalog,
   selected: SelectedModifierInput,
+  validSelectedOptionIds: Set<string>,
   validationErrors: PriceEngineValidationError[],
 ): PreparedSelection | null {
   const productOption = catalog.productOptions.find(
@@ -176,6 +215,7 @@ function prepareSelection(
     productOption,
     selected,
     group,
+    validSelectedOptionIds,
     validationErrors,
   );
 
@@ -193,15 +233,29 @@ function resolveOptionPrice(
   productOption: PriceEngineCatalog['productOptions'][number],
   selected: SelectedModifierInput,
   group: PriceEngineCatalog['productGroups'][number]['modifierGroup'],
+  validSelectedOptionIds: Set<string>,
   validationErrors: PriceEngineValidationError[],
 ) {
   if (selected.dependsOnOptionId) {
+    const isContextSelected = validSelectedOptionIds.has(
+      selected.dependsOnOptionId,
+    );
     const contextualPrice = catalog.optionPrices.find(
       (price) =>
         price.modifierOptionId === selected.optionId &&
         price.dependsOnOptionId === selected.dependsOnOptionId &&
         price.isActive !== false,
     );
+
+    if (!isContextSelected) {
+      validationErrors.push({
+        code: 'CONTEXT_OPTION_NOT_SELECTED',
+        message:
+          'A opcao de contexto precisa estar selecionada no mesmo item.',
+        groupCode: group.code,
+        optionId: selected.optionId,
+      });
+    }
 
     if (!contextualPrice) {
       validationErrors.push({
@@ -212,7 +266,7 @@ function resolveOptionPrice(
       });
     }
 
-    if (contextualPrice) {
+    if (isContextSelected && contextualPrice) {
       return toMoney(contextualPrice.price);
     }
   }

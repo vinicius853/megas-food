@@ -402,6 +402,10 @@ export function CheckoutModal({
               type: deliveryType === 'DELIVERY' ? 'DELIVERY' : 'TAKEAWAY',
               paymentType,
               deliveryFee,
+              deliveryZoneId:
+                deliveryType === 'DELIVERY'
+                  ? selectedDeliveryZone?.id
+                  : undefined,
               couponCode,
               notes: [
                 notes.trim(),

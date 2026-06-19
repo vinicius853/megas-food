@@ -67,6 +67,7 @@ export class PublicOrdersV2Service {
       throw new BadRequestException('O pedido precisa ter pelo menos 1 item.');
     }
 
+    const deliveryFee = await this.resolveDeliveryFee(tenantId, dto);
     const itemsData: any[] = [];
     let subtotal = 0;
 
@@ -137,7 +138,6 @@ export class PublicOrdersV2Service {
       });
     }
 
-    const deliveryFee = Number(dto.deliveryFee ?? 0);
     const totalBeforeDiscount = subtotal + deliveryFee;
     const couponCode = dto.couponCode?.trim();
     const coupon = couponCode
@@ -188,4 +188,96 @@ export class PublicOrdersV2Service {
 
     return order;
   }
+
+  private async resolveDeliveryFee(
+    tenantId: string,
+    dto: CreatePublicOrderV2Dto,
+  ) {
+    if (dto.type !== 'DELIVERY') {
+      return 0;
+    }
+
+    const tenant = await this.prisma.tenant.findUnique({
+      where: {
+        id: tenantId,
+      },
+      select: {
+        settings: true,
+      },
+    });
+
+    if (!tenant) {
+      throw new NotFoundException('Cardapio nao encontrado.');
+    }
+
+    const activeZones = getActiveDeliveryZones(tenant.settings);
+
+    if (activeZones.length === 0) {
+      return 0;
+    }
+
+    if (!dto.deliveryZoneId) {
+      throw new BadRequestException(
+        'Selecione uma zona de entrega valida.',
+      );
+    }
+
+    const selectedZone = activeZones.find(
+      (zone) => zone.id === dto.deliveryZoneId,
+    );
+
+    if (!selectedZone) {
+      throw new BadRequestException(
+        'Zona de entrega inexistente ou inativa.',
+      );
+    }
+
+    const deliveryFee = Number(selectedZone.fee);
+
+    if (!Number.isFinite(deliveryFee) || deliveryFee < 0) {
+      throw new BadRequestException(
+        'A zona de entrega possui uma taxa invalida.',
+      );
+    }
+
+    return deliveryFee;
+  }
+}
+
+type DeliveryZoneSetting = {
+  id: string;
+  fee: unknown;
+};
+
+function getActiveDeliveryZones(settings: unknown): DeliveryZoneSetting[] {
+  if (!isRecord(settings)) {
+    return [];
+  }
+
+  const delivery = settings.delivery;
+
+  if (!isRecord(delivery) || !Array.isArray(delivery.zones)) {
+    return [];
+  }
+
+  return delivery.zones.flatMap((zone) => {
+    if (
+      !isRecord(zone) ||
+      zone.isActive !== true ||
+      typeof zone.id !== 'string'
+    ) {
+      return [];
+    }
+
+    return [
+      {
+        id: zone.id,
+        fee: zone.fee,
+      },
+    ];
+  });
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
 }

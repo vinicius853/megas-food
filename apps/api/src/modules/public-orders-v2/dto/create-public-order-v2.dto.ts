@@ -102,6 +102,10 @@ export class CreatePublicOrderV2Dto {
 
   @IsOptional()
   @IsString()
+  deliveryZoneId?: string
+
+  @IsOptional()
+  @IsString()
   notes?: string
 
   @IsOptional()

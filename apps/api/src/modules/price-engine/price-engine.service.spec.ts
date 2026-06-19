@@ -65,6 +65,73 @@ describe('PriceEngineService', () => {
     expect(result.totalPrice).toBe(50);
   });
 
+  it('rejeita contexto existente no produto quando ele nao foi selecionado', async () => {
+    mockProduct(pizzaProduct());
+
+    const result = await service.calculate({
+      tenantId,
+      productId,
+      quantity: 1,
+      selectedModifiers: [
+        selected('pizza_size', 'size-large'),
+        selected('pizza_flavor', 'flavor-calabresa', 'size-small'),
+      ],
+    });
+
+    expect(result.validationErrors).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          code: 'CONTEXT_OPTION_NOT_SELECTED',
+          optionId: 'flavor-calabresa',
+        }),
+      ]),
+    );
+    expect(result.unitPrice).not.toBe(30);
+  });
+
+  it('rejeita tentativa de usar preco de contexto menor no item maior', async () => {
+    mockProduct(pizzaProduct());
+
+    const result = await service.calculate({
+      tenantId,
+      productId,
+      quantity: 1,
+      selectedModifiers: [
+        selected('pizza_size', 'size-large'),
+        selected('pizza_flavor', 'flavor-frango', 'size-small'),
+      ],
+    });
+
+    expect(result.validationErrors).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ code: 'CONTEXT_OPTION_NOT_SELECTED' }),
+      ]),
+    );
+    expect(result.unitPrice).not.toBe(35);
+  });
+
+  it('nao considera contexto selecionado quando a opcao de contexto e invalida', async () => {
+    mockProduct(pizzaProduct());
+
+    const result = await service.calculate({
+      tenantId,
+      productId,
+      quantity: 1,
+      selectedModifiers: [
+        selected('pizza_size', 'size-from-another-product'),
+        selected('pizza_flavor', 'flavor-calabresa', 'size-from-another-product'),
+      ],
+    });
+
+    expect(result.validationErrors).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ code: 'OPTION_NOT_ALLOWED' }),
+        expect.objectContaining({ code: 'CONTEXT_OPTION_NOT_SELECTED' }),
+        expect.objectContaining({ code: 'CONTEXTUAL_PRICE_NOT_FOUND' }),
+      ]),
+    );
+  });
+
   it('rejeita preco contextual inativo', async () => {
     const product = pizzaProduct();
     product.modifierOptionPrices = product.modifierOptionPrices.map((price) =>
@@ -273,6 +340,7 @@ function pizzaProduct(options: { inactiveBorder?: boolean } = {}) {
       group('pizza_border', ModifierPricingMode.ADDITIVE, 0, 1),
     ],
     modifierOptions: [
+      productOption('size-small', 'pizza_size', 0, true),
       productOption('size-large', 'pizza_size', 0, true),
       productOption('flavor-calabresa', 'pizza_flavor', 0, true),
       productOption('flavor-frango', 'pizza_flavor', 0, true),
@@ -287,7 +355,9 @@ function pizzaProduct(options: { inactiveBorder?: boolean } = {}) {
       ),
     ],
     modifierOptionPrices: [
+      optionPrice('flavor-calabresa', 'size-small', 30),
       optionPrice('flavor-calabresa', 'size-large', 50),
+      optionPrice('flavor-frango', 'size-small', 35),
       optionPrice('flavor-frango', 'size-large', 60),
       optionPrice('flavor-portuguesa', 'size-large', 65),
       optionPrice('flavor-marguerita', 'size-large', 55),

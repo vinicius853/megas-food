@@ -321,7 +321,7 @@ describe('PublicOrdersV2Service', () => {
   });
 
   it('preserva cupom e desconto no pedido V2', async () => {
-    mockTenant();
+    mockTenant(true, [deliveryZone('zone-centro', 5)]);
     mockProduct();
     mockPriceResult(40, [
       applied('Sabores', 'pizza_flavor', 'calabresa', 'HIGHEST_SELECTED', 40),
@@ -336,6 +336,7 @@ describe('PublicOrdersV2Service', () => {
       ...orderDto(['size-30', 'flavor-calabresa']),
       couponCode: 'PROMO10',
       deliveryFee: 5,
+      deliveryZoneId: 'zone-centro',
     });
 
     expect(couponsService.validateCoupon).toHaveBeenCalledWith(
@@ -358,6 +359,137 @@ describe('PublicOrdersV2Service', () => {
     expect(order.total).toBe(35);
   });
 
+  it('usa a taxa da zona ativa mesmo quando o cliente envia taxa zero', async () => {
+    mockTenant(true, [deliveryZone('zone-centro', 8)]);
+    mockProduct();
+    mockPriceResult(40, []);
+    mockOrderCreate();
+
+    await service.createByTenantSlug('tenant-slug', {
+      ...orderDto(['size-30']),
+      deliveryFee: 0,
+      deliveryZoneId: 'zone-centro',
+    });
+
+    expect(prisma.order.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          deliveryFee: 8,
+          totalBeforeDiscount: 48,
+          total: 48,
+        }),
+      }),
+    );
+  });
+
+  it('ignora taxa manipulada menor que a taxa da zona ativa', async () => {
+    mockTenant(true, [deliveryZone('zone-centro', 12)]);
+    mockProduct();
+    mockPriceResult(40, []);
+    mockOrderCreate();
+
+    await service.createByTenantSlug('tenant-slug', {
+      ...orderDto(['size-30']),
+      deliveryFee: 1,
+      deliveryZoneId: 'zone-centro',
+    });
+
+    expect(prisma.order.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          deliveryFee: 12,
+          total: 52,
+        }),
+      }),
+    );
+  });
+
+  it('rejeita DELIVERY sem zona quando existem zonas ativas', async () => {
+    mockTenant(true, [deliveryZone('zone-centro', 8)]);
+
+    await expect(
+      service.createByTenantSlug('tenant-slug', orderDto(['size-30'])),
+    ).rejects.toBeInstanceOf(BadRequestException);
+
+    expect(priceEngineService.calculate).not.toHaveBeenCalled();
+    expect(couponsService.validateCoupon).not.toHaveBeenCalled();
+    expect(prisma.order.create).not.toHaveBeenCalled();
+  });
+
+  it('rejeita deliveryZoneId inexistente no tenant', async () => {
+    mockTenant(true, [deliveryZone('zone-centro', 8)]);
+
+    await expect(
+      service.createByTenantSlug('tenant-slug', {
+        ...orderDto(['size-30']),
+        deliveryZoneId: 'zone-outro-tenant',
+      }),
+    ).rejects.toBeInstanceOf(BadRequestException);
+
+    expect(prisma.order.create).not.toHaveBeenCalled();
+  });
+
+  it('rejeita deliveryZoneId de zona inativa', async () => {
+    mockTenant(true, [
+      deliveryZone('zone-centro', 8),
+      deliveryZone('zone-inativa', 4, false),
+    ]);
+
+    await expect(
+      service.createByTenantSlug('tenant-slug', {
+        ...orderDto(['size-30']),
+        deliveryZoneId: 'zone-inativa',
+      }),
+    ).rejects.toBeInstanceOf(BadRequestException);
+
+    expect(prisma.order.create).not.toHaveBeenCalled();
+  });
+
+  it('forca taxa zero para TAKEAWAY mesmo quando o cliente envia taxa alta', async () => {
+    mockTenant(true, [deliveryZone('zone-centro', 8)]);
+    mockProduct();
+    mockPriceResult(40, []);
+    mockOrderCreate();
+
+    await service.createByTenantSlug('tenant-slug', {
+      ...orderDto(['size-30']),
+      type: 'TAKEAWAY',
+      deliveryFee: 999,
+      deliveryZoneId: 'zone-centro',
+    });
+
+    expect(prisma.order.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          deliveryFee: 0,
+          totalBeforeDiscount: 40,
+          total: 40,
+        }),
+      }),
+    );
+  });
+
+  it('mantem taxa zero para DELIVERY quando nao existem zonas ativas', async () => {
+    mockTenant(true, [deliveryZone('zone-inativa', 8, false)]);
+    mockProduct();
+    mockPriceResult(40, []);
+    mockOrderCreate();
+
+    await service.createByTenantSlug('tenant-slug', {
+      ...orderDto(['size-30']),
+      deliveryFee: 999,
+    });
+
+    expect(prisma.order.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          deliveryFee: 0,
+          total: 40,
+        }),
+      }),
+    );
+  });
+
   it('falha quando PriceEngine retorna opcao invalida', async () => {
     mockTenant();
     mockProduct();
@@ -368,6 +500,23 @@ describe('PublicOrdersV2Service', () => {
     ).rejects.toBeInstanceOf(BadRequestException);
 
     expect(prisma.order.create).not.toHaveBeenCalled();
+  });
+
+  it('nao persiste pedido quando PriceEngine rejeita contexto nao selecionado', async () => {
+    mockTenant();
+    mockProduct();
+    mockPriceResult(0, [], 0, ['CONTEXT_OPTION_NOT_SELECTED']);
+
+    await expect(
+      service.createByTenantSlug(
+        'tenant-slug',
+        orderDto(['size-large', 'flavor-calabresa']),
+      ),
+    ).rejects.toBeInstanceOf(BadRequestException);
+
+    expect(prisma.order.create).not.toHaveBeenCalled();
+    expect(ordersGateway.emitOrderCreated).not.toHaveBeenCalled();
+    expect(whatsappNotifications.enqueueOrderEvent).not.toHaveBeenCalled();
   });
 
   it('falha quando PriceEngine retorna grupo obrigatorio ausente', async () => {
@@ -441,10 +590,15 @@ describe('PublicOrdersV2Service', () => {
     );
   });
 
-  function mockTenant(isActive = true) {
+  function mockTenant(isActive = true, zones: any[] = []) {
     prisma.tenant.findUnique.mockResolvedValue({
       id: 'tenant-1',
       isActive,
+      settings: {
+        delivery: {
+          zones,
+        },
+      },
     });
   }
 
@@ -546,5 +700,19 @@ function applied(
     dependsOnOptionId,
     unitPriceDelta: totalDelta,
     totalDelta,
+  };
+}
+
+function deliveryZone(
+  id: string,
+  fee: number,
+  isActive = true,
+) {
+  return {
+    id,
+    name: id,
+    fee,
+    eta: '30-45 min',
+    isActive,
   };
 }

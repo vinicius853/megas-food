@@ -11,6 +11,8 @@ function run() {
   validatesBorder()
   validatesQuantityTwo()
   validatesFixedProduct()
+  validatesDeliveryZone()
+  validatesTakeawayWithoutDeliveryZone()
 }
 
 function validatesWholePizza() {
@@ -93,13 +95,37 @@ function validatesFixedProduct() {
   assert.deepEqual(payload.items[0].selectedModifiers, [])
 }
 
-function buildPayload(items: CartItem[]) {
+function validatesDeliveryZone() {
+  const payload = buildPayload([], {
+    type: 'DELIVERY',
+    deliveryZoneId: 'zone-centro',
+  })
+
+  assert.equal(payload.deliveryZoneId, 'zone-centro')
+}
+
+function validatesTakeawayWithoutDeliveryZone() {
+  const payload = buildPayload([], {
+    type: 'TAKEAWAY',
+  })
+
+  assert.equal(payload.deliveryZoneId, undefined)
+}
+
+function buildPayload(
+  items: CartItem[],
+  overrides: {
+    type?: 'DELIVERY' | 'TAKEAWAY'
+    deliveryZoneId?: string
+  } = {},
+) {
   return buildPublicOrderV2Payload({
     customerName: 'Cliente',
     customerPhone: '11999999999',
-    type: 'DELIVERY',
+    type: overrides.type ?? 'DELIVERY',
     paymentType: 'PIX',
     deliveryFee: 5,
+    deliveryZoneId: overrides.deliveryZoneId,
     couponCode: 'PROMO10',
     notes: 'Obs',
     privacyAccepted: true,

@@ -6,6 +6,7 @@ type PublicOrderV2PayloadInput = {
   type: 'DELIVERY' | 'TAKEAWAY'
   paymentType?: 'CASH' | 'CREDIT_CARD' | 'PIX'
   deliveryFee: number
+  deliveryZoneId?: string
   couponCode?: string
   notes?: string
   privacyAccepted: boolean
@@ -37,6 +38,8 @@ export function buildPublicOrderV2Payload(input: PublicOrderV2PayloadInput) {
     type: input.type,
     paymentType: input.paymentType,
     deliveryFee: input.deliveryFee,
+    deliveryZoneId:
+      input.type === 'DELIVERY' ? input.deliveryZoneId : undefined,
     couponCode: input.couponCode,
     notes: input.notes,
     privacyAccepted: input.privacyAccepted,

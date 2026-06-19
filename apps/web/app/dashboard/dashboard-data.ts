@@ -15,11 +15,13 @@ export type DashboardOrder = {
   status: DashboardOrderStatus;
   total: string | number;
   createdAt: string;
-  items: Array<{
-    id: string;
-    name: string;
-    quantity: number;
-  }>;
+  items?: DashboardOrderItem[] | null;
+};
+
+export type DashboardOrderItem = {
+  id: string;
+  name: string;
+  quantity: number;
 };
 
 export type DashboardDeliveryZone = {
@@ -94,11 +96,14 @@ export function getBestSellers(orders: DashboardOrder[]) {
   const totals = new Map<string, number>();
 
   getValidOrders(orders).forEach((order) => {
-    order.items.forEach((item) => {
-      const name = item.name.trim();
+    getOrderItems(order).forEach((item) => {
+      const name = typeof item.name === "string" ? item.name.trim() : "";
       if (!name) return;
 
-      totals.set(name, (totals.get(name) ?? 0) + item.quantity);
+      const quantity = toNumber(item.quantity);
+      if (quantity <= 0) return;
+
+      totals.set(name, (totals.get(name) ?? 0) + quantity);
     });
   });
 
@@ -106,6 +111,16 @@ export function getBestSellers(orders: DashboardOrder[]) {
     .map(([name, quantity]) => ({ name, quantity }))
     .sort((first, second) => second.quantity - first.quantity)
     .slice(0, 5);
+}
+
+export function getOrderItems(order: DashboardOrder) {
+  return Array.isArray(order.items)
+    ? order.items.filter(isDashboardOrderItem)
+    : [];
+}
+
+function isDashboardOrderItem(value: unknown): value is DashboardOrderItem {
+  return Boolean(value) && typeof value === "object";
 }
 
 export function getDeliverySummary(settings: DashboardDeliverySettings | null) {
