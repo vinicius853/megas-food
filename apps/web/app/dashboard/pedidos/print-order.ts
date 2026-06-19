@@ -7,7 +7,7 @@ import {
   type NormalizedOrderItemModifier,
 } from "./order-item-display";
 
-type PrintPaperSize = "58mm" | "80mm";
+export type PrintPaperSize = "58mm" | "80mm";
 type PrintMode = "customer" | "kitchen";
 
 type PrintOrderOptions = {
@@ -63,10 +63,7 @@ function shortOrderNumber(order: any) {
 
 function getStoreName(order: any) {
   return (
-    order.tenant?.name ??
-    order.tenantName ??
-    order.storeName ??
-    "MEGAS FOOD"
+    order.tenant?.name ?? order.tenantName ?? order.storeName ?? "MEGAS FOOD"
   );
 }
 
@@ -283,10 +280,7 @@ function buildItemHtml(item: any, mode: PrintMode) {
       ${
         showPrice
           ? `
-            <div class="item-row">
-              <span></span>
-              <strong>${formatMoney(item.total)}</strong>
-            </div>
+            <div class="item-price">${formatMoney(item.total)}</div>
           `
           : ""
       }
@@ -328,7 +322,6 @@ function buildAddressHtml(
   return `
     <div class="dash"></div>
     <div class="section-title">ENDERECO</div>
-    <div class="spacer"></div>
     ${address.streetLine ? `<p>${escapeHtml(address.streetLine)}</p>` : ""}
     ${address.neighborhood ? `<p>${escapeHtml(address.neighborhood)}</p>` : ""}
     ${address.cityUf ? `<p>${escapeHtml(address.cityUf)}</p>` : ""}
@@ -369,6 +362,7 @@ export function buildPrintHtml(
 ) {
   const isKitchen = options.mode === "kitchen";
   const paperWidth = options.paperSize === "58mm" ? "58mm" : "80mm";
+  const receiptWidth = options.paperSize === "58mm" ? "50mm" : "74mm";
   const parsedNotes = parseNotes(order.notes);
   const orderType =
     typeLabels[order.type] ?? String(order.type ?? "").toUpperCase();
@@ -376,30 +370,41 @@ export function buildPrintHtml(
   return `
     <html>
       <head>
+        <meta charset="utf-8">
         <title>${isKitchen ? "Comanda cozinha" : "Comprovante"}</title>
 
         <style>
           @page {
-            size: ${paperWidth} auto;
+            size: ${paperWidth};
             margin: 0;
           }
 
           * {
             box-sizing: border-box;
+            overflow-wrap: anywhere;
+            word-break: break-word;
           }
 
+          html,
           body {
-            width: ${paperWidth};
+            width: 100%;
             margin: 0;
-            padding: ${options.paperSize === "58mm" ? "5px" : "7px"};
+            padding: 0;
             color: #000;
             background: #fff;
-            font-family: Arial, Helvetica, sans-serif;
-            font-size: ${options.paperSize === "58mm" ? "11px" : "13px"};
+            font-family: "Courier New", Consolas, monospace;
+            font-size: ${options.paperSize === "58mm" ? "10px" : "12px"};
             font-weight: 600;
-            line-height: 1.24;
+            line-height: 1.4;
             -webkit-print-color-adjust: exact;
             print-color-adjust: exact;
+          }
+
+          .receipt {
+            width: ${receiptWidth};
+            max-width: ${receiptWidth};
+            margin: 0 auto;
+            padding: ${options.paperSize === "58mm" ? "2mm 0" : "2.5mm 0"};
           }
 
           h1, h2, h3, p {
@@ -412,11 +417,11 @@ export function buildPrintHtml(
           }
 
           .store {
-            font-size: ${options.paperSize === "58mm" ? "13px" : "16px"};
+            font-size: ${options.paperSize === "58mm" ? "12px" : "15px"};
             font-weight: 700;
             text-transform: uppercase;
             letter-spacing: 0;
-            line-height: 1.15;
+            line-height: 1.3;
           }
 
           .dash {
@@ -434,27 +439,23 @@ export function buildPrintHtml(
             padding: 3px 0;
             border-top: 1px dashed #000;
             border-bottom: 1px dashed #000;
-            font-size: ${options.paperSize === "58mm" ? "16px" : "20px"};
+            font-size: ${options.paperSize === "58mm" ? "15px" : "18px"};
             font-weight: 700;
+            line-height: 1.3;
             text-align: center;
           }
 
           .section-title {
-            margin-bottom: 2px;
+            margin-bottom: 4px;
             font-size: ${options.paperSize === "58mm" ? "11px" : "13px"};
             font-weight: 700;
             text-transform: uppercase;
-          }
-
-          .spacer {
-            height: 2px;
           }
 
           .item {
             margin-bottom: 6px;
             padding-bottom: 5px;
             border-bottom: 1px dashed #000;
-            break-inside: avoid;
           }
 
           .item:last-child {
@@ -462,25 +463,17 @@ export function buildPrintHtml(
           }
 
           .item-head {
-            font-size: ${options.paperSize === "58mm" ? "12px" : "14px"};
+            font-size: ${options.paperSize === "58mm" ? "11px" : "13px"};
             font-weight: 700;
+            line-height: 1.35;
           }
 
-          .item-row {
-            display: flex;
-            align-items: flex-start;
-            justify-content: space-between;
-            gap: 8px;
-            margin-top: 3px;
-          }
-
-          .item-row span {
-            min-width: 0;
-          }
-
-          .item-row strong {
-            flex-shrink: 0;
+          .item-price {
+            width: 100%;
+            margin-top: 2px;
+            padding-right: 1mm;
             font-weight: 700;
+            line-height: 1.35;
             text-align: right;
           }
 
@@ -524,11 +517,12 @@ export function buildPrintHtml(
 
           .total-value {
             margin-top: 3px;
-            padding: 3px 0;
+            padding: 3px 1mm 3px 0;
             border-top: 1px solid #000;
             border-bottom: 1px solid #000;
-            font-size: ${options.paperSize === "58mm" ? "17px" : "21px"};
+            font-size: ${options.paperSize === "58mm" ? "16px" : "19px"};
             font-weight: 700;
+            line-height: 1.3;
             text-align: right;
           }
 
@@ -540,60 +534,60 @@ export function buildPrintHtml(
           }
 
           @media print {
-            html, body {
-              width: ${paperWidth};
+            html,
+            body {
+              width: 100%;
             }
           }
         </style>
       </head>
 
       <body>
-        <div class="center">
-          <div class="store">${escapeHtml(getStoreName(order))}</div>
-        </div>
+        <main class="receipt receipt-${options.paperSize}">
+          <div class="center">
+            <div class="store">${escapeHtml(getStoreName(order))}</div>
+          </div>
 
-        <div class="order-number">
-          ${isKitchen ? "COMANDA " : "PEDIDO "}${escapeHtml(shortOrderNumber(order))}
-        </div>
+          <div class="order-number">
+            ${isKitchen ? "COMANDA " : "PEDIDO "}${escapeHtml(shortOrderNumber(order))}
+          </div>
 
-        <p>Data/hora: ${escapeHtml(formatDateTime(order.createdAt))}</p>
-        <p>${escapeHtml(orderType)}</p>
+          <p>Data/hora: ${escapeHtml(formatDateTime(order.createdAt))}</p>
+          <p>${escapeHtml(orderType)}</p>
 
-        <div class="dash"></div>
-        <p>Cliente: ${escapeHtml(cleanText(order.customerName).toUpperCase() || "NAO INFORMADO")}</p>
-        ${
-          !isKitchen
-            ? `<p>Telefone: ${escapeHtml(order.customerPhone || "NAO INFORMADO")}</p>`
-            : ""
-        }
+          <div class="dash"></div>
+          <p>Cliente: ${escapeHtml(cleanText(order.customerName).toUpperCase() || "NAO INFORMADO")}</p>
+          ${
+            !isKitchen
+              ? `<p>Telefone: ${escapeHtml(order.customerPhone || "NAO INFORMADO")}</p>`
+              : ""
+          }
 
-        ${!isKitchen ? buildAddressHtml(order, parsedNotes) : ""}
+          ${!isKitchen ? buildAddressHtml(order, parsedNotes) : ""}
 
-        <div class="dash"></div>
-        <div class="section-title">ITENS</div>
-        <div class="spacer"></div>
+          <div class="dash"></div>
+          <div class="section-title">ITENS</div>
 
-        ${buildItemsHtml(order, options.mode)}
+          ${buildItemsHtml(order, options.mode)}
 
-        ${
-          parsedNotes.general.length
-            ? `
+          ${
+            parsedNotes.general.length
+              ? `
               <div class="dash"></div>
               <div class="section-title">OBSERVACOES</div>
-              <div class="spacer"></div>
               ${parsedNotes.general
                 .map(
                   (line: string) =>
                     `<p class="note-line">${escapeHtml(line)}</p>`,
                 )
                 .join("")}
-            `
-            : ""
-        }
+              `
+              : ""
+          }
 
-        ${
-          !isKitchen
-            ? `
+          ${
+            !isKitchen
+              ? `
               <div class="dash"></div>
               ${
                 order.couponCode || parsedNotes.couponCode
@@ -622,14 +616,15 @@ export function buildPrintHtml(
               <div class="footer">
                 <div>Sistema Megas Food</div>
               </div>
-            `
-            : `
+              `
+              : `
               <div class="footer">
                 <div>Conferir itens antes de finalizar</div>
                 <div>Sistema Megas Food</div>
               </div>
-            `
-        }
+              `
+          }
+        </main>
       </body>
     </html>
   `;

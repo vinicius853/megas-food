@@ -2,17 +2,65 @@ import assert from "node:assert/strict";
 
 import { buildPrintHtml } from "./print-order";
 
-const printOptions = {
+const printOptions80 = {
   paperSize: "80mm" as const,
   mode: "customer" as const,
   autoClose: false,
 };
 
+const printOptions58 = {
+  ...printOptions80,
+  paperSize: "58mm" as const,
+};
+
 function run() {
+  validatesPaperProfiles();
+  validatesSimpleOrder();
   validatesGenericWholePizza();
   validatesGenericHalfAndHalf();
   validatesGenericPizzaWithBorder();
   validatesGenericBurger();
+  validatesPizzaWithExtras();
+  validatesDrink();
+  validatesLongTextAndPriceStructure();
+}
+
+function validatesPaperProfiles() {
+  const html80 = buildPrintHtml(baseOrder([genericItem([])]), printOptions80);
+  const html58 = buildPrintHtml(baseOrder([genericItem([])]), printOptions58);
+
+  assert.match(html80, /size: 80mm;/);
+  assert.match(html80, /width: 74mm;/);
+  assert.match(html80, /receipt-80mm/);
+  assert.doesNotMatch(html80, /80mm auto/);
+
+  assert.match(html58, /size: 58mm;/);
+  assert.match(html58, /width: 50mm;/);
+  assert.match(html58, /receipt-58mm/);
+  assert.doesNotMatch(html58, /58mm auto/);
+
+  for (const html of [html80, html58]) {
+    assert.match(html, /Courier New/);
+    assert.match(html, /line-height: 1\.4/);
+    assert.match(html, /overflow-wrap: anywhere/);
+    assert.match(html, /word-break: break-word/);
+    assert.doesNotMatch(html, /overflow:\s*hidden/);
+    assert.doesNotMatch(html, /(?:^|\n)\s*transform:/);
+    assert.doesNotMatch(html, /(?:^|\n)\s*zoom:/);
+    assert.doesNotMatch(html, /(?:^|\n)\s*display:\s*(flex|grid)/);
+    assert.doesNotMatch(html, /(?:^|\n)\s*break-inside:\s*avoid/);
+    assert.doesNotMatch(html, /(?:^|\n)\s*height:/);
+  }
+}
+
+function validatesSimpleOrder() {
+  const html = buildPrintHtml(
+    baseOrder([genericItem([], "Marmita executiva")]),
+    printOptions80,
+  );
+
+  assert.match(html, /Marmita executiva/);
+  assert.match(html, /class="item-price">R\$\s*48,00/);
 }
 
 function validatesGenericWholePizza() {
@@ -23,7 +71,7 @@ function validatesGenericWholePizza() {
         modifier("flavor", "Sabores", "pizza_flavor", "calabresa", 40),
       ]),
     ]),
-    printOptions,
+    printOptions80,
   );
 
   assert.match(html, /Pizza calabresa/);
@@ -42,7 +90,7 @@ function validatesGenericHalfAndHalf() {
         modifier("flavor-2", "Sabores", "pizza_flavor", "mussarela", 0, 0.5),
       ]),
     ]),
-    printOptions,
+    printOptions80,
   );
 
   assert.match(html, /- 1\/2 calabresa/);
@@ -59,7 +107,7 @@ function validatesGenericPizzaWithBorder() {
         modifier("border", "Borda", "pizza_border", "catupiry", 8),
       ]),
     ]),
-    printOptions,
+    printOptions80,
   );
 
   assert.match(html, /Borda:/);
@@ -78,7 +126,7 @@ function validatesGenericBurger() {
         "Hamburguer artesanal",
       ),
     ]),
-    printOptions,
+    printOptions80,
   );
 
   assert.match(html, /Hamburguer artesanal/);
@@ -88,6 +136,56 @@ function validatesGenericBurger() {
   assert.match(html, /- Cheddar \(\+ R\$\s*3,00\)/);
   assert.match(html, /Extras:/);
   assert.match(html, /- Bacon \(\+ R\$\s*5,00\)/);
+}
+
+function validatesPizzaWithExtras() {
+  const item = genericItem(
+    [
+      modifier("size", "Tamanho", "pizza_size", "35cm", 0),
+      modifier("flavor", "Sabores", "pizza_flavor", "Portuguesa", 45),
+      modifier("border", "Borda", "pizza_border", "Catupiry", 8),
+    ],
+    "Pizza portuguesa especial",
+  );
+  item.notes = "Adicionais: Bacon, Cebola caramelizada";
+
+  const html = buildPrintHtml(baseOrder([item]), printOptions58);
+
+  assert.match(html, /Pizza Portuguesa/);
+  assert.match(html, /Borda:/);
+  assert.match(html, /Extras:/);
+  assert.match(html, /Bacon/);
+  assert.match(html, /Cebola caramelizada/);
+}
+
+function validatesDrink() {
+  const html = buildPrintHtml(
+    baseOrder([genericItem([], "Refrigerante lata 350ml")]),
+    printOptions58,
+  );
+
+  assert.match(html, /Refrigerante lata 350ml/);
+}
+
+function validatesLongTextAndPriceStructure() {
+  const order = baseOrder([
+    genericItem(
+      [],
+      "Produto com nome muito longo que precisa quebrar sem ultrapassar a largura util do comprovante",
+    ),
+  ]);
+  order.customerName =
+    "Cliente com nome muito longo para validar quebra segura no papel termico";
+  order.notes =
+    "Observacao: texto muito longo sem risco de corte horizontal ou perda de conteudo";
+  order.total = 123456.78;
+
+  const html = buildPrintHtml(order, printOptions58);
+
+  assert.match(html, /class="receipt receipt-58mm"/);
+  assert.match(html, /class="item-price">R\$\s*48,00/);
+  assert.match(html, /class="total-value">R\$\s*123\.456,78/);
+  assert.match(html, /padding-right: 1mm/);
 }
 
 function baseOrder(items: any[]) {

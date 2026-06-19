@@ -1,3 +1,6 @@
+'use client'
+
+import { useState } from 'react'
 import { X } from 'lucide-react'
 
 import { Badge } from '@/components/ui/badge'
@@ -68,6 +71,7 @@ export function OrderModal({
   typeLabels,
 }: OrderModalProps) {
   const hasDoubleStatusActions = order.status === 'PENDING'
+  const [printPaperSize, setPrintPaperSize] = useState<'80mm' | '58mm'>('80mm')
 
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 p-0 backdrop-blur-sm sm:p-4 md:items-center">
@@ -196,13 +200,36 @@ export function OrderModal({
                 })}
               </div>
 
-              <Button
-                variant="outline"
-                onClick={() => printOrder(order)}
-                className="w-full sm:w-auto"
-              >
-                Imprimir
-              </Button>
+              <div className="grid grid-cols-[auto_1fr] items-center gap-2 sm:flex">
+                <label
+                  htmlFor="print-paper-size"
+                  className="text-xs font-semibold text-slate-600"
+                >
+                  Papel
+                </label>
+                <select
+                  id="print-paper-size"
+                  value={printPaperSize}
+                  onChange={(event) =>
+                    setPrintPaperSize(event.target.value as '80mm' | '58mm')
+                  }
+                  className="h-10 rounded-xl border border-slate-300 bg-white px-3 text-sm font-semibold text-slate-700 outline-none transition focus:border-slate-500"
+                  aria-label="Tamanho do papel da impressora"
+                >
+                  <option value="80mm">80 mm</option>
+                  <option value="58mm">58 mm</option>
+                </select>
+
+                <Button
+                  variant="outline"
+                  onClick={() =>
+                    printOrder(order, { paperSize: printPaperSize })
+                  }
+                  className="col-span-2 w-full sm:w-auto"
+                >
+                  Imprimir
+                </Button>
+              </div>
             </div>
           </div>
         </div>
