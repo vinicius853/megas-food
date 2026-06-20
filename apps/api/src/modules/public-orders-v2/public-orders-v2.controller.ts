@@ -1,4 +1,5 @@
-import { Body, Controller, Param, Post, Req } from '@nestjs/common';
+import { Body, Controller, Param, Post, Req, UseGuards } from '@nestjs/common';
+import { Throttle, ThrottlerGuard } from '@nestjs/throttler';
 import type { Request } from 'express';
 
 import { CreatePublicOrderV2Dto } from './dto/create-public-order-v2.dto';
@@ -9,6 +10,8 @@ import { PublicOrdersV2Service } from './public-orders-v2.service';
 export class PublicOrdersV2Controller {
   constructor(private readonly publicOrdersV2Service: PublicOrdersV2Service) {}
 
+  @UseGuards(ThrottlerGuard)
+  @Throttle({ default: { limit: 10, ttl: 60_000 } })
   @Post(':tenantSlug')
   create(
     @Param('tenantSlug') tenantSlug: string,

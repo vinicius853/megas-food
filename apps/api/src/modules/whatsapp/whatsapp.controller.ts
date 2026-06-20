@@ -10,6 +10,7 @@ import {
   Req,
   UseGuards,
 } from '@nestjs/common';
+import { Throttle, ThrottlerGuard } from '@nestjs/throttler';
 import { UserRole, WhatsAppEventType } from '@prisma/client';
 
 import { Roles } from '../auth/decorators/roles.decorator';
@@ -41,9 +42,10 @@ export class WhatsAppController {
     return this.connections.updateSettings(req.user.tenantId, dto);
   }
 
+  @UseGuards(ThrottlerGuard)
+  @Throttle({ default: { limit: 3, ttl: 600_000 } })
   @Post('test')
   test(@Req() req: any, @Body() dto: TestWhatsAppDto) {
-    // TODO(security): aplicar throttle por usuario/tenant quando houver infraestrutura compartilhada.
     return this.notifications.enqueueTest(req.user.tenantId, dto);
   }
 

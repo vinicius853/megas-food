@@ -1,51 +1,52 @@
-import {
-  Body,
-  Controller,
-  Get,
-  Post,
-  UseGuards,
-} from '@nestjs/common'
-import { UserRole } from '@prisma/client'
+import { Body, Controller, Get, Post, UseGuards } from '@nestjs/common';
+import { Throttle, ThrottlerGuard } from '@nestjs/throttler';
+import { UserRole } from '@prisma/client';
 
-import { AuthService } from './auth.service'
+import { AuthService } from './auth.service';
 
-import { RegisterDto } from './dto/register.dto'
-import { LoginDto } from './dto/login.dto'
+import { RegisterDto } from './dto/register.dto';
+import { LoginDto } from './dto/login.dto';
+import { VerifyPasswordDto } from './dto/verify-password.dto';
 
-import { JwtAuthGuard } from './guards/jwt-auth.guard'
-import { RolesGuard } from './guards/roles.guard'
+import { JwtAuthGuard } from './guards/jwt-auth.guard';
+import { RolesGuard } from './guards/roles.guard';
 
-import { CurrentUser } from './decorators/current-user.decorator'
-import { CurrentTenant } from './decorators/current-tenant.decorator'
-import { Roles } from './decorators/roles.decorator'
+import { CurrentUser } from './decorators/current-user.decorator';
+import { CurrentTenant } from './decorators/current-tenant.decorator';
+import { Roles } from './decorators/roles.decorator';
 
 @Controller('auth')
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
+  @UseGuards(ThrottlerGuard)
+  @Throttle({ default: { limit: 3, ttl: 3_600_000 } })
   @Post('register')
   async register(@Body() dto: RegisterDto) {
-    return this.authService.register(dto)
+    return this.authService.register(dto);
   }
 
+  @UseGuards(ThrottlerGuard)
+  @Throttle({ default: { limit: 5, ttl: 60_000 } })
   @Post('login')
   async login(@Body() dto: LoginDto) {
-    return this.authService.login(dto)
+    return this.authService.login(dto);
   }
 
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, ThrottlerGuard)
+  @Throttle({ default: { limit: 5, ttl: 60_000 } })
   @Post('verify-password')
   async verifyPassword(
     @CurrentUser() user: { userId: string },
-    @Body() dto: { password?: string },
+    @Body() dto: VerifyPasswordDto,
   ) {
-    return this.authService.verifyPassword(user.userId, dto.password || '')
+    return this.authService.verifyPassword(user.userId, dto.password || '');
   }
 
   @UseGuards(JwtAuthGuard)
   @Get('me')
   async me(@CurrentUser() user: any) {
-    return user
+    return user;
   }
 
   @UseGuards(JwtAuthGuard)
@@ -53,7 +54,7 @@ export class AuthController {
   async tenantTest(@CurrentTenant() tenantId: string) {
     return {
       tenantId,
-    }
+    };
   }
 
   @UseGuards(JwtAuthGuard, RolesGuard)
@@ -63,6 +64,6 @@ export class AuthController {
     return {
       message: 'Acesso permitido para dono da pizzaria',
       user,
-    }
+    };
   }
 }
