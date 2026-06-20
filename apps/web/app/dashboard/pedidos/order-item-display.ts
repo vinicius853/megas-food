@@ -62,6 +62,37 @@ export function normalizeOrderItemForDisplay(
   };
 }
 
+export function getDashboardOrderItemName(
+  normalized: NormalizedOrderItemForDisplay,
+) {
+  const sizeGroup = normalized.groups.find((group) =>
+    isGroupType(group, ["size", "sizes", "tamanho", "tamanhos"]),
+  );
+  const flavorGroup = normalized.groups.find((group) =>
+    isGroupType(group, ["flavor", "flavors", "sabor", "sabores"]),
+  );
+  const sizeName = sizeGroup?.options[0]?.optionName?.trim();
+  const flavorCount = flavorGroup?.options.length ?? 0;
+
+  if (!sizeName || flavorCount === 0) {
+    return normalized.name;
+  }
+
+  return `Pizza ${sizeName}${
+    flavorCount > 1 ? ` (${flavorCount} Sabores)` : ""
+  }`;
+}
+
+function isGroupType(
+  group: NormalizedOrderItemForDisplay["groups"][number],
+  terms: string[],
+) {
+  const codeParts = normalizeToken(group.groupCode).split("_");
+  const name = normalizeToken(group.groupName);
+
+  return codeParts.some((part) => terms.includes(part)) || terms.includes(name);
+}
+
 function normalizeModifiers(modifiers: OrderItemModifier[]) {
   return [...modifiers]
     .sort(
@@ -111,6 +142,14 @@ function groupModifiers(modifiers: NormalizedOrderItemModifier[]) {
 
 function cleanText(value?: string | number | null) {
   return String(value ?? "").trim();
+}
+
+function normalizeToken(value?: string | null) {
+  return String(value ?? "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .trim()
+    .toLowerCase();
 }
 
 function toOptionalNumber(value?: string | number | null) {

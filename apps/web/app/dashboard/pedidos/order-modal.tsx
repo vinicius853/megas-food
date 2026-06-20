@@ -8,7 +8,10 @@ import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 
 import { renderOrderActions } from './order-actions'
-import { normalizeOrderItemForDisplay } from './order-item-display'
+import {
+  getDashboardOrderItemName,
+  normalizeOrderItemForDisplay,
+} from './order-item-display'
 import { getOrderDisplayNumber } from './order-display-number'
 import { formatDateTime, formatMoney, printOrder } from './print-order'
 import type { Order, OrderItem, OrderStatus, OrderType } from './types'
@@ -240,6 +243,7 @@ export function OrderModal({
 
 function OrderItemDetails({ item }: { item: OrderItem }) {
   const normalized = normalizeOrderItemForDisplay(item)
+  const displayName = getDashboardOrderItemName(normalized)
   const parsedNotes = splitItemNotes(item.notes)
 
   return (
@@ -247,7 +251,7 @@ function OrderItemDetails({ item }: { item: OrderItem }) {
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0">
           <h4 className="font-semibold text-slate-900">
-            {normalized.quantity}x {normalized.name}
+            {normalized.quantity}x {displayName}
           </h4>
 
           <div className="mt-2 space-y-2">
