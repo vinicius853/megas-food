@@ -24,17 +24,16 @@ export function formatShortMoney(value: number) {
   })
 }
 
-export function getCategoryIcon(value: string) {
-  const normalized = normalizeCategoryLabel(value)
-
-  if (normalized.includes('doce')) return '🍫'
-  if (normalized.includes('bebida')) return '🥤'
-  if (normalized.includes('adicion')) return '+'
-  if (normalized.includes('esfi')) return '🥙'
-  if (normalized.includes('pizza') || normalized.includes('salg')) return '🍕'
-
-  return '🍽️'
+export function cleanCategoryLabel(value: string) {
+  return value
+    .trim()
+    .replace(
+      /^(?:\p{Extended_Pictographic}|\p{Symbol}|\uFE0F|\u200D|\s)+/gu,
+      '',
+    )
+    .trim()
 }
+
 export function normalizeCategoryLabel(value: string) {
   return value
     .normalize('NFD')

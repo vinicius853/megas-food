@@ -12,7 +12,10 @@ import { CartProvider, useCart } from "./cart-context";
 import { PizzaConfiguratorFlow } from "./pizza-configurator-flow";
 import { capitalizePublicDisplayName } from "./public-menu-display-text";
 import { AddedToCartToast, BottomCartBar } from "./public-menu-feedback";
-import { getCategoryIcon, getSectionDomId } from "./public-menu-formatters";
+import {
+  cleanCategoryLabel,
+  getSectionDomId,
+} from "./public-menu-formatters";
 import { getStoreOpenStatus } from "./public-menu-hours";
 import {
   buildCategoryTabs,
@@ -372,15 +375,16 @@ function PublicMenuContent({ slug }: { slug: string }) {
         </section>
 
         <section className="sticky top-0 z-20 border-b border-slate-200 bg-white px-4 py-3 sm:px-8">
-          <div className="flex gap-2 overflow-x-auto pb-1">
+          <div className="flex gap-2.5 overflow-x-auto pb-1">
             {categories.map((category) => (
               <button
                 key={category}
+                type="button"
                 onClick={() => setActiveCategory(category)}
-                className={`flex-shrink-0 rounded-full border px-4 py-2 text-xs font-black shadow-sm transition-all ${
+                className={`h-11 flex-shrink-0 whitespace-nowrap rounded-full border px-5 text-sm font-semibold shadow-sm transition-colors ${
                   currentCategory === category
                     ? "text-white"
-                    : "border-slate-200 bg-white text-slate-950"
+                    : "border-slate-200 bg-white text-slate-800 hover:bg-slate-50"
                 }`}
                 style={
                   currentCategory === category
@@ -392,10 +396,7 @@ function PublicMenuContent({ slug }: { slug: string }) {
                     : undefined
                 }
               >
-                <span className="mr-2">
-                  {category === "Todos" ? "" : getCategoryIcon(category)}
-                </span>
-                {capitalizePublicDisplayName(category)}
+                {capitalizePublicDisplayName(cleanCategoryLabel(category))}
               </button>
             ))}
           </div>
@@ -423,10 +424,12 @@ function PublicMenuContent({ slug }: { slug: string }) {
                   style={{ borderColor: palette.primary }}
                 >
                   <h2 className="text-xl font-black uppercase tracking-tight text-slate-950">
-                    <span className="mr-2">
-                      {getCategoryIcon(section.title)}
-                    </span>
-                    {capitalizePublicDisplayName(section.title)}
+                    {capitalizePublicDisplayName(
+                      section.type === "flavors" &&
+                        section.title.toLowerCase().startsWith("pizzas ")
+                        ? `Pizzas ${cleanCategoryLabel(section.title.slice(7))}`
+                        : cleanCategoryLabel(section.title),
+                    )}
                   </h2>
                 </div>
 
