@@ -58,12 +58,16 @@ function validatesPaperProfiles() {
 
   assert.match(html80, /class="receipt receipt-80mm"/);
   assert.match(html80, /width: 74mm;/);
+  assert.match(html80, /font-size: 12px;/);
   assert.match(html58, /class="receipt receipt-58mm"/);
   assert.match(html58, /width: 50mm;/);
+  assert.match(html58, /font-size: 10\.5px;/);
 
   for (const html of [html80, html58]) {
     assert.match(html, /<pre class="receipt/);
     assert.match(html, /Courier New/);
+    assert.match(html, /font-weight: 600;/);
+    assert.match(html, /line-height: 1\.4;/);
     assert.match(html, /white-space: pre/);
     assert.doesNotMatch(html, /class="item-/);
     assert.doesNotMatch(html, /display:\s*(flex|grid)/);

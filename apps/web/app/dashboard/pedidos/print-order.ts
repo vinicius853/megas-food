@@ -688,9 +688,9 @@ export function buildPrintHtml(
             color: #000;
             background: #fff;
             font-family: "Courier New", Consolas, monospace;
-            font-size: ${options.paperSize === "58mm" ? "10px" : "12px"};
-            font-weight: 500;
-            line-height: 1.35;
+            font-size: ${options.paperSize === "58mm" ? "10.5px" : "12px"};
+            font-weight: 600;
+            line-height: 1.4;
             -webkit-print-color-adjust: exact;
             print-color-adjust: exact;
           }
