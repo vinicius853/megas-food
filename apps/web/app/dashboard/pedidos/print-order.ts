@@ -415,15 +415,31 @@ function buildAdditionalLines(
       price: Number(additional.total ?? additional.unitPrice ?? 0),
     })),
   ];
+  const deduplicatedAdditions = new Map<
+    string,
+    { name: string; price: number }
+  >();
 
-  return additions.flatMap((addition: { name: string; price: number }) =>
-    wrapText(
-      `- Adicional: ${addition.name}${
-        addition.price > 0 ? ` (+ R$ ${money(addition.price)})` : ""
-      }`,
-      width,
-      6,
-    ),
+  for (const addition of additions) {
+    const key = normalizeComparisonText(addition.name);
+    const existing = deduplicatedAdditions.get(key);
+
+    if (!key) continue;
+
+    if (!existing || addition.price > existing.price) {
+      deduplicatedAdditions.set(key, addition);
+    }
+  }
+
+  return [...deduplicatedAdditions.values()].flatMap(
+    (addition: { name: string; price: number }) =>
+      wrapText(
+        `- Adicional: ${addition.name}${
+          addition.price > 0 ? ` (+ R$ ${money(addition.price)})` : ""
+        }`,
+        width,
+        6,
+      ),
   );
 }
 

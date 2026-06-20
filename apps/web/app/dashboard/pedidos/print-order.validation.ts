@@ -27,6 +27,8 @@ function run() {
   validatesPaperProfiles();
   validatesProfessionalReceiptLayout();
   validatesConfiguredPizzaAndIndentedModifiers();
+  validatesAdditionalDeduplicationPrefersPrice();
+  validatesAdditionalWithoutPriceIsPreserved();
   validatesSimpleProductsAndGroupedQuantity();
   validatesTotalsAlignment();
   validatesTechnicalNotesAreHidden();
@@ -97,6 +99,28 @@ function validatesConfiguredPizzaAndIndentedModifiers() {
   assert.match(text, /^ {6}- Borda: Cream Cheese \(\+ R\$ 15,00\)$/m);
   assert.match(text, /^ {6}- Adicional: Palmito \(\+ R\$ 5,00\)$/m);
   assert.match(text, /^ {6}- Adicional: Cheddar \(\+ R\$ 5,00\)$/m);
+}
+
+function validatesAdditionalDeduplicationPrefersPrice() {
+  const order = receiptOrder();
+  order.items[0].notes = "Adicionais: Palmito, Cheddar";
+  const text = buildReceiptText(order, printOptions80);
+
+  assert.equal((text.match(/Adicional: Palmito/g) ?? []).length, 1);
+  assert.equal((text.match(/Adicional: Cheddar/g) ?? []).length, 1);
+  assert.match(text, /Adicional: Palmito \(\+ R\$ 5,00\)/);
+  assert.match(text, /Adicional: Cheddar \(\+ R\$ 5,00\)/);
+  assert.doesNotMatch(text, /Adicional: Palmito\s*$/m);
+  assert.doesNotMatch(text, /Adicional: Cheddar\s*$/m);
+}
+
+function validatesAdditionalWithoutPriceIsPreserved() {
+  const order = receiptOrder();
+  order.items[0].notes = "Adicionais: Ovos";
+  const text = buildReceiptText(order, printOptions80);
+
+  assert.equal((text.match(/Adicional: Ovos/g) ?? []).length, 1);
+  assert.match(text, /^ {6}- Adicional: Ovos$/m);
 }
 
 function validatesSimpleProductsAndGroupedQuantity() {
