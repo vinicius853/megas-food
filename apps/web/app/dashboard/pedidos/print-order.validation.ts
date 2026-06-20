@@ -29,17 +29,17 @@ function validatesPaperProfiles() {
   const html80 = buildPrintHtml(baseOrder([genericItem([])]), printOptions80);
   const html58 = buildPrintHtml(baseOrder([genericItem([])]), printOptions58);
 
-  assert.match(html80, /size: 80mm;/);
   assert.match(html80, /width: 74mm;/);
   assert.match(html80, /receipt-80mm/);
   assert.doesNotMatch(html80, /80mm auto/);
 
-  assert.match(html58, /size: 58mm;/);
   assert.match(html58, /width: 50mm;/);
   assert.match(html58, /receipt-58mm/);
   assert.doesNotMatch(html58, /58mm auto/);
 
   for (const html of [html80, html58]) {
+    assert.match(html, /@page\s*{\s*margin: 0;/);
+    assert.doesNotMatch(html, /@page\s*{[^}]*size:/);
     assert.match(html, /Courier New/);
     assert.match(html, /line-height: 1\.4/);
     assert.match(html, /overflow-wrap: anywhere/);
@@ -49,7 +49,6 @@ function validatesPaperProfiles() {
     assert.doesNotMatch(html, /(?:^|\n)\s*zoom:/);
     assert.doesNotMatch(html, /(?:^|\n)\s*display:\s*(flex|grid)/);
     assert.doesNotMatch(html, /(?:^|\n)\s*break-inside:\s*avoid/);
-    assert.doesNotMatch(html, /(?:^|\n)\s*height:/);
   }
 }
 

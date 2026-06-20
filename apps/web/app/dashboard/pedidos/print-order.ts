@@ -322,6 +322,7 @@ function buildAddressHtml(
   return `
     <div class="dash"></div>
     <div class="section-title">ENDERECO</div>
+    <div class="spacer"></div>
     ${address.streetLine ? `<p>${escapeHtml(address.streetLine)}</p>` : ""}
     ${address.neighborhood ? `<p>${escapeHtml(address.neighborhood)}</p>` : ""}
     ${address.cityUf ? `<p>${escapeHtml(address.cityUf)}</p>` : ""}
@@ -361,7 +362,6 @@ export function buildPrintHtml(
   options: Required<PrintOrderOptions>,
 ) {
   const isKitchen = options.mode === "kitchen";
-  const paperWidth = options.paperSize === "58mm" ? "58mm" : "80mm";
   const receiptWidth = options.paperSize === "58mm" ? "50mm" : "74mm";
   const parsedNotes = parseNotes(order.notes);
   const orderType =
@@ -375,7 +375,6 @@ export function buildPrintHtml(
 
         <style>
           @page {
-            size: ${paperWidth};
             margin: 0;
           }
 
@@ -446,10 +445,14 @@ export function buildPrintHtml(
           }
 
           .section-title {
-            margin-bottom: 4px;
+            margin-bottom: 2px;
             font-size: ${options.paperSize === "58mm" ? "11px" : "13px"};
             font-weight: 700;
             text-transform: uppercase;
+          }
+
+          .spacer {
+            height: 2px;
           }
 
           .item {
@@ -567,6 +570,7 @@ export function buildPrintHtml(
 
           <div class="dash"></div>
           <div class="section-title">ITENS</div>
+          <div class="spacer"></div>
 
           ${buildItemsHtml(order, options.mode)}
 
@@ -575,6 +579,7 @@ export function buildPrintHtml(
               ? `
               <div class="dash"></div>
               <div class="section-title">OBSERVACOES</div>
+              <div class="spacer"></div>
               ${parsedNotes.general
                 .map(
                   (line: string) =>
