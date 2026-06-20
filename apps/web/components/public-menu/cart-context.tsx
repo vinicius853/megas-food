@@ -88,6 +88,52 @@ function recalculateItemTotal(item: CartItem) {
   }
 }
 
+export function getCartItemMergeSignature(item: CartItem) {
+  const normalizedItem = recalculateItemTotal(item)
+  const hasSelectedModifiers = normalizedItem.selectedModifiers.length > 0
+  const hasDisplayConfiguration = normalizedItem.displayGroups.some(
+    (group) => group.options.length > 0,
+  )
+  const hasAdditionalItems = (normalizedItem.additionalItems?.length ?? 0) > 0
+
+  if (hasSelectedModifiers || hasDisplayConfiguration || hasAdditionalItems) {
+    return null
+  }
+
+  return JSON.stringify({
+    productId: normalizedItem.productId,
+    unitPrice: normalizedItem.unitPrice,
+    totalPrice: normalizedItem.totalPrice,
+    notes: normalizedItem.notes?.trim() ?? '',
+  })
+}
+
+export function addOrMergeCartItem(items: CartItem[], item: CartItem) {
+  const normalizedItem = recalculateItemTotal(item)
+  const signature = getCartItemMergeSignature(normalizedItem)
+
+  if (!signature) {
+    return [...items, normalizedItem]
+  }
+
+  const existingIndex = items.findIndex(
+    (existingItem) => getCartItemMergeSignature(existingItem) === signature,
+  )
+
+  if (existingIndex < 0) {
+    return [...items, normalizedItem]
+  }
+
+  return items.map((existingItem, index) =>
+    index === existingIndex
+      ? {
+          ...existingItem,
+          quantity: existingItem.quantity + normalizedItem.quantity,
+        }
+      : existingItem,
+  )
+}
+
 export function CartProvider({
   children,
 }: {
@@ -96,10 +142,7 @@ export function CartProvider({
   const [items, setItems] = useState<CartItem[]>([])
 
   function addItem(item: CartItem) {
-    setItems((prev) => [
-      ...prev,
-      recalculateItemTotal(item),
-    ])
+    setItems((prev) => addOrMergeCartItem(prev, item))
   }
 
   function removeItem(id: string) {

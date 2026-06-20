@@ -1,6 +1,15 @@
 import assert from "node:assert/strict";
 
-import { buildPrintHtml } from "./print-order";
+import {
+  buildPrintHtml,
+  buildReceiptText,
+  center,
+  itemLine,
+  leftRight,
+  line,
+  money,
+  wrapText,
+} from "./print-order";
 
 const printOptions80 = {
   paperSize: "80mm" as const,
@@ -14,205 +23,200 @@ const printOptions58 = {
 };
 
 function run() {
+  validatesTextHelpers();
   validatesPaperProfiles();
-  validatesSimpleOrder();
-  validatesGenericWholePizza();
-  validatesGenericHalfAndHalf();
-  validatesGenericPizzaWithBorder();
-  validatesGenericBurger();
-  validatesPizzaWithExtras();
-  validatesDrink();
-  validatesLongTextAndPriceStructure();
+  validatesProfessionalReceiptLayout();
+  validatesConfiguredPizzaAndIndentedModifiers();
+  validatesSimpleProductsAndGroupedQuantity();
+  validatesTotalsAlignment();
+  validatesTechnicalNotesAreHidden();
+  validatesRealCustomerObservation();
+}
+
+function validatesTextHelpers() {
+  assert.equal(line("=", 5), "=====");
+  assert.equal(center("LOJA", 10), "   LOJA");
+  assert.deepEqual(leftRight("TOTAL", "R$ 10,00", 20), [
+    "TOTAL       R$ 10,00",
+  ]);
+  assert.equal(money(1234.5), "1.234,50");
+  assert.deepEqual(wrapText("produto com nome longo", 14, 2), [
+    "  produto com",
+    "  nome longo",
+  ]);
+  const itemRow = itemLine(2, "Guaravita", 8, 32)[0];
+  assert.equal(itemRow.length, 32);
+  assert.match(itemRow, /^2\s+Guaravita/);
+  assert.match(itemRow, /8,00$/);
 }
 
 function validatesPaperProfiles() {
-  const html80 = buildPrintHtml(baseOrder([genericItem([])]), printOptions80);
-  const html58 = buildPrintHtml(baseOrder([genericItem([])]), printOptions58);
+  const html80 = buildPrintHtml(receiptOrder(), printOptions80);
+  const html58 = buildPrintHtml(receiptOrder(), printOptions58);
 
+  assert.match(html80, /class="receipt receipt-80mm"/);
   assert.match(html80, /width: 74mm;/);
-  assert.match(html80, /receipt-80mm/);
-  assert.doesNotMatch(html80, /80mm auto/);
-
+  assert.match(html58, /class="receipt receipt-58mm"/);
   assert.match(html58, /width: 50mm;/);
-  assert.match(html58, /receipt-58mm/);
-  assert.doesNotMatch(html58, /58mm auto/);
 
   for (const html of [html80, html58]) {
-    assert.match(html, /@page\s*{\s*margin: 0;/);
-    assert.doesNotMatch(html, /@page\s*{[^}]*size:/);
+    assert.match(html, /<pre class="receipt/);
     assert.match(html, /Courier New/);
-    assert.match(html, /line-height: 1\.4/);
-    assert.match(html, /overflow-wrap: anywhere/);
-    assert.match(html, /word-break: break-word/);
-    assert.doesNotMatch(html, /overflow:\s*hidden/);
-    assert.doesNotMatch(html, /(?:^|\n)\s*transform:/);
-    assert.doesNotMatch(html, /(?:^|\n)\s*zoom:/);
-    assert.doesNotMatch(html, /(?:^|\n)\s*display:\s*(flex|grid)/);
-    assert.doesNotMatch(html, /(?:^|\n)\s*break-inside:\s*avoid/);
+    assert.match(html, /white-space: pre/);
+    assert.doesNotMatch(html, /class="item-/);
+    assert.doesNotMatch(html, /display:\s*(flex|grid)/);
   }
 }
 
-function validatesSimpleOrder() {
-  const html = buildPrintHtml(
-    baseOrder([genericItem([], "Marmita executiva")]),
-    printOptions80,
-  );
+function validatesProfessionalReceiptLayout() {
+  const text = buildReceiptText(receiptOrder(), printOptions80);
+  const rows = text.split("\n");
 
-  assert.match(html, /Marmita executiva/);
-  assert.match(html, /class="item-price">R\$\s*48,00/);
+  assert.equal(rows[0], "=".repeat(48));
+  assert.equal(rows[2], "=".repeat(48));
+  assert.match(rows[1], /^\s+DEMONSTRAÇÃO MEGAS FOOD$/);
+  assert.match(rows[3], /^PEDIDO #57\s+19\/06\/2026\s+21:30:11$/);
+  assert.match(rows[4], /^\s+\*\*\* ENTREGA \*\*\*$/);
+  assert.match(text, /CLIENTE: VINICIUS DE SOUZA/);
+  assert.match(text, /FONE: \(24\) 99850-8308/);
+  assert.match(text, /ENDEREÇO:/);
+  assert.match(text, /Rua Presidente Tancredo Neves, 1105/);
+  assert.match(text, /Vista Alegre, Barra Mansa - RJ/);
+  assert.match(text, /CEP: 27320-360/);
+  assert.match(text, /QTD DESCRIÇÃO\s+VALOR/);
 }
 
-function validatesGenericWholePizza() {
-  const html = buildPrintHtml(
-    baseOrder([
-      genericItem([
-        modifier("size", "Tamanho", "pizza_size", "30cm", 0),
-        modifier("flavor", "Sabores", "pizza_flavor", "calabresa", 40),
-      ]),
-    ]),
-    printOptions80,
-  );
+function validatesConfiguredPizzaAndIndentedModifiers() {
+  const text = buildReceiptText(receiptOrder(), printOptions80);
 
-  assert.match(html, /Pizza calabresa/);
-  assert.match(html, /Tamanho:/);
-  assert.match(html, /- 30cm/);
-  assert.match(html, /Sabores:/);
-  assert.match(html, /- calabresa/);
+  assert.match(text, /^1\s+Pizza 40cm \(4 Sabores\)\s+75,00$/m);
+  assert.match(text, /^ {6}- 1\/4 Queijo e Presunto$/m);
+  assert.match(text, /^ {6}- 1\/4 Lombo Canadense \(\+ R\$ 60,00\)$/m);
+  assert.match(text, /^ {6}- 1\/4 Peperone$/m);
+  assert.match(text, /^ {6}- 1\/4 Calabresa$/m);
+  assert.match(text, /^ {6}- Borda: Cream Cheese \(\+ R\$ 15,00\)$/m);
+  assert.match(text, /^ {6}- Adicional: Palmito \(\+ R\$ 5,00\)$/m);
+  assert.match(text, /^ {6}- Adicional: Cheddar \(\+ R\$ 5,00\)$/m);
 }
 
-function validatesGenericHalfAndHalf() {
-  const html = buildPrintHtml(
-    baseOrder([
-      genericItem([
-        modifier("size", "Tamanho", "pizza_size", "30cm", 0),
-        modifier("flavor-1", "Sabores", "pizza_flavor", "calabresa", 40, 0.5),
-        modifier("flavor-2", "Sabores", "pizza_flavor", "mussarela", 0, 0.5),
-      ]),
-    ]),
-    printOptions80,
-  );
+function validatesSimpleProductsAndGroupedQuantity() {
+  const text = buildReceiptText(receiptOrder(), printOptions80);
 
-  assert.match(html, /- 1\/2 calabresa/);
-  assert.match(html, /- 1\/2 mussarela/);
-  assert.match(html, /Pizza 1\/2 calabresa \+ 1\/2 mussarela/);
+  assert.match(text, /^1\s+Coca Cola Zero 2L\s+14,00$/m);
+  assert.match(text, /^2\s+Guaravita \(2x R\$ 4,00\)\s+8,00$/m);
 }
 
-function validatesGenericPizzaWithBorder() {
-  const html = buildPrintHtml(
-    baseOrder([
-      genericItem([
-        modifier("size", "Tamanho", "pizza_size", "30cm", 0),
-        modifier("flavor", "Sabores", "pizza_flavor", "calabresa", 40),
-        modifier("border", "Borda", "pizza_border", "catupiry", 8),
-      ]),
-    ]),
-    printOptions80,
-  );
+function validatesTotalsAlignment() {
+  const text = buildReceiptText(receiptOrder(), printOptions80);
+  const rows = text.split("\n");
+  const subtotal = rows.find((row) => row.startsWith("SUBTOTAL"));
+  const delivery = rows.find((row) => row.startsWith("TAXA DE ENTREGA"));
+  const total = rows.find((row) => row.startsWith("TOTAL"));
 
-  assert.match(html, /Borda:/);
-  assert.match(html, /- catupiry \(\+ R\$\s*8,00\)/);
+  assert.equal(subtotal?.length, 48);
+  assert.equal(delivery?.length, 48);
+  assert.equal(total?.length, 48);
+  assert.match(subtotal ?? "", /R\$ 107,00$/);
+  assert.match(delivery ?? "", /R\$ 3,00$/);
+  assert.match(total ?? "", /R\$ 110,00$/);
+  assert.match(text, /=+\nTOTAL\s+R\$ 110,00\n=+/);
+  assert.match(text, /PAGAMENTO: PIX/);
 }
 
-function validatesGenericBurger() {
-  const html = buildPrintHtml(
-    baseOrder([
-      genericItem(
-        [
-          modifier("point", "Ponto da carne", "ponto_carne", "Ao ponto", 0),
-          modifier("cheese", "Queijos", "queijos", "Cheddar", 3),
-          modifier("extra", "Extras", "extras", "Bacon", 5),
-        ],
-        "Hamburguer artesanal",
-      ),
-    ]),
-    printOptions80,
-  );
+function validatesTechnicalNotesAreHidden() {
+  const order = receiptOrder();
+  const text = buildReceiptText(order, printOptions80);
 
-  assert.match(html, /Hamburguer artesanal/);
-  assert.match(html, /Ponto da carne:/);
-  assert.match(html, /- Ao ponto/);
-  assert.match(html, /Queijos:/);
-  assert.match(html, /- Cheddar \(\+ R\$\s*3,00\)/);
-  assert.match(html, /Extras:/);
-  assert.match(html, /- Bacon \(\+ R\$\s*5,00\)/);
+  assert.doesNotMatch(text, /Adicional de Nova pizza redonda/i);
+  assert.doesNotMatch(text, /V2_GENERIC|dependsOnOptionId|groupCode/);
+  assert.equal((text.match(/Palmito/g) ?? []).length, 1);
+  assert.equal((text.match(/Cheddar/g) ?? []).length, 1);
 }
 
-function validatesPizzaWithExtras() {
-  const item = genericItem(
-    [
-      modifier("size", "Tamanho", "pizza_size", "35cm", 0),
-      modifier("flavor", "Sabores", "pizza_flavor", "Portuguesa", 45),
-      modifier("border", "Borda", "pizza_border", "Catupiry", 8),
-    ],
-    "Pizza portuguesa especial",
-  );
-  item.notes = "Adicionais: Bacon, Cebola caramelizada";
+function validatesRealCustomerObservation() {
+  const order = receiptOrder();
+  order.items[0].notes = "Sem cebola";
+  const text = buildReceiptText(order, printOptions80);
 
-  const html = buildPrintHtml(baseOrder([item]), printOptions58);
-
-  assert.match(html, /Pizza Portuguesa/);
-  assert.match(html, /Borda:/);
-  assert.match(html, /Extras:/);
-  assert.match(html, /Bacon/);
-  assert.match(html, /Cebola caramelizada/);
+  assert.match(text, /^ {6}Obs: Sem cebola$/m);
 }
 
-function validatesDrink() {
-  const html = buildPrintHtml(
-    baseOrder([genericItem([], "Refrigerante lata 350ml")]),
-    printOptions58,
-  );
-
-  assert.match(html, /Refrigerante lata 350ml/);
-}
-
-function validatesLongTextAndPriceStructure() {
-  const order = baseOrder([
-    genericItem(
-      [],
-      "Produto com nome muito longo que precisa quebrar sem ultrapassar a largura util do comprovante",
-    ),
-  ]);
-  order.customerName =
-    "Cliente com nome muito longo para validar quebra segura no papel termico";
-  order.notes =
-    "Observacao: texto muito longo sem risco de corte horizontal ou perda de conteudo";
-  order.total = 123456.78;
-
-  const html = buildPrintHtml(order, printOptions58);
-
-  assert.match(html, /class="receipt receipt-58mm"/);
-  assert.match(html, /class="item-price">R\$\s*48,00/);
-  assert.match(html, /class="total-value">R\$\s*123\.456,78/);
-  assert.match(html, /padding-right: 1mm/);
-}
-
-function baseOrder(items: any[]) {
+function receiptOrder() {
   return {
-    id: "order-1",
-    displayNumber: "123",
-    customerName: "Cliente",
-    customerPhone: "11999999999",
+    id: "order-57",
+    displayNumber: "57",
+    tenantName: "Demonstração Megas Food",
+    customerName: "Vinicius de Souza",
+    customerPhone: "24998508308",
     type: "DELIVERY",
     status: "PENDING",
-    subtotal: 48,
-    deliveryFee: 0,
-    total: 48,
-    notes: "",
-    createdAt: "2026-06-03T12:00:00.000Z",
-    items,
+    subtotal: 107,
+    deliveryFee: 3,
+    total: 110,
+    paymentType: "PIX",
+    notes:
+      "Endereço: Rua Presidente Tancredo Neves, 1105, Vista Alegre, Barra Mansa/RJ, CEP: 27320-360",
+    createdAt: "2026-06-20T00:30:11.000Z",
+    items: [
+      {
+        id: "pizza",
+        name: "Nova pizza redonda",
+        quantity: 1,
+        unitPrice: 75,
+        total: 75,
+        notes: "",
+        modifiers: [
+          modifier("size", "Tamanho", "pizza_size", "40cm", 0),
+          modifier(
+            "flavor-1",
+            "Sabores",
+            "pizza_flavor",
+            "Queijo e Presunto",
+            0,
+            0.25,
+          ),
+          modifier(
+            "flavor-2",
+            "Sabores",
+            "pizza_flavor",
+            "Lombo Canadense",
+            60,
+            0.25,
+          ),
+          modifier("flavor-3", "Sabores", "pizza_flavor", "Peperone", 0, 0.25),
+          modifier("flavor-4", "Sabores", "pizza_flavor", "Calabresa", 0, 0.25),
+          modifier("border", "Borda", "pizza_border", "Cream Cheese", 15),
+        ],
+      },
+      {
+        ...simpleItem("palmito", "Palmito", 1, 5, 5),
+        notes: "Adicional de Nova pizza redonda",
+      },
+      {
+        ...simpleItem("cheddar", "Cheddar", 1, 5, 5),
+        notes: "Adicional de Nova pizza redonda",
+      },
+      simpleItem("coca", "Coca Cola Zero 2L", 1, 14, 14),
+      simpleItem("guaravita", "Guaravita", 2, 4, 8),
+    ],
   };
 }
 
-function genericItem(modifiers: any[], name = "Pizza redonda") {
+function simpleItem(
+  id: string,
+  name: string,
+  quantity: number,
+  unitPrice: number,
+  total: number,
+) {
   return {
-    id: "item-v2",
+    id,
     name,
-    quantity: 1,
-    unitPrice: 48,
-    total: 48,
+    quantity,
+    unitPrice,
+    total,
     notes: "",
-    modifiers,
+    modifiers: [],
   };
 }
 

@@ -25,8 +25,8 @@ const typeLabels: Record<string, string> = {
 const paymentLabels: Record<string, string> = {
   CASH: "Dinheiro",
   PIX: "Pix",
-  CREDIT_CARD: "Cartao",
-  DEBIT_CARD: "Cartao",
+  CREDIT_CARD: "Cartão",
+  DEBIT_CARD: "Cartão",
 };
 
 export function formatMoney(value: string | number) {
@@ -90,7 +90,7 @@ function parseNotes(notes?: string | null) {
       .toLowerCase();
 
     if (normalized.startsWith("endereco:")) {
-      result.address = line.replace(/^endere[cç]o:\s*/i, "").trim();
+      result.address = line.slice(line.indexOf(":") + 1).trim();
       continue;
     }
 
@@ -160,76 +160,6 @@ function getCommercialItemName(item: any) {
   return normalized.name || "Produto";
 }
 
-function formatModifierFraction(value?: number | null) {
-  if (!value || value === 1) return "";
-
-  if (value === 0.5) return "1/2 ";
-  if (value === 0.33 || value === 0.333) return "1/3 ";
-  if (value === 0.25) return "1/4 ";
-
-  return `${value} `;
-}
-
-function formatModifierPrice(
-  modifier: NormalizedOrderItemModifier,
-  showPrice: boolean,
-) {
-  if (!showPrice || Number(modifier.totalDelta ?? 0) <= 0) {
-    return "";
-  }
-
-  return ` (+ ${formatMoney(modifier.totalDelta)})`;
-}
-
-function buildNormalizedGroupsHtml(
-  normalized: NormalizedOrderItemForDisplay,
-  showPrice: boolean,
-) {
-  if (!normalized.groups.length) return "";
-
-  return normalized.groups
-    .map((group) => {
-      const optionsHtml = group.options
-        .map((option) => {
-          const fraction = formatModifierFraction(option.fraction);
-          const price = formatModifierPrice(option, showPrice);
-
-          return `
-            <div class="item-detail">- ${escapeHtml(fraction)}${escapeHtml(option.optionName)}${escapeHtml(price)}</div>
-          `;
-        })
-        .join("");
-
-      return `
-        <div class="item-detail-title">${escapeHtml(group.groupName)}:</div>
-        ${optionsHtml}
-      `;
-    })
-    .join("");
-}
-
-function buildAdditionsHtml(item: any) {
-  const parsedNotes = splitItemNotes(item.notes);
-  const additions = Array.isArray(item.additionals)
-    ? item.additionals
-        .map((addition: any) => cleanText(addition.name ?? addition))
-        .filter(Boolean)
-    : parsedNotes.additions;
-
-  if (!additions.length) return "";
-
-  return `
-    <div class="item-detail-title">Extras:</div>
-    ${additions
-      .map(
-        (addition: string) => `
-          <div class="item-detail">- ${escapeHtml(addition)}</div>
-        `,
-      )
-      .join("")}
-  `;
-}
-
 function splitItemNotes(notes: unknown) {
   const lines = cleanText(String(notes ?? ""))
     .split("\n")
@@ -237,6 +167,7 @@ function splitItemNotes(notes: unknown) {
     .filter(Boolean);
   const additions: string[] = [];
   const otherNotes: string[] = [];
+  let additionalParent = "";
 
   for (const line of lines) {
     if (/^adicionais:/i.test(line)) {
@@ -251,6 +182,7 @@ function splitItemNotes(notes: unknown) {
     }
 
     if (/^adicional de\s+/i.test(line)) {
+      additionalParent = line.replace(/^adicional de\s+/i, "").trim();
       continue;
     }
 
@@ -260,118 +192,468 @@ function splitItemNotes(notes: unknown) {
   return {
     additions,
     notes: otherNotes.join("\n"),
+    additionalParent,
   };
 }
 
-function buildItemHtml(item: any, mode: PrintMode) {
-  const normalized = normalizeOrderItemForDisplay(item);
-  const itemName = getCommercialItemName(item);
-  const showPrice = mode === "customer";
-  const parsedNotes = splitItemNotes(item.notes);
-
-  return `
-    <div class="item">
-      <div class="item-head">
-        <span>${escapeHtml(normalized.quantity)}x ${escapeHtml(itemName)}</span>
-      </div>
-
-      ${buildNormalizedGroupsHtml(normalized, showPrice)}
-
-      ${
-        showPrice
-          ? `
-            <div class="item-price">${formatMoney(item.total)}</div>
-          `
-          : ""
-      }
-
-      ${buildAdditionsHtml(item)}
-
-      ${
-        isFilled(parsedNotes.notes)
-          ? `<div class="item-detail note-line item-note">Obs: ${escapeHtml(parsedNotes.notes)}</div>`
-          : ""
-      }
-    </div>
-  `;
+export function line(char: string, width: number) {
+  return char.slice(0, 1).repeat(width);
 }
 
-function buildItemsHtml(order: any, mode: PrintMode) {
-  return (order.items ?? [])
-    .map((item: any) => buildItemHtml(item, mode))
-    .join("");
+export function center(text: string, width: number) {
+  const value = cleanText(text).slice(0, width);
+  const leftPadding = Math.max(0, Math.floor((width - value.length) / 2));
+
+  return `${" ".repeat(leftPadding)}${value}`;
 }
 
-function buildAddressHtml(
-  order: any,
-  parsedNotes: ReturnType<typeof parseNotes>,
-) {
-  if (order.type !== "DELIVERY") return "";
+export function leftRight(left: string, right: string, width: number) {
+  const leftText = cleanText(left);
+  const rightText = cleanText(right);
+  const minimumGap = 1;
+  const availableLeft = width - rightText.length - minimumGap;
 
-  const address = splitAddress(parsedNotes.address);
-
-  if (
-    !address.streetLine &&
-    !address.neighborhood &&
-    !address.cityUf &&
-    !address.cep
-  ) {
-    return "";
+  if (availableLeft < 1) {
+    return [
+      leftText.slice(0, width),
+      rightText.slice(0, width).padStart(width),
+    ];
   }
 
-  return `
-    <div class="dash"></div>
-    <div class="section-title">ENDERECO</div>
-    <div class="spacer"></div>
-    ${address.streetLine ? `<p>${escapeHtml(address.streetLine)}</p>` : ""}
-    ${address.neighborhood ? `<p>${escapeHtml(address.neighborhood)}</p>` : ""}
-    ${address.cityUf ? `<p>${escapeHtml(address.cityUf)}</p>` : ""}
-    ${address.cep ? `<p>CEP: ${escapeHtml(address.cep)}</p>` : ""}
-  `;
+  const fittedLeft = leftText.slice(0, availableLeft);
+
+  return [
+    `${fittedLeft}${" ".repeat(width - fittedLeft.length - rightText.length)}${rightText}`,
+  ];
 }
 
-function buildPaymentHtml(
-  order: any,
-  parsedNotes: ReturnType<typeof parseNotes>,
+export function money(value: string | number) {
+  return Number(value || 0).toLocaleString("pt-BR", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
+}
+
+export function wrapText(text: string, width: number, indent = 0) {
+  const prefix = " ".repeat(indent);
+  const contentWidth = Math.max(1, width - indent);
+  const words = cleanText(text).split(/\s+/).filter(Boolean);
+  const lines: string[] = [];
+  let current = "";
+
+  for (const word of words) {
+    if (word.length > contentWidth) {
+      if (current) {
+        lines.push(`${prefix}${current}`);
+        current = "";
+      }
+
+      for (let index = 0; index < word.length; index += contentWidth) {
+        lines.push(`${prefix}${word.slice(index, index + contentWidth)}`);
+      }
+      continue;
+    }
+
+    const candidate = current ? `${current} ${word}` : word;
+
+    if (candidate.length <= contentWidth) {
+      current = candidate;
+    } else {
+      lines.push(`${prefix}${current}`);
+      current = word;
+    }
+  }
+
+  if (current) {
+    lines.push(`${prefix}${current}`);
+  }
+
+  return lines.length > 0 ? lines : [prefix];
+}
+
+export function itemLine(
+  quantity: number,
+  description: string,
+  value: string | number,
+  width: number,
 ) {
-  const payment =
-    parsedNotes.payment ||
-    paymentLabels[order.paymentType] ||
-    cleanText(order.paymentType);
+  const quantityColumn = 4;
+  const valueText = money(value);
+  const valueColumn = Math.max(8, valueText.length);
+  const descriptionWidth = width - quantityColumn - valueColumn;
+  const descriptionLines = wrapText(description, descriptionWidth);
 
-  if (!payment) return "";
+  return descriptionLines.map((descriptionLine, index) => {
+    const quantityText = index === 0 ? String(quantity) : "";
+    const priceText = index === 0 ? valueText : "";
 
-  return `
-    <div class="dash"></div>
-    <p class="payment-line">Pagamento: <strong>${escapeHtml(payment)}</strong></p>
-    ${
-      parsedNotes.cashPaid
-        ? `<p class="payment-line">Troco para: <strong>${escapeHtml(parsedNotes.cashPaid)}</strong></p>`
-        : ""
+    return `${quantityText.padEnd(quantityColumn)}${descriptionLine.padEnd(
+      descriptionWidth,
+    )}${priceText.padStart(valueColumn)}`;
+  });
+}
+
+function formatReceiptDateTime(value: string) {
+  const date = new Date(value);
+
+  return {
+    date: date.toLocaleDateString("pt-BR"),
+    time: date.toLocaleTimeString("pt-BR"),
+  };
+}
+
+function formatPhone(value?: string | null) {
+  const digits = cleanText(value).replace(/\D/g, "");
+
+  if (digits.length === 11) {
+    return `(${digits.slice(0, 2)}) ${digits.slice(2, 7)}-${digits.slice(7)}`;
+  }
+
+  if (digits.length === 10) {
+    return `(${digits.slice(0, 2)}) ${digits.slice(2, 6)}-${digits.slice(6)}`;
+  }
+
+  return cleanText(value) || "NAO INFORMADO";
+}
+
+function formatModifierFraction(value?: number | null) {
+  if (!value || value === 1) return "";
+  if (value === 0.5) return "1/2 ";
+  if (value === 0.33 || value === 0.333) return "1/3 ";
+  if (value === 0.25) return "1/4 ";
+
+  return `${value} `;
+}
+
+function modifierPrice(modifier: NormalizedOrderItemModifier) {
+  return Number(modifier.totalDelta ?? 0) > 0
+    ? ` (+ R$ ${money(modifier.totalDelta)})`
+    : "";
+}
+
+function findGroup(normalized: NormalizedOrderItemForDisplay, codes: string[]) {
+  return normalized.groups.find((group) =>
+    codes.includes(group.groupCode ?? ""),
+  );
+}
+
+function buildItemDescription(
+  item: any,
+  normalized: NormalizedOrderItemForDisplay,
+) {
+  const sizeGroup = findGroup(normalized, ["pizza_size", "size"]);
+  const flavorGroup = findGroup(normalized, ["pizza_flavor", "flavor"]);
+  const sizeName = sizeGroup?.options[0]?.optionName;
+  const flavorCount = flavorGroup?.options.length ?? 0;
+
+  if (sizeName && flavorCount > 0) {
+    return `Pizza ${sizeName}${
+      flavorCount > 1 ? ` (${flavorCount} Sabores)` : ""
+    }`;
+  }
+
+  const itemName = getCommercialItemName(item);
+
+  if (normalized.quantity > 1 && normalized.unitPrice > 0) {
+    return `${itemName} (${normalized.quantity}x R$ ${money(
+      normalized.unitPrice,
+    )})`;
+  }
+
+  return itemName;
+}
+
+function buildModifierLines(
+  normalized: NormalizedOrderItemForDisplay,
+  width: number,
+) {
+  const result: string[] = [];
+
+  for (const group of normalized.groups) {
+    if (["pizza_size", "size"].includes(group.groupCode ?? "")) {
+      continue;
     }
-    ${
-      parsedNotes.change
-        ? `<p class="payment-line">Troco: <strong>${escapeHtml(parsedNotes.change)}</strong></p>`
-        : ""
+
+    for (const option of group.options) {
+      const fraction = formatModifierFraction(option.fraction);
+      const groupCode = group.groupCode ?? "";
+      const prefix = ["pizza_flavor", "flavor"].includes(groupCode)
+        ? ""
+        : `${cleanText(group.groupName)}: `;
+
+      result.push(
+        ...wrapText(
+          `- ${prefix}${fraction}${option.optionName}${modifierPrice(option)}`,
+          width,
+          6,
+        ),
+      );
     }
-  `;
+  }
+
+  return result;
+}
+
+function buildAdditionalLines(
+  item: any,
+  width: number,
+  linkedAdditionalItems: any[] = [],
+) {
+  const parsedNotes = splitItemNotes(item.notes);
+  const embeddedAdditions = Array.isArray(item.additionals)
+    ? item.additionals
+        .map((addition: any) => ({
+          name: cleanText(addition.name ?? addition),
+          price: Number(addition.price ?? 0),
+        }))
+        .filter((addition: { name: string }) => addition.name)
+    : parsedNotes.additions.map((name) => ({ name, price: 0 }));
+  const additions = [
+    ...embeddedAdditions,
+    ...linkedAdditionalItems.map((additional) => ({
+      name: getCommercialItemName(additional),
+      price: Number(additional.total ?? additional.unitPrice ?? 0),
+    })),
+  ];
+
+  return additions.flatMap((addition: { name: string; price: number }) =>
+    wrapText(
+      `- Adicional: ${addition.name}${
+        addition.price > 0 ? ` (+ R$ ${money(addition.price)})` : ""
+      }`,
+      width,
+      6,
+    ),
+  );
+}
+
+function buildItemText(
+  item: any,
+  mode: PrintMode,
+  width: number,
+  linkedAdditionalItems: any[] = [],
+) {
+  const normalized = normalizeOrderItemForDisplay(item);
+  const description = buildItemDescription(item, normalized);
+  const parsedNotes = splitItemNotes(item.notes);
+  const rows =
+    mode === "customer"
+      ? itemLine(normalized.quantity, description, normalized.total, width)
+      : wrapText(`${normalized.quantity}   ${description}`, width);
+
+  rows.push(...buildModifierLines(normalized, width));
+  rows.push(...buildAdditionalLines(item, width, linkedAdditionalItems));
+
+  if (isFilled(parsedNotes.notes)) {
+    rows.push(...wrapText(`Obs: ${parsedNotes.notes}`, width, 6));
+  }
+
+  return rows;
+}
+
+function normalizeComparisonText(value: unknown) {
+  return cleanText(String(value ?? ""))
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase();
+}
+
+function organizeReceiptItems(items: any[]) {
+  const mainItems = items.filter(
+    (item) => !splitItemNotes(item.notes).additionalParent,
+  );
+  const linkedAdditions = new Map<any, any[]>();
+
+  for (const item of items) {
+    const additionalParent = splitItemNotes(item.notes).additionalParent;
+
+    if (!additionalParent) continue;
+
+    const parent = mainItems.find(
+      (candidate) =>
+        normalizeComparisonText(candidate.name) ===
+        normalizeComparisonText(additionalParent),
+    );
+
+    if (!parent) {
+      mainItems.push(item);
+      continue;
+    }
+
+    linkedAdditions.set(parent, [...(linkedAdditions.get(parent) ?? []), item]);
+  }
+
+  return {
+    mainItems,
+    linkedAdditions,
+  };
+}
+
+function itemTableHeader(width: number) {
+  const quantityColumn = 4;
+  const valueColumn = 8;
+  const descriptionColumn = width - quantityColumn - valueColumn;
+
+  return `${"QTD".padEnd(quantityColumn)}${"DESCRIÇÃO".padEnd(
+    descriptionColumn,
+  )}${"VALOR".padStart(valueColumn)}`;
+}
+
+export function buildReceiptText(
+  order: any,
+  options: Required<PrintOrderOptions>,
+) {
+  const width = options.paperSize === "58mm" ? 32 : 48;
+  const parsedNotes = parseNotes(order.notes);
+  const orderType =
+    typeLabels[order.type] ?? String(order.type ?? "").toUpperCase();
+  const dateTime = formatReceiptDateTime(order.createdAt);
+  const rows: string[] = [];
+
+  rows.push(line("=", width));
+  rows.push(
+    ...wrapText(getStoreName(order).toUpperCase(), width).map((value) =>
+      center(value, width),
+    ),
+  );
+  rows.push(line("=", width));
+  rows.push(
+    ...leftRight(
+      `${options.mode === "kitchen" ? "COMANDA" : "PEDIDO"} ${shortOrderNumber(order)}`,
+      `${dateTime.date}  ${dateTime.time}`,
+      width,
+    ),
+  );
+  rows.push(center(`*** ${orderType} ***`, width));
+  rows.push(line("-", width));
+  rows.push(
+    ...wrapText(
+      `CLIENTE: ${cleanText(order.customerName).toUpperCase() || "NÃO INFORMADO"}`,
+      width,
+    ),
+  );
+
+  if (options.mode === "customer") {
+    rows.push(...wrapText(`FONE: ${formatPhone(order.customerPhone)}`, width));
+  }
+
+  if (options.mode === "customer" && order.type === "DELIVERY") {
+    const address = splitAddress(parsedNotes.address);
+
+    if (
+      address.streetLine ||
+      address.neighborhood ||
+      address.cityUf ||
+      address.cep
+    ) {
+      rows.push("");
+      rows.push("ENDEREÇO:");
+      if (address.streetLine) {
+        rows.push(...wrapText(address.streetLine, width));
+      }
+      if (address.neighborhood || address.cityUf) {
+        rows.push(
+          ...wrapText(
+            [address.neighborhood, address.cityUf].filter(Boolean).join(", "),
+            width,
+          ),
+        );
+      }
+      if (address.cep) {
+        rows.push(`CEP: ${address.cep}`);
+      }
+    }
+  }
+
+  rows.push(line("-", width));
+
+  if (options.mode === "customer") {
+    rows.push(itemTableHeader(width));
+  } else {
+    rows.push("QTD DESCRIÇÃO");
+  }
+
+  rows.push(line("-", width));
+
+  const items = Array.isArray(order.items) ? order.items : [];
+  const organizedItems = organizeReceiptItems(items);
+
+  organizedItems.mainItems.forEach((item: any, index: number) => {
+    rows.push(
+      ...buildItemText(
+        item,
+        options.mode,
+        width,
+        organizedItems.linkedAdditions.get(item) ?? [],
+      ),
+    );
+    if (index < organizedItems.mainItems.length - 1) rows.push("");
+  });
+
+  if (options.mode === "customer") {
+    rows.push(line("-", width));
+    rows.push(...leftRight("SUBTOTAL", `R$ ${money(order.subtotal)}`, width));
+
+    const discount =
+      Number(order.discountAmount ?? 0) ||
+      Number(
+        String(parsedNotes.discountAmount)
+          .replace(/[^\d,.-]/g, "")
+          .replace(",", "."),
+      );
+
+    if (discount > 0) {
+      rows.push(...leftRight("DESCONTO", `- R$ ${money(discount)}`, width));
+    }
+
+    rows.push(
+      ...leftRight("TAXA DE ENTREGA", `R$ ${money(order.deliveryFee)}`, width),
+    );
+    rows.push(line("=", width));
+    rows.push(...leftRight("TOTAL", `R$ ${money(order.total)}`, width));
+    rows.push(line("=", width));
+
+    const payment =
+      parsedNotes.payment ||
+      paymentLabels[order.paymentType] ||
+      cleanText(order.paymentType);
+
+    if (payment) {
+      rows.push(`PAGAMENTO: ${payment.toUpperCase()}`);
+    }
+    if (parsedNotes.cashPaid) {
+      rows.push(`TROCO PARA: ${parsedNotes.cashPaid}`);
+    }
+    if (parsedNotes.change) {
+      rows.push(`TROCO: ${parsedNotes.change}`);
+    }
+  }
+
+  if (parsedNotes.general.length > 0) {
+    rows.push("");
+    parsedNotes.general.forEach((note) => {
+      rows.push(...wrapText(`Obs: ${note}`, width));
+    });
+  }
+
+  rows.push("");
+  rows.push(center("Sistema Megas Food", width));
+
+  return rows.join("\n");
 }
 
 export function buildPrintHtml(
   order: any,
   options: Required<PrintOrderOptions>,
 ) {
-  const isKitchen = options.mode === "kitchen";
   const receiptWidth = options.paperSize === "58mm" ? "50mm" : "74mm";
-  const parsedNotes = parseNotes(order.notes);
-  const orderType =
-    typeLabels[order.type] ?? String(order.type ?? "").toUpperCase();
+  const receiptText = buildReceiptText(order, options);
 
   return `
     <html>
       <head>
         <meta charset="utf-8">
-        <title>${isKitchen ? "Comanda cozinha" : "Comprovante"}</title>
+        <title>${options.mode === "kitchen" ? "Comanda cozinha" : "Comprovante"}</title>
 
         <style>
           @page {
@@ -380,8 +662,6 @@ export function buildPrintHtml(
 
           * {
             box-sizing: border-box;
-            overflow-wrap: anywhere;
-            word-break: break-word;
           }
 
           html,
@@ -393,147 +673,20 @@ export function buildPrintHtml(
             background: #fff;
             font-family: "Courier New", Consolas, monospace;
             font-size: ${options.paperSize === "58mm" ? "10px" : "12px"};
-            font-weight: 600;
-            line-height: 1.4;
+            font-weight: 500;
+            line-height: 1.35;
             -webkit-print-color-adjust: exact;
             print-color-adjust: exact;
           }
 
           .receipt {
+            display: block;
             width: ${receiptWidth};
             max-width: ${receiptWidth};
             margin: 0 auto;
             padding: ${options.paperSize === "58mm" ? "2mm 0" : "2.5mm 0"};
-          }
-
-          h1, h2, h3, p {
-            margin: 0;
-            padding: 0;
-          }
-
-          .center {
-            text-align: center;
-          }
-
-          .store {
-            font-size: ${options.paperSize === "58mm" ? "12px" : "15px"};
-            font-weight: 700;
-            text-transform: uppercase;
-            letter-spacing: 0;
-            line-height: 1.3;
-          }
-
-          .dash {
-            border-top: 1px dashed #000;
-            margin: 5px 0;
-          }
-
-          .equals {
-            border-top: 1px solid #000;
-            margin: 7px 0 5px;
-          }
-
-          .order-number {
-            margin: 5px 0 4px;
-            padding: 3px 0;
-            border-top: 1px dashed #000;
-            border-bottom: 1px dashed #000;
-            font-size: ${options.paperSize === "58mm" ? "15px" : "18px"};
-            font-weight: 700;
-            line-height: 1.3;
-            text-align: center;
-          }
-
-          .section-title {
-            margin-bottom: 2px;
-            font-size: ${options.paperSize === "58mm" ? "11px" : "13px"};
-            font-weight: 700;
-            text-transform: uppercase;
-          }
-
-          .spacer {
-            height: 2px;
-          }
-
-          .item {
-            margin-bottom: 6px;
-            padding-bottom: 5px;
-            border-bottom: 1px dashed #000;
-          }
-
-          .item:last-child {
-            border-bottom: 0;
-          }
-
-          .item-head {
-            font-size: ${options.paperSize === "58mm" ? "11px" : "13px"};
-            font-weight: 700;
-            line-height: 1.35;
-          }
-
-          .item-price {
-            width: 100%;
-            margin-top: 2px;
-            padding-right: 1mm;
-            font-weight: 700;
-            line-height: 1.35;
-            text-align: right;
-          }
-
-          .item-detail {
-            margin-top: 1px;
-            padding-left: 10px;
-            font-size: ${options.paperSize === "58mm" ? "10px" : "12px"};
-            font-weight: 500;
-          }
-
-          .item-detail-title {
-            margin-top: 3px;
-            padding-left: 0;
-            font-size: ${options.paperSize === "58mm" ? "10px" : "12px"};
-            font-weight: 700;
-          }
-
-          .note-line {
-            margin-top: 4px;
-            padding: 3px;
-            border: 1px solid #000;
-            font-size: ${options.paperSize === "58mm" ? "11px" : "13px"};
-            font-weight: 700;
-          }
-
-          .item-note {
-            padding-left: 4px;
-          }
-
-          .payment-line {
-            margin-top: 3px;
-            font-size: ${options.paperSize === "58mm" ? "11px" : "13px"};
-            font-weight: 600;
-          }
-
-          .total-label {
-            text-align: center;
-            font-size: ${options.paperSize === "58mm" ? "12px" : "15px"};
-            font-weight: 700;
-          }
-
-          .total-value {
-            margin-top: 3px;
-            padding: 3px 1mm 3px 0;
-            border-top: 1px solid #000;
-            border-bottom: 1px solid #000;
-            font-size: ${options.paperSize === "58mm" ? "16px" : "19px"};
-            font-weight: 700;
-            line-height: 1.3;
-            text-align: right;
-          }
-
-          .footer {
-            margin-top: 7px;
-            text-align: center;
-            font-size: ${options.paperSize === "58mm" ? "9px" : "11px"};
-            font-weight: 500;
+            white-space: pre;
+            overflow: visible;
           }
 
           @media print {
@@ -546,90 +699,7 @@ export function buildPrintHtml(
       </head>
 
       <body>
-        <main class="receipt receipt-${options.paperSize}">
-          <div class="center">
-            <div class="store">${escapeHtml(getStoreName(order))}</div>
-          </div>
-
-          <div class="order-number">
-            ${isKitchen ? "COMANDA " : "PEDIDO "}${escapeHtml(shortOrderNumber(order))}
-          </div>
-
-          <p>Data/hora: ${escapeHtml(formatDateTime(order.createdAt))}</p>
-          <p>${escapeHtml(orderType)}</p>
-
-          <div class="dash"></div>
-          <p>Cliente: ${escapeHtml(cleanText(order.customerName).toUpperCase() || "NAO INFORMADO")}</p>
-          ${
-            !isKitchen
-              ? `<p>Telefone: ${escapeHtml(order.customerPhone || "NAO INFORMADO")}</p>`
-              : ""
-          }
-
-          ${!isKitchen ? buildAddressHtml(order, parsedNotes) : ""}
-
-          <div class="dash"></div>
-          <div class="section-title">ITENS</div>
-          <div class="spacer"></div>
-
-          ${buildItemsHtml(order, options.mode)}
-
-          ${
-            parsedNotes.general.length
-              ? `
-              <div class="dash"></div>
-              <div class="section-title">OBSERVACOES</div>
-              <div class="spacer"></div>
-              ${parsedNotes.general
-                .map(
-                  (line: string) =>
-                    `<p class="note-line">${escapeHtml(line)}</p>`,
-                )
-                .join("")}
-              `
-              : ""
-          }
-
-          ${
-            !isKitchen
-              ? `
-              <div class="dash"></div>
-              ${
-                order.couponCode || parsedNotes.couponCode
-                  ? `<p>Cupom: ${escapeHtml(order.couponCode ?? parsedNotes.couponCode)}</p>`
-                  : ""
-              }
-              ${
-                Number(order.discountAmount ?? 0) > 0 ||
-                parsedNotes.discountAmount
-                  ? `<p>Desconto: -${formatMoney(
-                      order.discountAmount ??
-                        String(parsedNotes.discountAmount)
-                          .replace(/[^\d,.-]/g, "")
-                          .replace(",", "."),
-                    )}</p>`
-                  : ""
-              }
-              <p>Taxa entrega: ${formatMoney(order.deliveryFee)}</p>
-
-              <div class="equals"></div>
-              <div class="total-label">TOTAL</div>
-              <div class="total-value">${formatMoney(order.total)}</div>
-
-              ${buildPaymentHtml(order, parsedNotes)}
-
-              <div class="footer">
-                <div>Sistema Megas Food</div>
-              </div>
-              `
-              : `
-              <div class="footer">
-                <div>Conferir itens antes de finalizar</div>
-                <div>Sistema Megas Food</div>
-              </div>
-              `
-          }
-        </main>
+        <pre class="receipt receipt-${options.paperSize}">${escapeHtml(receiptText)}</pre>
       </body>
     </html>
   `;
