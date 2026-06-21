@@ -1,6 +1,5 @@
 import {
   useCallback,
-  useEffect,
   useMemo,
   useRef,
   useState,
@@ -77,16 +76,12 @@ function getErrorMessage(error: unknown, fallback: string) {
 
 export function useOrders() {
   const [orders, setOrders] = useState<OrderListItem[]>([]);
-  const [period, setPeriod] = useState<OrdersPeriod>("today");
+  const [period, setPeriodState] = useState<OrdersPeriod>("today");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const periodRef = useRef(period);
   const loadInFlightRef = useRef<Promise<void> | null>(null);
   const refreshPendingRef = useRef(false);
-
-  useEffect(() => {
-    periodRef.current = period;
-  }, [period]);
 
   const periodLabel = useMemo(() => periodLabels[period], [period]);
 
@@ -130,6 +125,15 @@ export function useOrders() {
     loadInFlightRef.current = request;
     return request;
   }, []);
+
+  const setPeriod = useCallback(
+    (nextPeriod: OrdersPeriod) => {
+      periodRef.current = nextPeriod;
+      setPeriodState(nextPeriod);
+      void loadOrders();
+    },
+    [loadOrders],
+  );
 
   async function updateStatus(orderId: string, status: OrderStatus) {
     try {
