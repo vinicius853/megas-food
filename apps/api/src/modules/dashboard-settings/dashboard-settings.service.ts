@@ -10,7 +10,9 @@ import {
 
 type TenantSettings = {
   delivery?: UpdateDeliverySettingsDto;
-  customization?: UpdateCustomizationSettingsDto;
+  customization?: Omit<UpdateCustomizationSettingsDto, 'brandName'> & {
+    brandName?: string | null;
+  };
   [key: string]: unknown;
 };
 
@@ -45,6 +47,10 @@ function normalizeSettings(value: unknown): TenantSettings {
 
 function asJson(value: unknown): Prisma.InputJsonValue {
   return JSON.parse(JSON.stringify(value)) as Prisma.InputJsonValue;
+}
+
+function normalizeBrandName(value: unknown) {
+  return typeof value === 'string' ? value.trim() : '';
 }
 
 @Injectable()
@@ -102,11 +108,26 @@ export class DashboardSettingsService {
     const tenant = await this.findTenant(tenantId);
     const settings = normalizeSettings(tenant.settings);
 
+    return this.buildCustomizationResponse(
+      tenant,
+      settings.customization ?? {},
+    );
+  }
+
+  private buildCustomizationResponse(
+    tenant: { name: string; logoUrl: string | null },
+    customization: TenantSettings['customization'],
+  ) {
+    const brandName = normalizeBrandName(customization?.brandName);
+    const tenantName = normalizeBrandName(tenant.name);
+
     return {
       ...emptyCustomizationSettings,
-      brandName: tenant.name ?? '',
       logoUrl: tenant.logoUrl ?? '',
-      ...(settings.customization ?? {}),
+      ...(customization ?? {}),
+      brandName,
+      tenantName,
+      effectiveBrandName: brandName || tenantName || 'Loja',
     };
   }
 
@@ -116,16 +137,24 @@ export class DashboardSettingsService {
   ) {
     const tenant = await this.findTenant(tenantId);
     const settings = normalizeSettings(tenant.settings);
+    const storedCustomization = settings.customization ?? {};
     const current = {
       ...emptyCustomizationSettings,
-      brandName: tenant.name ?? '',
       logoUrl: tenant.logoUrl ?? '',
-      ...(settings.customization ?? {}),
+      ...storedCustomization,
     };
+    const { brandName: _currentBrandName, ...currentWithoutBrandName } =
+      current;
+    const { brandName: incomingBrandName, ...dtoWithoutBrandName } = dto;
+    const brandName =
+      incomingBrandName === undefined
+        ? normalizeBrandName(storedCustomization.brandName)
+        : normalizeBrandName(incomingBrandName);
 
     const customization = {
-      ...current,
-      ...dto,
+      ...currentWithoutBrandName,
+      ...dtoWithoutBrandName,
+      ...(brandName ? { brandName } : {}),
     };
 
     await this.prisma.tenant.update({
@@ -138,7 +167,7 @@ export class DashboardSettingsService {
       },
     });
 
-    return customization;
+    return this.buildCustomizationResponse(tenant, customization);
   }
 
   private async findTenant(tenantId: string) {

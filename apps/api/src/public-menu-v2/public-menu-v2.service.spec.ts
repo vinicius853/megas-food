@@ -95,6 +95,29 @@ describe('PublicMenuV2Service', () => {
     );
   });
 
+  it('expoe o nome publico customizado para o cardapio e checkout', async () => {
+    mockBaseData({
+      products: [product('simple-product', 'Bebida', 'category-1')],
+    });
+    prisma.tenant.findUnique.mockResolvedValue({
+      id: 'tenant-1',
+      name: 'pizzaria teste',
+      slug: 'tenant-slug',
+      whatsapp: null,
+      logoUrl: null,
+      settings: {
+        customization: {
+          brandName: ' Demonstração Megas Food ',
+        },
+      },
+      isActive: true,
+    });
+
+    const result = await service.findBySlug('tenant-slug');
+
+    expect(result.customization.brandName).toBe('Demonstração Megas Food');
+  });
+
   it('retorna produto com grupos, opcoes permitidas e precos contextuais', async () => {
     mockBaseData({
       products: [product('pizza-product', 'Pizza Redonda', 'category-1')],

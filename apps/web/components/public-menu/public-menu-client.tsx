@@ -94,7 +94,7 @@ function PublicMenuContent({ slug }: { slug: string }) {
   const customization = menuV2Data?.customization;
   const palette = getMenuPalette(customization?.paletteId);
   const tenantName =
-    customization?.brandName || tenant?.name || "Sabor & Lenha";
+    customization?.brandName?.trim() || tenant?.name?.trim() || "Loja";
   const menuTagline = customization?.tagline || "Cardapio digital";
   const menuLogo = customization?.logoUrl || tenant?.logoUrl || "";
   const menuCover = customization?.coverUrl;

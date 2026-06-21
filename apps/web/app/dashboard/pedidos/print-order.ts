@@ -85,7 +85,7 @@ function shortOrderNumber(order: any) {
 
 function getStoreName(order: any) {
   return (
-    order.tenant?.name ?? order.tenantName ?? order.storeName ?? "MEGAS FOOD"
+    order.tenantName ?? order.storeName ?? order.tenant?.name ?? "Loja"
   );
 }
 

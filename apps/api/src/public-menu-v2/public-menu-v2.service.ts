@@ -3,6 +3,7 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { PriceEngineService } from '../modules/price-engine/price-engine.service';
 import { SubscriptionAccessService } from '../modules/billing/subscription-access.service';
+import { resolvePublicStoreName } from '../modules/tenants/public-store-name';
 
 import {
   PublicMenuV2Category,
@@ -390,7 +391,7 @@ function buildCustomization(tenant: {
     logoUrl: String(customization.logoUrl ?? tenant.logoUrl ?? ''),
     coverUrl: String(customization.coverUrl ?? ''),
     paletteId: String(customization.paletteId ?? 'classic-pizza'),
-    brandName: String(customization.brandName ?? tenant.name),
+    brandName: resolvePublicStoreName(tenant),
     tagline: String(customization.tagline ?? 'Cardapio digital'),
   };
 }

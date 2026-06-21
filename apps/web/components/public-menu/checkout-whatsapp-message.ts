@@ -50,8 +50,9 @@ export function buildCheckoutWhatsAppMessage({
   deliveryFeeLabel,
   total,
 }: BuildCheckoutWhatsAppMessageInput) {
+  const publicStoreName = tenantName.trim() || 'Loja'
   const lines = [
-    `🍕 *Pedido #${orderNumber ?? 'registrado'} - ${tenantName}*`,
+    `🍕 *Pedido #${orderNumber ?? 'registrado'} - ${publicStoreName}*`,
     '',
   ]
 

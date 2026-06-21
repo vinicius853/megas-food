@@ -82,7 +82,7 @@ export class UpdateCustomizationSettingsDto {
 
   @IsOptional()
   @IsString()
-  brandName?: string
+  brandName?: string | null
 
   @IsOptional()
   @IsString()

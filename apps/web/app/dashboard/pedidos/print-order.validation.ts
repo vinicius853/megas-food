@@ -39,6 +39,7 @@ function run() {
   validatesTotalsAlignment();
   validatesTechnicalNotesAreHidden();
   validatesRealCustomerObservation();
+  validatesPublicStoreNameHasPriority();
 }
 
 function validatesThermalCalibration() {
@@ -227,6 +228,18 @@ function validatesRealCustomerObservation() {
   const text = buildReceiptText(order, printOptions80);
 
   assert.match(text, /^ {6}Obs: Sem cebola$/m);
+}
+
+function validatesPublicStoreNameHasPriority() {
+  const order = {
+    ...receiptOrder(),
+    tenant: { name: "pizzaria teste" },
+    tenantName: "Demonstração Megas Food",
+  };
+  const text = buildReceiptText(order, printOptions80);
+
+  assert.match(text, /DEMONSTRAÇÃO MEGAS FOOD/);
+  assert.doesNotMatch(text, /PIZZARIA TESTE/);
 }
 
 function receiptOrder() {

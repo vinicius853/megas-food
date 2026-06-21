@@ -39,6 +39,11 @@ type CustomizationSettings = {
   tagline: string;
 };
 
+type CustomizationResponse = CustomizationSettings & {
+  tenantName: string;
+  effectiveBrandName: string;
+};
+
 const palettes: Palette[] = [
   {
     id: "classic-pizza",
@@ -86,6 +91,7 @@ export default function PersonalizacaoPage() {
   const [settings, setSettings] =
     useState<CustomizationSettings>(emptySettings);
   const [tenantSlug, setTenantSlug] = useState("");
+  const [tenantName, setTenantName] = useState("");
   const [activeTab, setActiveTab] = useState(tabs[0]);
   const [previewDevice, setPreviewDevice] = useState<"desktop" | "mobile">(
     "desktop",
@@ -112,19 +118,21 @@ export default function PersonalizacaoPage() {
       setMessage("");
 
       const [customization, tenant] = await Promise.all([
-        apiFetch<CustomizationSettings>("/dashboard-settings/customization"),
+        apiFetch<CustomizationResponse>("/dashboard-settings/customization"),
         apiFetch<{ slug: string; name: string; logoUrl?: string | null }>(
           "/tenants/me",
         ),
       ]);
 
       setSettings({
-        ...emptySettings,
-        ...customization,
-        brandName: customization.brandName || tenant.name || "",
         logoUrl: customization.logoUrl || tenant.logoUrl || "",
+        coverUrl: customization.coverUrl || "",
+        paletteId: customization.paletteId || emptySettings.paletteId,
+        brandName: customization.brandName?.trim() || "",
+        tagline: customization.tagline || "",
       });
       setTenantSlug(tenant.slug || "");
+      setTenantName(customization.tenantName || tenant.name || "");
     } catch (err) {
       setError(
         err instanceof Error ? err.message : "Erro ao carregar personalizacao.",
@@ -140,10 +148,22 @@ export default function PersonalizacaoPage() {
       setError("");
       setMessage("");
 
-      await apiFetch("/dashboard-settings/customization", {
-        method: "PUT",
-        body: JSON.stringify(settings),
-      });
+      const customization = await apiFetch<CustomizationResponse>(
+        "/dashboard-settings/customization",
+        {
+          method: "PUT",
+          body: JSON.stringify({
+            ...settings,
+            brandName: settings.brandName.trim(),
+          }),
+        },
+      );
+
+      setSettings((current) => ({
+        ...current,
+        brandName: customization.brandName,
+      }));
+      setTenantName(customization.tenantName);
 
       window.dispatchEvent(new Event("dashboard-brand-updated"));
       setMessage("Personalizacao salva com sucesso.");
@@ -261,6 +281,14 @@ export default function PersonalizacaoPage() {
           {(activeTab === "Identidade visual" ||
             activeTab === "Previa do cardapio") && (
             <>
+              <PublicNameCard
+                brandName={settings.brandName}
+                tenantName={tenantName}
+                onChange={(brandName) =>
+                  setSettings((current) => ({ ...current, brandName }))
+                }
+              />
+
               <LogoCard
                 logoUrl={settings.logoUrl}
                 onChange={(event) => handleFile("logoUrl", event)}
@@ -322,6 +350,7 @@ export default function PersonalizacaoPage() {
           <CardContent>
             <MenuPreview
               settings={settings}
+              tenantName={tenantName}
               palette={selectedPalette}
               mode={previewDevice}
             />
@@ -329,6 +358,44 @@ export default function PersonalizacaoPage() {
         </Card>
       </div>
     </PageContainer>
+  );
+}
+
+function PublicNameCard({
+  brandName,
+  tenantName,
+  onChange,
+}: {
+  brandName: string;
+  tenantName: string;
+  onChange: (value: string) => void;
+}) {
+  const effectiveName = brandName.trim() || tenantName.trim() || "Loja";
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>1. Nome público da loja</CardTitle>
+        <CardDescription>
+          Nome exibido no cardápio, WhatsApp e comunicações ao cliente.
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        <input
+          value={brandName}
+          onChange={(event) => onChange(event.target.value)}
+          placeholder={tenantName || "Nome cadastrado da loja"}
+          className="h-12 w-full rounded-2xl border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-900 shadow-sm outline-none transition focus:border-orange-500"
+        />
+        <p className="mt-2 text-xs font-medium text-slate-500">
+          Deixe vazio para usar automaticamente o nome cadastrado da loja.
+        </p>
+        <p className="mt-3 rounded-2xl bg-slate-50 px-4 py-3 text-xs text-slate-600">
+          Nome exibido atualmente:{" "}
+          <strong className="text-slate-900">{effectiveName}</strong>
+        </p>
+      </CardContent>
+    </Card>
   );
 }
 
@@ -346,7 +413,7 @@ function LogoCard({
   return (
     <Card>
       <CardHeader>
-        <CardTitle>1. Logo da sua marca</CardTitle>
+        <CardTitle>2. Logo da sua marca</CardTitle>
         <CardDescription>
           Esse logo aparecera no cabecalho do seu cardapio.
         </CardDescription>
@@ -401,7 +468,7 @@ function PaletteCard({
   return (
     <Card>
       <CardHeader>
-        <CardTitle>2. Cores do seu cardapio</CardTitle>
+        <CardTitle>3. Cores do seu cardapio</CardTitle>
         <CardDescription>
           Escolha uma paleta de cores que combine com sua marca.
         </CardDescription>
@@ -459,7 +526,7 @@ function CoverCard({
   return (
     <Card>
       <CardHeader>
-        <CardTitle>3. Imagem de capa</CardTitle>
+        <CardTitle>4. Imagem de capa</CardTitle>
         <CardDescription>
           Essa imagem sera exibida no topo do seu cardapio.
         </CardDescription>
@@ -532,10 +599,12 @@ function FileButton({
 
 function MenuPreview({
   settings,
+  tenantName,
   palette,
   mode,
 }: {
   settings: CustomizationSettings;
+  tenantName: string;
   palette: Palette;
   mode: "desktop" | "mobile";
 }) {
@@ -576,7 +645,7 @@ function MenuPreview({
             </div>
             <div>
               <p className="text-lg font-black">
-                {settings.brandName || "Nome da sua loja"}
+                {settings.brandName.trim() || tenantName.trim() || "Loja"}
               </p>
               <p className="text-xs font-semibold text-white/80">
                 {settings.tagline || "Adicione uma descrição para sua marca"}

@@ -18,6 +18,10 @@ describe('OrdersService', () => {
       order: {
         findFirst: jest.fn().mockResolvedValue({
           id: 'order-1',
+          tenant: {
+            name: 'Tenant',
+            settings: null,
+          },
           items: [
             {
               modifiers: [{ id: 'modifier-1' }],
@@ -44,6 +48,7 @@ describe('OrdersService', () => {
           tenant: {
             select: {
               name: true,
+              settings: true,
             },
           },
           items: {
@@ -130,6 +135,10 @@ describe('OrdersService', () => {
       id: 'order-1',
       tenantId: 'tenant-1',
       status: 'CONFIRMED',
+      tenant: {
+        name: 'Tenant',
+        settings: null,
+      },
       items: [],
     };
     const prisma = {

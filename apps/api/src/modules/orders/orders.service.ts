@@ -10,6 +10,7 @@ import { UpdateOrderDto } from './dto/update-order.dto';
 import { OrdersGateway } from './gateways/orders.gateway';
 import { WhatsAppEventType } from '@prisma/client';
 import { WhatsAppNotificationService } from '../whatsapp/whatsapp-notification.service';
+import { resolvePublicStoreName } from '../tenants/public-store-name';
 
 const dashboardOrdersTimeZone = 'America/Sao_Paulo';
 
@@ -95,6 +96,7 @@ export class OrdersService {
         tenant: {
           select: {
             name: true,
+            settings: true,
           },
         },
         items: {
@@ -109,7 +111,7 @@ export class OrdersService {
       throw new NotFoundException('Pedido nao encontrado.');
     }
 
-    return order;
+    return this.withPublicStoreName(order);
   }
 
   async update(tenantId: string, id: string, dto: UpdateOrderDto) {
@@ -128,6 +130,7 @@ export class OrdersService {
         tenant: {
           select: {
             name: true,
+            settings: true,
           },
         },
         items: {
@@ -138,7 +141,9 @@ export class OrdersService {
       },
     });
 
-    this.ordersGateway.emitOrderUpdated(tenantId, order);
+    const publicOrder = this.withPublicStoreName(order);
+
+    this.ordersGateway.emitOrderUpdated(tenantId, publicOrder);
 
     const eventType = this.getWhatsAppEvent(dto.status);
     let automaticNotificationScheduled = false;
@@ -153,7 +158,7 @@ export class OrdersService {
     }
 
     return {
-      ...order,
+      ...publicOrder,
       whatsappNotification: {
         eventType: eventType ?? null,
         automaticScheduled: automaticNotificationScheduled,
@@ -173,6 +178,23 @@ export class OrdersService {
     this.ordersGateway.emitOrderCancelled(tenantId, order);
 
     return deletedOrder;
+  }
+
+  private withPublicStoreName<
+    T extends {
+      tenant: {
+        name: string;
+        settings?: unknown;
+      };
+    },
+  >(order: T) {
+    return {
+      ...order,
+      tenant: {
+        name: order.tenant.name,
+      },
+      tenantName: resolvePublicStoreName(order.tenant),
+    };
   }
 
   private resolveOrdersDateRange(filters: FindOrdersFilters) {
