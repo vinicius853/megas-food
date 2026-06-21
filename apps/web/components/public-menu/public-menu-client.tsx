@@ -294,7 +294,7 @@ function PublicMenuContent({ slug }: { slug: string }) {
     >
       <div className="mx-auto min-h-screen w-full max-w-[860px] bg-slate-50 shadow-2xl">
         <header
-          className="relative min-h-[230px] w-full overflow-hidden bg-slate-900 px-4 pb-16 pt-5 text-white shadow-sm sm:min-h-[230px] sm:px-8"
+          className="relative h-[240px] w-full overflow-hidden bg-slate-900 text-white shadow-sm sm:h-[230px]"
           style={{ backgroundColor: palette.primary }}
         >
           {menuCover && (
@@ -303,12 +303,12 @@ function PublicMenuContent({ slug }: { slug: string }) {
                 src={menuCover}
                 alt=""
                 aria-hidden="true"
-                className="absolute inset-0 block h-full w-full bg-neutral-100 object-contain object-center sm:object-cover"
+                className="absolute inset-0 block h-full w-full bg-neutral-100 object-cover object-center"
               />
             </>
           )}
 
-          <div className="relative z-10 flex items-start justify-between gap-4">
+          <div className="absolute inset-x-4 top-5 z-10 flex items-start justify-between gap-4 sm:inset-x-8">
             <div className="flex min-w-0 items-center">
               <div className="flex min-h-14 max-w-[190px] items-center justify-center overflow-hidden">
                 {menuLogo ? (
@@ -354,7 +354,7 @@ function PublicMenuContent({ slug }: { slug: string }) {
 
         <section className="relative z-20 -mt-8 px-4 sm:px-8">
           <div className="flex gap-3">
-            <div className="flex h-14 flex-1 items-center gap-3 rounded-lg border border-slate-200 bg-white px-4 shadow-xl shadow-slate-950/15">
+            <div className="flex h-12 flex-1 items-center gap-3 rounded-lg border border-slate-200 bg-white px-4 shadow-xl shadow-slate-950/15">
               <Search className="h-5 w-5 flex-shrink-0 text-slate-400" />
               <input
                 type="text"
