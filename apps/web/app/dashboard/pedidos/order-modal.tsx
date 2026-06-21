@@ -13,7 +13,12 @@ import {
   normalizeOrderItemForDisplay,
 } from './order-item-display'
 import { getOrderDisplayNumber } from './order-display-number'
-import { formatDateTime, formatMoney, printOrder } from './print-order'
+import {
+  formatDateTime,
+  formatMoney,
+  printOrder,
+  printThermalCalibration,
+} from './print-order'
 import type { Order, OrderItem, OrderStatus, OrderType } from './types'
 
 type OrderModalProps = {
@@ -222,6 +227,14 @@ export function OrderModal({
                   <option value="80mm">80 mm</option>
                   <option value="58mm">58 mm</option>
                 </select>
+
+                <Button
+                  variant="outline"
+                  onClick={() => printThermalCalibration(printPaperSize)}
+                  className="col-span-2 w-full sm:w-auto"
+                >
+                  Calibrar
+                </Button>
 
                 <Button
                   variant="outline"

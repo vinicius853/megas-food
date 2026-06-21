@@ -1,13 +1,17 @@
 import assert from "node:assert/strict";
 
 import {
+  buildCalibrationHtml,
+  buildCalibrationText,
   buildPrintHtml,
   buildReceiptText,
   center,
   itemLine,
   leftRight,
-  line,
   money,
+  normalizeText,
+  printPaperProfiles,
+  separator,
   wrapText,
 } from "./print-order";
 
@@ -25,6 +29,8 @@ const printOptions58 = {
 function run() {
   validatesTextHelpers();
   validatesPaperProfiles();
+  validatesThermalCalibration();
+  validatesEveryLineFitsItsPaperProfile();
   validatesProfessionalReceiptLayout();
   validatesConfiguredPizzaAndIndentedModifiers();
   validatesAdditionalDeduplicationPrefersPrice();
@@ -35,8 +41,31 @@ function run() {
   validatesRealCustomerObservation();
 }
 
+function validatesThermalCalibration() {
+  const text = buildCalibrationText("80mm");
+  const html = buildCalibrationHtml("80mm");
+
+  for (const width of [32, 34, 36, 38, 40, 42, 44, 46]) {
+    const row = text
+      .split("\n")
+      .find((candidate) => candidate.startsWith(`${width}|`));
+
+    assert.ok(row, `Linha de calibracao ${width} nao encontrada.`);
+    assert.equal(row?.length, width);
+    assert.equal(row?.at(-1), "|");
+  }
+
+  assert.match(html, /class="receipt calibration calibration-80mm"/);
+  assert.match(html, /width: 68mm;/);
+  assert.match(html, /font-size: 12px;/);
+  assert.match(html, /white-space: pre;/);
+  assert.match(html, /overflow: visible;/);
+  assert.doesNotMatch(html, /size:\s*(80mm|58mm)/);
+}
+
 function validatesTextHelpers() {
-  assert.equal(line("=", 5), "=====");
+  assert.equal(normalizeText("  Produto \n especial  "), "Produto especial");
+  assert.equal(separator(5, "="), "=====");
   assert.equal(center("LOJA", 10), "   LOJA");
   assert.deepEqual(leftRight("TOTAL", "R$ 10,00", 20), [
     "TOTAL       R$ 10,00",
@@ -46,10 +75,23 @@ function validatesTextHelpers() {
     "  produto com",
     "  nome longo",
   ]);
-  const itemRow = itemLine(2, "Guaravita", 8, 32)[0];
-  assert.equal(itemRow.length, 32);
+  const itemRow = itemLine(2, "Guaravita", 8, 30)[0];
+  assert.equal(itemRow.length, 30);
   assert.match(itemRow, /^2\s+Guaravita/);
   assert.match(itemRow, /8,00$/);
+  assert.deepEqual(
+    wrapText("Adicional (+ R$ 60,00)", 18),
+    ["Adicional", "(+ R$ 60,00)"],
+  );
+
+  const longItemRows = itemLine(
+    1,
+    "Pizza especial com descricao muito longa",
+    125.5,
+    28,
+  );
+  assert.match(longItemRows.at(-1) ?? "", /^Valor:\s+R\$ 125,50$/);
+  assert.ok(longItemRows.every((row) => row.length <= 28));
 }
 
 function validatesPaperProfiles() {
@@ -57,11 +99,11 @@ function validatesPaperProfiles() {
   const html58 = buildPrintHtml(receiptOrder(), printOptions58);
 
   assert.match(html80, /class="receipt receipt-80mm"/);
-  assert.match(html80, /width: 74mm;/);
+  assert.match(html80, /width: 68mm;/);
   assert.match(html80, /font-size: 12px;/);
   assert.match(html58, /class="receipt receipt-58mm"/);
-  assert.match(html58, /width: 50mm;/);
-  assert.match(html58, /font-size: 10\.5px;/);
+  assert.match(html58, /width: 48mm;/);
+  assert.match(html58, /font-size: 11px;/);
 
   for (const html of [html80, html58]) {
     assert.match(html, /<pre class="receipt/);
@@ -69,8 +111,28 @@ function validatesPaperProfiles() {
     assert.match(html, /font-weight: 600;/);
     assert.match(html, /line-height: 1\.4;/);
     assert.match(html, /white-space: pre/);
+    assert.match(html, /overflow: visible;/);
+    assert.match(html, /padding: 0;/);
+    assert.doesNotMatch(html, /size:\s*(80mm|58mm)/);
+    assert.doesNotMatch(html, /min-height|height:\s*100vh|page-break/);
     assert.doesNotMatch(html, /class="item-/);
     assert.doesNotMatch(html, /display:\s*(flex|grid)/);
+  }
+}
+
+function validatesEveryLineFitsItsPaperProfile() {
+  for (const options of [printOptions80, printOptions58]) {
+    const text = buildReceiptText(receiptOrder(), options);
+    const width = printPaperProfiles[options.paperSize].charsPerLine;
+
+    for (const row of text.split("\n")) {
+      assert.ok(
+        row.length <= width,
+        `${options.paperSize}: linha com ${row.length}/${width} caracteres: ${row}`,
+      );
+    }
+
+    assert.doesNotMatch(text, /R\$\s*\n/);
   }
 }
 
@@ -78,15 +140,15 @@ function validatesProfessionalReceiptLayout() {
   const text = buildReceiptText(receiptOrder(), printOptions80);
   const rows = text.split("\n");
 
-  assert.equal(rows[0], "=".repeat(48));
-  assert.equal(rows[2], "=".repeat(48));
+  assert.equal(rows[0], "=".repeat(34));
+  assert.equal(rows[2], "=".repeat(34));
   assert.match(rows[1], /^\s+DEMONSTRAÇÃO MEGAS FOOD$/);
   assert.match(rows[3], /^PEDIDO #57\s+19\/06\/2026\s+21:30:11$/);
   assert.match(rows[4], /^\s+\*\*\* ENTREGA \*\*\*$/);
   assert.match(text, /CLIENTE: VINICIUS DE SOUZA/);
   assert.match(text, /FONE: \(24\) 99850-8308/);
   assert.match(text, /ENDEREÇO:/);
-  assert.match(text, /Rua Presidente Tancredo Neves, 1105/);
+  assert.match(text, /Rua Presidente Tancredo Neves,\n1105/);
   assert.match(text, /Vista Alegre, Barra Mansa - RJ/);
   assert.match(text, /CEP: 27320-360/);
   assert.match(text, /QTD DESCRIÇÃO\s+VALOR/);
@@ -97,12 +159,12 @@ function validatesConfiguredPizzaAndIndentedModifiers() {
 
   assert.match(text, /^1\s+Pizza 40cm \(4 Sabores\)\s+75,00$/m);
   assert.match(text, /^ {6}- 1\/4 Queijo e Presunto$/m);
-  assert.match(text, /^ {6}- 1\/4 Lombo Canadense \(\+ R\$ 60,00\)$/m);
+  assert.match(text, /^ {6}- 1\/4 Lombo Canadense\n {6}\(\+ R\$ 60,00\)$/m);
   assert.match(text, /^ {6}- 1\/4 Peperone$/m);
   assert.match(text, /^ {6}- 1\/4 Calabresa$/m);
-  assert.match(text, /^ {6}- Borda: Cream Cheese \(\+ R\$ 15,00\)$/m);
-  assert.match(text, /^ {6}- Adicional: Palmito \(\+ R\$ 5,00\)$/m);
-  assert.match(text, /^ {6}- Adicional: Cheddar \(\+ R\$ 5,00\)$/m);
+  assert.match(text, /^ {6}- Borda: Cream Cheese\n {6}\(\+ R\$ 15,00\)$/m);
+  assert.match(text, /^ {6}- Adicional: Palmito\n {6}\(\+ R\$ 5,00\)$/m);
+  assert.match(text, /^ {6}- Adicional: Cheddar\n {6}\(\+ R\$ 5,00\)$/m);
 }
 
 function validatesAdditionalDeduplicationPrefersPrice() {
@@ -112,10 +174,8 @@ function validatesAdditionalDeduplicationPrefersPrice() {
 
   assert.equal((text.match(/Adicional: Palmito/g) ?? []).length, 1);
   assert.equal((text.match(/Adicional: Cheddar/g) ?? []).length, 1);
-  assert.match(text, /Adicional: Palmito \(\+ R\$ 5,00\)/);
-  assert.match(text, /Adicional: Cheddar \(\+ R\$ 5,00\)/);
-  assert.doesNotMatch(text, /Adicional: Palmito\s*$/m);
-  assert.doesNotMatch(text, /Adicional: Cheddar\s*$/m);
+  assert.match(text, /Adicional: Palmito\n {6}\(\+ R\$ 5,00\)/);
+  assert.match(text, /Adicional: Cheddar\n {6}\(\+ R\$ 5,00\)/);
 }
 
 function validatesAdditionalWithoutPriceIsPreserved() {
@@ -141,13 +201,13 @@ function validatesTotalsAlignment() {
   const delivery = rows.find((row) => row.startsWith("TAXA DE ENTREGA"));
   const total = rows.find((row) => row.startsWith("TOTAL"));
 
-  assert.equal(subtotal?.length, 48);
-  assert.equal(delivery?.length, 48);
-  assert.equal(total?.length, 48);
+  assert.equal(subtotal?.length, 34);
+  assert.equal(delivery?.length, 34);
+  assert.equal(total?.length, 34);
   assert.match(subtotal ?? "", /R\$ 107,00$/);
   assert.match(delivery ?? "", /R\$ 3,00$/);
   assert.match(total ?? "", /R\$ 110,00$/);
-  assert.match(text, /=+\nTOTAL\s+R\$ 110,00\n=+/);
+  assert.match(text, /=+\nTOTAL:\s+R\$ 110,00\n=+/);
   assert.match(text, /PAGAMENTO: PIX/);
 }
 

@@ -10,10 +10,29 @@ import {
 export type PrintPaperSize = "58mm" | "80mm";
 type PrintMode = "customer" | "kitchen";
 
+type PrintPaperProfile = {
+  widthMm: number;
+  charsPerLine: number;
+  fontSizePx: number;
+};
+
 type PrintOrderOptions = {
   paperSize?: PrintPaperSize;
   mode?: PrintMode;
   autoClose?: boolean;
+};
+
+export const printPaperProfiles: Record<PrintPaperSize, PrintPaperProfile> = {
+  "80mm": {
+    widthMm: 68,
+    charsPerLine: 34,
+    fontSizePx: 12,
+  },
+  "58mm": {
+    widthMm: 48,
+    charsPerLine: 28,
+    fontSizePx: 11,
+  },
 };
 
 const typeLabels: Record<string, string> = {
@@ -49,12 +68,15 @@ function escapeHtml(value?: string | number | null) {
     .replace(/'/g, "&#039;");
 }
 
-function cleanText(value?: string | number | null) {
-  return String(value ?? "").trim();
+export function normalizeText(value?: string | number | null) {
+  return String(value ?? "")
+    .replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
 }
 
 function isFilled(value?: string | number | null) {
-  return cleanText(value).length > 0 && cleanText(value) !== "-";
+  return normalizeText(value).length > 0 && normalizeText(value) !== "-";
 }
 
 function shortOrderNumber(order: any) {
@@ -78,9 +100,9 @@ function parseNotes(notes?: string | null) {
     discountAmount: "",
   };
 
-  const lines = cleanText(notes)
+  const lines = String(notes ?? "")
     .split(/\r?\n/)
-    .map((line) => line.trim())
+    .map((line) => normalizeText(line))
     .filter(Boolean);
 
   for (const line of lines) {
@@ -161,9 +183,9 @@ function getCommercialItemName(item: any) {
 }
 
 function splitItemNotes(notes: unknown) {
-  const lines = cleanText(String(notes ?? ""))
+  const lines = String(notes ?? "")
     .split("\n")
-    .map((line) => line.trim())
+    .map((line) => normalizeText(line))
     .filter(Boolean);
   const additions: string[] = [];
   const otherNotes: string[] = [];
@@ -196,34 +218,38 @@ function splitItemNotes(notes: unknown) {
   };
 }
 
-export function line(char: string, width: number) {
-  return char.slice(0, 1).repeat(width);
+export function separator(width: number, char = "-") {
+  return normalizeText(char).slice(0, 1).repeat(Math.max(0, width));
 }
 
 export function center(text: string, width: number) {
-  const value = cleanText(text).slice(0, width);
+  const value = normalizeText(text).slice(0, width);
   const leftPadding = Math.max(0, Math.floor((width - value.length) / 2));
 
   return `${" ".repeat(leftPadding)}${value}`;
 }
 
 export function leftRight(left: string, right: string, width: number) {
-  const leftText = cleanText(left);
-  const rightText = cleanText(right);
+  const leftText = normalizeText(left);
+  const rightText = normalizeText(right).slice(-width);
   const minimumGap = 1;
   const availableLeft = width - rightText.length - minimumGap;
 
   if (availableLeft < 1) {
     return [
-      leftText.slice(0, width),
-      rightText.slice(0, width).padStart(width),
+      ...wrapText(leftText, width),
+      rightText.padStart(width),
     ];
   }
 
-  const fittedLeft = leftText.slice(0, availableLeft);
+  const leftLines = wrapText(leftText, availableLeft);
+  const lastLeftLine = leftLines.pop() ?? "";
 
   return [
-    `${fittedLeft}${" ".repeat(width - fittedLeft.length - rightText.length)}${rightText}`,
+    ...leftLines,
+    `${lastLeftLine}${" ".repeat(
+      width - lastLeftLine.length - rightText.length,
+    )}${rightText}`,
   ];
 }
 
@@ -235,9 +261,13 @@ export function money(value: string | number) {
 }
 
 export function wrapText(text: string, width: number, indent = 0) {
-  const prefix = " ".repeat(indent);
-  const contentWidth = Math.max(1, width - indent);
-  const words = cleanText(text).split(/\s+/).filter(Boolean);
+  const safeIndent = Math.min(Math.max(0, indent), Math.max(0, width - 1));
+  const prefix = " ".repeat(safeIndent);
+  const contentWidth = Math.max(1, width - safeIndent);
+  const words =
+    normalizeText(text).match(
+      /\([^()\n]*R\$\s+[\d.,]+\)|-\s+R\$\s+[\d.,]+|R\$\s+[\d.,]+|\S+/g,
+    ) ?? [];
   const lines: string[] = [];
   let current = "";
 
@@ -279,9 +309,20 @@ export function itemLine(
 ) {
   const quantityColumn = 4;
   const valueText = money(value);
-  const valueColumn = Math.max(8, valueText.length);
-  const descriptionWidth = width - quantityColumn - valueColumn;
+  const valueColumn = Math.max(8, Math.min(valueText.length, width - 5));
+  const descriptionWidth = Math.max(1, width - quantityColumn - valueColumn);
   const descriptionLines = wrapText(description, descriptionWidth);
+  const firstDescriptionLine = descriptionLines[0] ?? "";
+  const fitsSingleRow =
+    descriptionLines.length === 1 &&
+    quantityColumn + firstDescriptionLine.length + valueColumn <= width;
+
+  if (!fitsSingleRow) {
+    return [
+      ...wrapText(`${quantity} ${description}`, width),
+      ...leftRight("  Valor:", `R$ ${valueText}`, width),
+    ];
+  }
 
   return descriptionLines.map((descriptionLine, index) => {
     const quantityText = index === 0 ? String(quantity) : "";
@@ -303,7 +344,7 @@ function formatReceiptDateTime(value: string) {
 }
 
 function formatPhone(value?: string | null) {
-  const digits = cleanText(value).replace(/\D/g, "");
+  const digits = normalizeText(value).replace(/\D/g, "");
 
   if (digits.length === 11) {
     return `(${digits.slice(0, 2)}) ${digits.slice(2, 7)}-${digits.slice(7)}`;
@@ -313,7 +354,7 @@ function formatPhone(value?: string | null) {
     return `(${digits.slice(0, 2)}) ${digits.slice(2, 6)}-${digits.slice(6)}`;
   }
 
-  return cleanText(value) || "NAO INFORMADO";
+  return normalizeText(value) || "NAO INFORMADO";
 }
 
 function formatModifierFraction(value?: number | null) {
@@ -379,7 +420,7 @@ function buildModifierLines(
       const groupCode = group.groupCode ?? "";
       const prefix = ["pizza_flavor", "flavor"].includes(groupCode)
         ? ""
-        : `${cleanText(group.groupName)}: `;
+        : `${normalizeText(group.groupName)}: `;
 
       result.push(
         ...wrapText(
@@ -403,7 +444,7 @@ function buildAdditionalLines(
   const embeddedAdditions = Array.isArray(item.additionals)
     ? item.additionals
         .map((addition: any) => ({
-          name: cleanText(addition.name ?? addition),
+          name: normalizeText(addition.name ?? addition),
           price: Number(addition.price ?? 0),
         }))
         .filter((addition: { name: string }) => addition.name)
@@ -468,7 +509,7 @@ function buildItemText(
 }
 
 function normalizeComparisonText(value: unknown) {
-  return cleanText(String(value ?? ""))
+  return normalizeText(String(value ?? ""))
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "")
     .toLowerCase();
@@ -519,20 +560,20 @@ export function buildReceiptText(
   order: any,
   options: Required<PrintOrderOptions>,
 ) {
-  const width = options.paperSize === "58mm" ? 32 : 48;
+  const { charsPerLine: width } = printPaperProfiles[options.paperSize];
   const parsedNotes = parseNotes(order.notes);
   const orderType =
     typeLabels[order.type] ?? String(order.type ?? "").toUpperCase();
   const dateTime = formatReceiptDateTime(order.createdAt);
   const rows: string[] = [];
 
-  rows.push(line("=", width));
+  rows.push(separator(width, "="));
   rows.push(
     ...wrapText(getStoreName(order).toUpperCase(), width).map((value) =>
       center(value, width),
     ),
   );
-  rows.push(line("=", width));
+  rows.push(separator(width, "="));
   rows.push(
     ...leftRight(
       `${options.mode === "kitchen" ? "COMANDA" : "PEDIDO"} ${shortOrderNumber(order)}`,
@@ -541,10 +582,10 @@ export function buildReceiptText(
     ),
   );
   rows.push(center(`*** ${orderType} ***`, width));
-  rows.push(line("-", width));
+  rows.push(separator(width));
   rows.push(
     ...wrapText(
-      `CLIENTE: ${cleanText(order.customerName).toUpperCase() || "NÃO INFORMADO"}`,
+      `CLIENTE: ${normalizeText(order.customerName).toUpperCase() || "NÃO INFORMADO"}`,
       width,
     ),
   );
@@ -581,7 +622,7 @@ export function buildReceiptText(
     }
   }
 
-  rows.push(line("-", width));
+  rows.push(separator(width));
 
   if (options.mode === "customer") {
     rows.push(itemTableHeader(width));
@@ -589,7 +630,7 @@ export function buildReceiptText(
     rows.push("QTD DESCRIÇÃO");
   }
 
-  rows.push(line("-", width));
+  rows.push(separator(width));
 
   const items = Array.isArray(order.items) ? order.items : [];
   const organizedItems = organizeReceiptItems(items);
@@ -607,8 +648,10 @@ export function buildReceiptText(
   });
 
   if (options.mode === "customer") {
-    rows.push(line("-", width));
-    rows.push(...leftRight("SUBTOTAL", `R$ ${money(order.subtotal)}`, width));
+    rows.push(separator(width));
+    rows.push(
+      ...leftRight("SUBTOTAL:", `R$ ${money(order.subtotal)}`, width),
+    );
 
     const discount =
       Number(order.discountAmount ?? 0) ||
@@ -619,29 +662,33 @@ export function buildReceiptText(
       );
 
     if (discount > 0) {
-      rows.push(...leftRight("DESCONTO", `- R$ ${money(discount)}`, width));
+      rows.push(...leftRight("DESCONTO:", `- R$ ${money(discount)}`, width));
     }
 
     rows.push(
-      ...leftRight("TAXA DE ENTREGA", `R$ ${money(order.deliveryFee)}`, width),
+      ...leftRight(
+        "TAXA DE ENTREGA:",
+        `R$ ${money(order.deliveryFee)}`,
+        width,
+      ),
     );
-    rows.push(line("=", width));
-    rows.push(...leftRight("TOTAL", `R$ ${money(order.total)}`, width));
-    rows.push(line("=", width));
+    rows.push(separator(width, "="));
+    rows.push(...leftRight("TOTAL:", `R$ ${money(order.total)}`, width));
+    rows.push(separator(width, "="));
 
     const payment =
       parsedNotes.payment ||
       paymentLabels[order.paymentType] ||
-      cleanText(order.paymentType);
+      normalizeText(order.paymentType);
 
     if (payment) {
-      rows.push(`PAGAMENTO: ${payment.toUpperCase()}`);
+      rows.push(...wrapText(`PAGAMENTO: ${payment.toUpperCase()}`, width));
     }
     if (parsedNotes.cashPaid) {
-      rows.push(`TROCO PARA: ${parsedNotes.cashPaid}`);
+      rows.push(...wrapText(`TROCO PARA: ${parsedNotes.cashPaid}`, width));
     }
     if (parsedNotes.change) {
-      rows.push(`TROCO: ${parsedNotes.change}`);
+      rows.push(...wrapText(`TROCO: ${parsedNotes.change}`, width));
     }
   }
 
@@ -655,21 +702,78 @@ export function buildReceiptText(
   rows.push("");
   rows.push(center("Sistema Megas Food", width));
 
-  return rows.join("\n");
+  return rows
+    .flatMap((row) => (row.length <= width ? [row] : wrapText(row, width)))
+    .join("\n");
 }
 
 export function buildPrintHtml(
   order: any,
   options: Required<PrintOrderOptions>,
 ) {
-  const receiptWidth = options.paperSize === "58mm" ? "50mm" : "74mm";
   const receiptText = buildReceiptText(order, options);
+
+  return buildThermalPrintHtml({
+    title: options.mode === "kitchen" ? "Comanda cozinha" : "Comprovante",
+    content: receiptText,
+    paperSize: options.paperSize,
+    contentClassName: `receipt-${options.paperSize}`,
+  });
+}
+
+const calibrationWidths = [32, 34, 36, 38, 40, 42, 44, 46] as const;
+
+export function buildCalibrationText(paperSize: PrintPaperSize) {
+  const rows = [
+    `CALIBRACAO TERMICA ${paperSize.toUpperCase()}`,
+    "Use a maior linha sem corte",
+    "",
+  ];
+
+  for (const width of calibrationWidths) {
+    const label = String(width);
+    const rulerLength = width - label.length - 2;
+    const ruler = Array.from(
+      { length: rulerLength },
+      (_, index) => String((index + 1) % 10),
+    ).join("");
+
+    rows.push(`${label}|${ruler}|`);
+  }
+
+  rows.push("", "Anote o maior numero legivel.");
+
+  return rows.join("\n");
+}
+
+export function buildCalibrationHtml(paperSize: PrintPaperSize) {
+  return buildThermalPrintHtml({
+    title: `Calibracao termica ${paperSize}`,
+    content: buildCalibrationText(paperSize),
+    paperSize,
+    contentClassName: `calibration calibration-${paperSize}`,
+  });
+}
+
+function buildThermalPrintHtml({
+  title,
+  content,
+  paperSize,
+  contentClassName,
+}: {
+  title: string;
+  content: string;
+  paperSize: PrintPaperSize;
+  contentClassName: string;
+}) {
+  const paperProfile = printPaperProfiles[paperSize];
+  const receiptWidth = `${paperProfile.widthMm}mm`;
 
   return `
     <html>
       <head>
         <meta charset="utf-8">
-        <title>${options.mode === "kitchen" ? "Comanda cozinha" : "Comprovante"}</title>
+        <title>${escapeHtml(title)}</title>
 
         <style>
           @page {
@@ -682,13 +786,13 @@ export function buildPrintHtml(
 
           html,
           body {
-            width: 100%;
+            width: ${paperSize};
             margin: 0;
             padding: 0;
             color: #000;
             background: #fff;
             font-family: "Courier New", Consolas, monospace;
-            font-size: ${options.paperSize === "58mm" ? "10.5px" : "12px"};
+            font-size: ${paperProfile.fontSizePx}px;
             font-weight: 600;
             line-height: 1.4;
             -webkit-print-color-adjust: exact;
@@ -700,7 +804,11 @@ export function buildPrintHtml(
             width: ${receiptWidth};
             max-width: ${receiptWidth};
             margin: 0 auto;
-            padding: ${options.paperSize === "58mm" ? "2mm 0" : "2.5mm 0"};
+            padding: 0;
+            font-family: "Courier New", Consolas, monospace;
+            font-size: inherit;
+            font-weight: inherit;
+            line-height: inherit;
             white-space: pre;
             overflow: visible;
           }
@@ -708,17 +816,46 @@ export function buildPrintHtml(
           @media print {
             html,
             body {
-              width: 100%;
+              width: ${paperSize};
             }
           }
         </style>
       </head>
 
       <body>
-        <pre class="receipt receipt-${options.paperSize}">${escapeHtml(receiptText)}</pre>
+        <pre class="receipt ${contentClassName}">${escapeHtml(content)}</pre>
       </body>
     </html>
   `;
+}
+
+function openThermalPrintWindow(html: string, autoClose = false) {
+  const printWindow = window.open("", "", "width=420,height=720");
+
+  if (!printWindow) {
+    alert("Nao foi possivel abrir impressao.");
+    return;
+  }
+
+  printWindow.document.write(html);
+  printWindow.document.close();
+
+  printWindow.onload = () => {
+    setTimeout(() => {
+      printWindow.focus();
+      printWindow.print();
+
+      if (autoClose) {
+        setTimeout(() => {
+          printWindow.close();
+        }, 500);
+      }
+    }, 300);
+  };
+}
+
+export function printThermalCalibration(paperSize: PrintPaperSize = "80mm") {
+  openThermalPrintWindow(buildCalibrationHtml(paperSize));
 }
 
 export function printOrder(order: any, options?: PrintOrderOptions) {
@@ -733,26 +870,8 @@ export function printOrder(order: any, options?: PrintOrderOptions) {
     autoClose: options?.autoClose ?? false,
   };
 
-  const printWindow = window.open("", "", "width=420,height=720");
-
-  if (!printWindow) {
-    alert("Nao foi possivel abrir impressao.");
-    return;
-  }
-
-  printWindow.document.write(buildPrintHtml(order, finalOptions));
-  printWindow.document.close();
-
-  printWindow.onload = () => {
-    setTimeout(() => {
-      printWindow.focus();
-      printWindow.print();
-
-      if (finalOptions.autoClose) {
-        setTimeout(() => {
-          printWindow.close();
-        }, 500);
-      }
-    }, 300);
-  };
+  openThermalPrintWindow(
+    buildPrintHtml(order, finalOptions),
+    finalOptions.autoClose,
+  );
 }
