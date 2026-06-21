@@ -303,14 +303,7 @@ function PublicMenuContent({ slug }: { slug: string }) {
                 src={menuCover}
                 alt=""
                 aria-hidden="true"
-                className="absolute inset-0 block h-full w-full bg-black object-contain object-center sm:object-cover"
-              />
-              <div
-                aria-hidden="true"
-                className="absolute inset-0"
-                style={{
-                  background: `linear-gradient(180deg, #00000099, ${palette.primary}55)`,
-                }}
+                className="absolute inset-0 block h-full w-full bg-neutral-100 object-contain object-center sm:object-cover"
               />
             </>
           )}
