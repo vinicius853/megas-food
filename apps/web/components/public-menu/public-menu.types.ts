@@ -92,6 +92,8 @@ export type PublicMenuV2Response = {
 export type MenuCustomization = {
   logoUrl?: string;
   coverUrl?: string;
+  coverPositionX?: number;
+  coverPositionY?: number;
   paletteId?: string;
   brandName?: string;
   tagline?: string;

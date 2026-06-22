@@ -89,6 +89,8 @@ export type PublicMenuV2Category = {
 export type PublicMenuV2Customization = {
   logoUrl: string;
   coverUrl: string;
+  coverPositionX: number;
+  coverPositionY: number;
   paletteId: string;
   brandName: string;
   tagline: string;

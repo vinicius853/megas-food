@@ -95,6 +95,38 @@ describe('PublicMenuV2Service', () => {
     );
   });
 
+  it('usa posicao central para capa de loja antiga', async () => {
+    mockBaseData({});
+
+    const result = await service.findBySlug('tenant-slug');
+
+    expect(result.customization.coverPositionX).toBe(50);
+    expect(result.customization.coverPositionY).toBe(50);
+  });
+
+  it('normaliza a posicao da capa na resposta publica', async () => {
+    mockBaseData({});
+    prisma.tenant.findUnique.mockResolvedValue({
+      id: 'tenant-1',
+      name: 'Tenant',
+      slug: 'tenant-slug',
+      whatsapp: null,
+      logoUrl: null,
+      settings: {
+        customization: {
+          coverPositionX: -10,
+          coverPositionY: 140,
+        },
+      },
+      isActive: true,
+    });
+
+    const result = await service.findBySlug('tenant-slug');
+
+    expect(result.customization.coverPositionX).toBe(0);
+    expect(result.customization.coverPositionY).toBe(100);
+  });
+
   it('expoe o nome publico customizado para o cardapio e checkout', async () => {
     mockBaseData({
       products: [product('simple-product', 'Bebida', 'category-1')],

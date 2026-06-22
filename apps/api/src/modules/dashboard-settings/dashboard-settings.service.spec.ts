@@ -35,6 +35,52 @@ describe('DashboardSettingsService customization', () => {
     );
   });
 
+  it('usa posicao central para loja antiga sem configuracao', async () => {
+    const { service } = setup();
+
+    await expect(service.findCustomization('tenant-1')).resolves.toEqual(
+      expect.objectContaining({
+        coverPositionX: 50,
+        coverPositionY: 50,
+      }),
+    );
+  });
+
+  it('normaliza e limita a posicao sem remover outros campos', async () => {
+    const { prisma, service } = setup({
+      settings: {
+        customization: {
+          coverUrl: 'https://cdn.example/cover.png',
+          tagline: 'Sempre quentinha',
+          coverPositionX: -20,
+          coverPositionY: 180,
+        },
+      },
+    });
+
+    await expect(
+      service.updateCustomization('tenant-1', {
+        coverPositionX: null,
+        coverPositionY: 120,
+      }),
+    ).resolves.toEqual(
+      expect.objectContaining({
+        coverPositionX: 50,
+        coverPositionY: 100,
+      }),
+    );
+
+    const settings = prisma.tenant.update.mock.calls[0][0].data.settings;
+    expect(settings.customization).toEqual(
+      expect.objectContaining({
+        coverUrl: 'https://cdn.example/cover.png',
+        tagline: 'Sempre quentinha',
+        coverPositionX: 50,
+        coverPositionY: 100,
+      }),
+    );
+  });
+
   it('nao persiste tenant.name ao salvar personalizacao sem override', async () => {
     const { prisma, service } = setup();
 

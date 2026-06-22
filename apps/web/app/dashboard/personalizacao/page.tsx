@@ -34,6 +34,8 @@ type Palette = {
 type CustomizationSettings = {
   logoUrl: string;
   coverUrl: string;
+  coverPositionX: number;
+  coverPositionY: number;
   paletteId: string;
   brandName: string;
   tagline: string;
@@ -80,6 +82,8 @@ const palettes: Palette[] = [
 const emptySettings: CustomizationSettings = {
   logoUrl: "",
   coverUrl: "",
+  coverPositionX: 50,
+  coverPositionY: 50,
   paletteId: "classic-pizza",
   brandName: "",
   tagline: "",
@@ -93,6 +97,14 @@ const ACCEPTED_MENU_IMAGE_MIME_TYPES = new Set([
   "image/jpeg",
   "image/webp",
 ]);
+
+function clampCoverPosition(value: number) {
+  if (!Number.isFinite(value)) {
+    return 50;
+  }
+
+  return Math.min(100, Math.max(0, value));
+}
 
 const tabs = ["Identidade visual", "Capa e imagens", "Previa do cardapio"];
 
@@ -136,6 +148,12 @@ export default function PersonalizacaoPage() {
       setSettings({
         logoUrl: customization.logoUrl || tenant.logoUrl || "",
         coverUrl: customization.coverUrl || "",
+        coverPositionX: clampCoverPosition(
+          customization.coverPositionX ?? 50,
+        ),
+        coverPositionY: clampCoverPosition(
+          customization.coverPositionY ?? 50,
+        ),
         paletteId: customization.paletteId || emptySettings.paletteId,
         brandName: customization.brandName?.trim() || "",
         tagline: customization.tagline || "",
@@ -171,6 +189,8 @@ export default function PersonalizacaoPage() {
       setSettings((current) => ({
         ...current,
         brandName: customization.brandName,
+        coverPositionX: customization.coverPositionX,
+        coverPositionY: customization.coverPositionY,
       }));
       setTenantName(customization.tenantName);
 
@@ -337,9 +357,18 @@ export default function PersonalizacaoPage() {
             activeTab === "Previa do cardapio") && (
             <CoverCard
               coverUrl={settings.coverUrl}
+              coverPositionX={settings.coverPositionX}
+              coverPositionY={settings.coverPositionY}
               onChange={(event) => handleFile("coverUrl", event)}
               onRemove={() =>
                 setSettings((current) => ({ ...current, coverUrl: "" }))
+              }
+              onPositionChange={(coverPositionX, coverPositionY) =>
+                setSettings((current) => ({
+                  ...current,
+                  coverPositionX,
+                  coverPositionY,
+                }))
               }
               uploading={uploadingField === "coverUrl"}
             />
@@ -545,15 +574,28 @@ function PaletteCard({
 
 function CoverCard({
   coverUrl,
+  coverPositionX,
+  coverPositionY,
   onChange,
   onRemove,
+  onPositionChange,
   uploading,
 }: {
   coverUrl: string;
+  coverPositionX: number;
+  coverPositionY: number;
   onChange: (event: ChangeEvent<HTMLInputElement>) => void;
   onRemove: () => void;
+  onPositionChange: (x: number, y: number) => void;
   uploading: boolean;
 }) {
+  function movePosition(xDelta: number, yDelta: number) {
+    onPositionChange(
+      clampCoverPosition(coverPositionX + xDelta),
+      clampCoverPosition(coverPositionY + yDelta),
+    );
+  }
+
   return (
     <Card>
       <CardHeader>
@@ -569,6 +611,9 @@ function CoverCard({
               src={coverUrl}
               alt="Capa"
               className="h-full w-full object-cover"
+              style={{
+                objectPosition: `${coverPositionX}% ${coverPositionY}%`,
+              }}
             />
           ) : (
             <div className="flex h-full items-center justify-center text-slate-400">
@@ -591,6 +636,63 @@ function CoverCard({
             <Trash2 className="h-4 w-4 text-red-600" />
             Remover
           </Button>
+        </div>
+        <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 p-4">
+          <p className="text-sm font-black text-slate-900">Posição da capa</p>
+          <p className="mt-1 text-xs font-medium leading-relaxed text-slate-500">
+            Ajuste o enquadramento da imagem quando ela cortar no celular ou em
+            telas menores.
+          </p>
+          <div className="mt-3 flex flex-wrap gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => movePosition(0, -5)}
+              disabled={uploading}
+            >
+              ↑ Subir
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => movePosition(0, 5)}
+              disabled={uploading}
+            >
+              ↓ Descer
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => movePosition(-5, 0)}
+              disabled={uploading}
+            >
+              ← Esquerda
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => movePosition(5, 0)}
+              disabled={uploading}
+            >
+              → Direita
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => onPositionChange(50, 50)}
+              disabled={uploading}
+            >
+              Centralizar
+            </Button>
+          </div>
+          <p className="mt-3 text-xs font-semibold text-slate-500">
+            Posição atual: X {coverPositionX}%, Y {coverPositionY}%
+          </p>
         </div>
         <div className="mt-3 space-y-1 text-xs font-medium text-slate-500">
           <p>Formatos aceitos: PNG, JPG ou WEBP.</p>
@@ -665,14 +767,31 @@ function MenuPreview({
         <div
           className="relative min-h-44 bg-slate-900 p-5 text-white"
           style={{
-            backgroundImage: settings.coverUrl
-              ? `linear-gradient(90deg, ${primary}dd, #00000066), url(${settings.coverUrl})`
+            background: settings.coverUrl
+              ? undefined
               : `linear-gradient(135deg, ${primary}, ${secondary})`,
-            backgroundSize: "cover",
-            backgroundPosition: "center",
           }}
         >
-          <div className="flex items-center gap-3">
+          {settings.coverUrl && (
+            <>
+              <img
+                src={settings.coverUrl}
+                alt=""
+                aria-hidden="true"
+                className="absolute inset-0 h-full w-full object-cover"
+                style={{
+                  objectPosition: `${settings.coverPositionX}% ${settings.coverPositionY}%`,
+                }}
+              />
+              <div
+                className="absolute inset-0"
+                style={{
+                  background: `linear-gradient(90deg, ${primary}dd, #00000066)`,
+                }}
+              />
+            </>
+          )}
+          <div className="relative flex items-center gap-3">
             <div className="flex h-14 w-14 items-center justify-center overflow-hidden rounded-2xl bg-white/90">
               {settings.logoUrl ? (
                 <img

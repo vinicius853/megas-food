@@ -31,6 +31,8 @@ const emptyDeliverySettings: UpdateDeliverySettingsDto = {
 const emptyCustomizationSettings: UpdateCustomizationSettingsDto = {
   logoUrl: '',
   coverUrl: '',
+  coverPositionX: 50,
+  coverPositionY: 50,
   paletteId: 'classic-pizza',
   brandName: '',
   tagline: '',
@@ -51,6 +53,14 @@ function asJson(value: unknown): Prisma.InputJsonValue {
 
 function normalizeBrandName(value: unknown) {
   return typeof value === 'string' ? value.trim() : '';
+}
+
+function normalizeCoverPosition(value: unknown) {
+  if (typeof value !== 'number' || !Number.isFinite(value)) {
+    return 50;
+  }
+
+  return Math.min(100, Math.max(0, value));
 }
 
 @Injectable()
@@ -125,6 +135,8 @@ export class DashboardSettingsService {
       ...emptyCustomizationSettings,
       logoUrl: tenant.logoUrl ?? '',
       ...(customization ?? {}),
+      coverPositionX: normalizeCoverPosition(customization?.coverPositionX),
+      coverPositionY: normalizeCoverPosition(customization?.coverPositionY),
       brandName,
       tenantName,
       effectiveBrandName: brandName || tenantName || 'Loja',
@@ -150,10 +162,22 @@ export class DashboardSettingsService {
       incomingBrandName === undefined
         ? normalizeBrandName(storedCustomization.brandName)
         : normalizeBrandName(incomingBrandName);
+    const coverPositionX = normalizeCoverPosition(
+      dto.coverPositionX === undefined
+        ? storedCustomization.coverPositionX
+        : dto.coverPositionX,
+    );
+    const coverPositionY = normalizeCoverPosition(
+      dto.coverPositionY === undefined
+        ? storedCustomization.coverPositionY
+        : dto.coverPositionY,
+    );
 
     const customization = {
       ...currentWithoutBrandName,
       ...dtoWithoutBrandName,
+      coverPositionX,
+      coverPositionY,
       ...(brandName ? { brandName } : {}),
     };
 

@@ -98,6 +98,8 @@ function PublicMenuContent({ slug }: { slug: string }) {
   const menuTagline = customization?.tagline || "Cardapio digital";
   const menuLogo = customization?.logoUrl || tenant?.logoUrl || "";
   const menuCover = customization?.coverUrl;
+  const coverPositionX = customization?.coverPositionX ?? 50;
+  const coverPositionY = customization?.coverPositionY ?? 50;
   const storeStatus = useMemo(() => {
     const openStatus = getStoreOpenStatus(menuV2Data?.delivery);
 
@@ -303,7 +305,10 @@ function PublicMenuContent({ slug }: { slug: string }) {
                 src={menuCover}
                 alt=""
                 aria-hidden="true"
-                className="absolute inset-0 block h-full w-full bg-neutral-100 object-cover object-center"
+                className="absolute inset-0 block h-full w-full bg-neutral-100 object-cover"
+                style={{
+                  objectPosition: `${coverPositionX}% ${coverPositionY}%`,
+                }}
               />
             </>
           )}

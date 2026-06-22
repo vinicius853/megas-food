@@ -1,5 +1,6 @@
 import { Type } from 'class-transformer'
 import {
+  Allow,
   IsArray,
   IsBoolean,
   IsIn,
@@ -75,6 +76,14 @@ export class UpdateCustomizationSettingsDto {
   @IsOptional()
   @IsString()
   coverUrl?: string
+
+  @Allow()
+  @IsOptional()
+  coverPositionX?: number | null
+
+  @Allow()
+  @IsOptional()
+  coverPositionY?: number | null
 
   @IsOptional()
   @IsString()

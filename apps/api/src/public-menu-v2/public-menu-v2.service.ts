@@ -379,6 +379,14 @@ function bySortOrder<T extends { sortOrder: number }>(left: T, right: T) {
   return left.sortOrder - right.sortOrder;
 }
 
+function normalizeCoverPosition(value: unknown) {
+  if (typeof value !== 'number' || !Number.isFinite(value)) {
+    return 50;
+  }
+
+  return Math.min(100, Math.max(0, value));
+}
+
 function buildCustomization(tenant: {
   name: string;
   logoUrl: string | null;
@@ -390,6 +398,8 @@ function buildCustomization(tenant: {
   return {
     logoUrl: String(customization.logoUrl ?? tenant.logoUrl ?? ''),
     coverUrl: String(customization.coverUrl ?? ''),
+    coverPositionX: normalizeCoverPosition(customization.coverPositionX),
+    coverPositionY: normalizeCoverPosition(customization.coverPositionY),
     paletteId: String(customization.paletteId ?? 'classic-pizza'),
     brandName: resolvePublicStoreName(tenant),
     tagline: String(customization.tagline ?? 'Cardapio digital'),
