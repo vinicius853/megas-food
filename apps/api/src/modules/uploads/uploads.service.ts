@@ -5,6 +5,13 @@ import {
 } from '@nestjs/common'
 import { createHash } from 'crypto'
 
+import {
+  ACCEPTED_MENU_IMAGE_MIME_TYPES,
+  MAX_MENU_IMAGE_SIZE_BYTES,
+  MENU_IMAGE_INVALID_FORMAT_MESSAGE,
+  MENU_IMAGE_TOO_LARGE_MESSAGE,
+} from './uploads.constants'
+
 type UploadedImageFile = {
   buffer: Buffer
   mimetype: string
@@ -31,12 +38,16 @@ export class UploadsService {
       throw new BadRequestException('Envie uma imagem.')
     }
 
-    if (!file.mimetype.startsWith('image/')) {
-      throw new BadRequestException('O arquivo precisa ser uma imagem.')
+    if (
+      !ACCEPTED_MENU_IMAGE_MIME_TYPES.includes(
+        file.mimetype as (typeof ACCEPTED_MENU_IMAGE_MIME_TYPES)[number],
+      )
+    ) {
+      throw new BadRequestException(MENU_IMAGE_INVALID_FORMAT_MESSAGE)
     }
 
-    if (file.size > 5 * 1024 * 1024) {
-      throw new BadRequestException('A imagem deve ter no maximo 5MB.')
+    if (file.size > MAX_MENU_IMAGE_SIZE_BYTES) {
+      throw new BadRequestException(MENU_IMAGE_TOO_LARGE_MESSAGE)
     }
 
     const cloudName = process.env.CLOUDINARY_CLOUD_NAME

@@ -52,6 +52,12 @@ export async function apiFetch<T = unknown>(
     const errorText = await response.text()
     const isHtmlResponse = errorText.trim().startsWith('<!DOCTYPE')
 
+    if (response.status === 413) {
+      throw new Error(
+        'Imagem muito grande. Envie um arquivo de até 10 MB.',
+      )
+    }
+
     if (response.status === 401 && token) {
       clearAuthSession()
       window.location.replace('/login')

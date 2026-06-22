@@ -85,6 +85,15 @@ const emptySettings: CustomizationSettings = {
   tagline: "",
 };
 
+const MAX_MENU_IMAGE_SIZE_MB = 10;
+const MAX_MENU_IMAGE_SIZE_BYTES =
+  MAX_MENU_IMAGE_SIZE_MB * 1024 * 1024;
+const ACCEPTED_MENU_IMAGE_MIME_TYPES = new Set([
+  "image/png",
+  "image/jpeg",
+  "image/webp",
+]);
+
 const tabs = ["Identidade visual", "Capa e imagens", "Previa do cardapio"];
 
 export default function PersonalizacaoPage() {
@@ -183,10 +192,27 @@ export default function PersonalizacaoPage() {
     const file = event.target.files?.[0];
     if (!file) return;
 
+    setError("");
+    setMessage("");
+
+    if (!ACCEPTED_MENU_IMAGE_MIME_TYPES.has(file.type)) {
+      setError(
+        "Formato inválido. Envie uma imagem em PNG, JPG ou WEBP.",
+      );
+      event.target.value = "";
+      return;
+    }
+
+    if (file.size > MAX_MENU_IMAGE_SIZE_BYTES) {
+      setError(
+        `Imagem muito grande. Envie um arquivo de até ${MAX_MENU_IMAGE_SIZE_MB} MB.`,
+      );
+      event.target.value = "";
+      return;
+    }
+
     try {
       setUploadingField(field);
-      setError("");
-      setMessage("");
 
       const formData = new FormData();
       formData.append("image", file);
@@ -450,9 +476,14 @@ function LogoCard({
           </div>
         </div>
 
-        <p className="mt-3 text-xs font-medium text-slate-500">
-          Recomendado: 512x512px (PNG ou SVG)
-        </p>
+        <div className="mt-3 space-y-1 text-xs font-medium text-slate-500">
+          <p>Formatos aceitos: PNG, JPG ou WEBP.</p>
+          <p>Tamanho máximo: {MAX_MENU_IMAGE_SIZE_MB} MB.</p>
+          <p>Recomendado para logo: 512x512 px.</p>
+          <p className="font-normal">
+            Para melhor desempenho, prefira imagens otimizadas abaixo de 2 MB.
+          </p>
+        </div>
       </CardContent>
     </Card>
   );
@@ -561,9 +592,19 @@ function CoverCard({
             Remover
           </Button>
         </div>
-        <p className="mt-3 text-xs font-medium text-slate-500">
-          Recomendado: 1920x600px
-        </p>
+        <div className="mt-3 space-y-1 text-xs font-medium text-slate-500">
+          <p>Formatos aceitos: PNG, JPG ou WEBP.</p>
+          <p>Tamanho máximo: {MAX_MENU_IMAGE_SIZE_MB} MB.</p>
+          <p>Recomendado para capa desktop: 1920x600 px.</p>
+          <p>Recomendado para capa mobile: 1080x720 px.</p>
+          <p className="font-normal">
+            Para melhor resultado no celular, use uma arte adaptada ou mantenha
+            textos e elementos importantes no centro.
+          </p>
+          <p className="font-normal">
+            Para melhor desempenho, prefira imagens otimizadas abaixo de 2 MB.
+          </p>
+        </div>
       </CardContent>
     </Card>
   );
@@ -588,7 +629,7 @@ function FileButton({
       {label}
       <input
         type="file"
-        accept="image/*"
+        accept="image/png,image/jpeg,image/webp"
         className="hidden"
         onChange={onChange}
         disabled={disabled}
