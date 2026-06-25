@@ -9,6 +9,7 @@ import { apiFetch } from '@/lib/api'
 
 type UploadResponse = {
   url: string
+  publicId?: string | null
 }
 
 export function ImageUploadField({
@@ -19,7 +20,7 @@ export function ImageUploadField({
 }: {
   imageUrl?: string | null
   label: string
-  onChange: (value: string | null) => void
+  onChange: (value: string | null, publicId?: string | null) => void
   compact?: boolean
 }) {
   const inputRef = useRef<HTMLInputElement | null>(null)
@@ -48,7 +49,7 @@ export function ImageUploadField({
         },
       )
 
-      onChange(response.url)
+      onChange(response.url, response.publicId ?? null)
     } catch (err) {
       setError(
         err instanceof Error
@@ -107,7 +108,7 @@ export function ImageUploadField({
           {imageUrl && (
             <button
               type="button"
-              onClick={() => onChange(null)}
+              onClick={() => onChange(null, null)}
               disabled={uploading}
               className="inline-flex h-9 w-9 items-center justify-center rounded-2xl text-slate-400 transition hover:bg-red-50 hover:text-red-600 disabled:opacity-60"
               aria-label={`Remover foto de ${label}`}

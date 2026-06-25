@@ -37,6 +37,14 @@ export class UpdateGenericCategoryDto {
   @IsEnum(CategoryType)
   type: CategoryType;
 
+  @IsOptional()
+  @IsString()
+  defaultImageUrl?: string;
+
+  @IsOptional()
+  @IsString()
+  defaultImagePublicId?: string;
+
   @IsInt()
   @Min(0)
   sortOrder: number;

@@ -24,6 +24,8 @@ export type Category = {
   name: string
   slug?: string
   type: CategoryType
+  defaultImageUrl?: string | null
+  defaultImagePublicId?: string | null
   sortOrder?: number
   isActive: boolean
 }

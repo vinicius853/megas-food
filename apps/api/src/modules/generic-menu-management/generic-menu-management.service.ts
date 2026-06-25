@@ -83,6 +83,8 @@ export class GenericMenuManagementService {
         name: category.name,
         slug: category.slug,
         type: category.type,
+        defaultImageUrl: category.defaultImageUrl,
+        defaultImagePublicId: category.defaultImagePublicId,
         sortOrder: category.sortOrder,
         isActive: category.isActive,
       })),

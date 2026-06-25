@@ -141,6 +141,8 @@ export class GenericMenuManagementWriter {
       name: dto.name,
       slug: dto.slug,
       type: dto.type,
+      defaultImageUrl: dto.defaultImageUrl ?? null,
+      defaultImagePublicId: dto.defaultImagePublicId ?? null,
       sortOrder: dto.sortOrder,
       isActive: dto.isActive,
     };

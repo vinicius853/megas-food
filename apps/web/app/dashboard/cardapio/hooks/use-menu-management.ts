@@ -340,6 +340,8 @@ export function useMenuManagement() {
         name: "",
         slug: "",
         type,
+        defaultImageUrl: null,
+        defaultImagePublicId: null,
         sortOrder: prev.length,
         isActive: true,
       },

@@ -53,7 +53,7 @@ export function mapFixedProductCardsFromV2(
       description: product.description?.trim() || null,
       categoryName: category.name,
       categorySortOrder: category.sortOrder,
-      image: product.imageUrl || undefined,
+      image: product.imageUrl || category.defaultImageUrl || undefined,
       price: parseMoney(product.price ?? product.basePrice),
     }))
     .filter((product) => product.price > 0);
@@ -108,7 +108,7 @@ function buildFlavorCardsFromGenericOptions(input: {
         categoryName: flavor.category?.name ?? input.fallbackCategoryName,
         categorySortOrder:
           flavor.category?.sortOrder ?? input.fallbackCategorySortOrder,
-        image: flavor.imageUrl || undefined,
+        image: flavor.imageUrl || flavor.category?.defaultImageUrl || undefined,
         minPrice:
           prices.length > 0
             ? Math.min(...prices.map((price) => price.value))

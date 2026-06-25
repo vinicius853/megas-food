@@ -179,6 +179,8 @@ export class PublicMenuV2Service {
           name: cleanName(category.name),
           slug: category.slug,
           type: category.type,
+          defaultImageUrl: category.defaultImageUrl,
+          defaultImagePublicId: category.defaultImagePublicId,
           sortOrder: category.sortOrder,
           isActive: category.isActive,
           products: categoryProducts.map((product) => ({
@@ -308,6 +310,8 @@ function buildModifierGroups(
             ? {
                 id: displayCategory.id,
                 name: cleanName(displayCategory.name),
+                defaultImageUrl: displayCategory.defaultImageUrl,
+                defaultImagePublicId: displayCategory.defaultImagePublicId,
                 sortOrder: displayCategory.sortOrder,
               }
             : null,

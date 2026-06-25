@@ -168,6 +168,8 @@ export function matrixToGenericUpdate(
         name: category.name,
         slug: category.slug || slugify(category.name),
         type: category.type,
+        defaultImageUrl: category.defaultImageUrl ?? undefined,
+        defaultImagePublicId: category.defaultImagePublicId ?? undefined,
         sortOrder: index,
         isActive: category.isActive,
       };

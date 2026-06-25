@@ -187,21 +187,42 @@ export function SimpleCategoryList({
           return (
             <div
               key={category.id}
-              className="grid gap-3 rounded-3xl border border-slate-200 bg-white p-4 lg:grid-cols-[1fr_260px_auto]"
+              className="grid gap-3 rounded-3xl border border-slate-200 bg-white p-4 lg:grid-cols-[minmax(0,1fr)_260px_auto]"
             >
-              <input
-                autoFocus={isNewCategoryDraft(category)}
-                value={category.name}
-                onChange={(event) =>
-                  onUpdate(category.id, "name", event.target.value)
-                }
-                disabled={protectedCategory}
-                className={`h-11 rounded-2xl border border-slate-200 px-4 text-sm font-black outline-none focus:border-orange-500 focus:ring-4 focus:ring-orange-500/15 ${
-                  protectedCategory
-                    ? "bg-slate-50 text-slate-500"
-                    : "bg-white text-slate-950"
-                }`}
-              />
+              <div className="min-w-0 space-y-3">
+                <input
+                  autoFocus={isNewCategoryDraft(category)}
+                  value={category.name}
+                  onChange={(event) =>
+                    onUpdate(category.id, "name", event.target.value)
+                  }
+                  disabled={protectedCategory}
+                  className={`h-11 w-full rounded-2xl border border-slate-200 px-4 text-sm font-black outline-none focus:border-orange-500 focus:ring-4 focus:ring-orange-500/15 ${
+                    protectedCategory
+                      ? "bg-slate-50 text-slate-500"
+                      : "bg-white text-slate-950"
+                  }`}
+                />
+
+                <div className="rounded-2xl border border-slate-100 bg-slate-50/70 p-3">
+                  <ImageUploadField
+                    imageUrl={category.defaultImageUrl}
+                    label={`imagem padrão de ${category.name || "categoria"}`}
+                    compact
+                    onChange={(value, publicId) => {
+                      onUpdate(category.id, "defaultImageUrl", value);
+                      onUpdate(
+                        category.id,
+                        "defaultImagePublicId",
+                        publicId ?? null,
+                      );
+                    }}
+                  />
+                  <p className="mt-2 text-xs font-semibold leading-relaxed text-slate-500">
+                    Produtos sem foto própria usarão esta imagem no cardápio.
+                  </p>
+                </div>
+              </div>
 
               {protectedCategory ? (
                 <div className="flex h-11 items-center rounded-2xl border border-slate-200 bg-slate-50 px-4 text-sm font-black text-slate-500">

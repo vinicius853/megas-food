@@ -441,7 +441,11 @@ export function PizzaConfiguratorFlow({
 
   if (!open || !product) return null;
 
-  const heroImage = firstFlavor?.imageUrl || product.imageUrl || undefined;
+  const heroImage =
+    firstFlavor?.imageUrl ||
+    firstFlavor?.category?.defaultImageUrl ||
+    product.imageUrl ||
+    undefined;
   const displayMainName = capitalizePublicDisplayName(
     firstFlavor?.name || product.name,
   );

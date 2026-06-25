@@ -13,6 +13,8 @@ export type Category = {
   name: string;
   slug: string;
   type?: "PRODUCT_SECTION" | "PIZZA_FLAVOR_GROUP";
+  defaultImageUrl?: string | null;
+  defaultImagePublicId?: string | null;
   sortOrder: number;
   isActive: boolean;
 };
@@ -33,6 +35,8 @@ export type PublicMenuV2Option = {
   category?: {
     id: string;
     name: string;
+    defaultImageUrl?: string | null;
+    defaultImagePublicId?: string | null;
     sortOrder: number;
   } | null;
   rules: Array<{
