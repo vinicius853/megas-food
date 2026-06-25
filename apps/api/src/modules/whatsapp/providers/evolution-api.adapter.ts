@@ -98,8 +98,7 @@ export class EvolutionApiAdapter implements WhatsAppProviderAdapter {
 
   async configureWebhook(instanceName: string): Promise<void> {
     const sanitizedInstanceName = this.sanitizeInstanceName(instanceName);
-    const webhookUrl = this.getWebhookUrl();
-    const webhookSecret = this.getWebhookSecret();
+    const webhookUrl = this.buildWebhookUrl();
     await this.request(
       `/webhook/set/${encodeURIComponent(sanitizedInstanceName)}`,
       {
@@ -108,13 +107,6 @@ export class EvolutionApiAdapter implements WhatsAppProviderAdapter {
           webhook: {
             enabled: true,
             url: webhookUrl,
-            ...(webhookSecret
-              ? {
-                  headers: {
-                    'x-evolution-webhook-secret': webhookSecret,
-                  },
-                }
-              : {}),
             byEvents: false,
             base64: false,
             events: ['MESSAGES_UPSERT', 'CONNECTION_UPDATE'],
@@ -345,6 +337,15 @@ export class EvolutionApiAdapter implements WhatsAppProviderAdapter {
 
   private getWebhookSecret() {
     return this.configService.get<string>('EVOLUTION_WEBHOOK_SECRET')?.trim();
+  }
+
+  private buildWebhookUrl() {
+    const webhookUrl = this.getWebhookUrl();
+    const webhookSecret = this.getWebhookSecret();
+    if (!webhookSecret) return webhookUrl;
+
+    const separator = webhookUrl.includes('?') ? '&' : '?';
+    return `${webhookUrl}${separator}token=${encodeURIComponent(webhookSecret)}`;
   }
 
   private stringifySanitized(value: unknown) {

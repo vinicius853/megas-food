@@ -170,10 +170,7 @@ describe('EvolutionApiAdapter', () => {
         body: JSON.stringify({
           webhook: {
             enabled: true,
-            url: 'https://api.megasfood.tech/whatsapp/evolution/webhook',
-            headers: {
-              'x-evolution-webhook-secret': 'webhook-secret',
-            },
+            url: 'https://api.megasfood.tech/whatsapp/evolution/webhook?token=webhook-secret',
             byEvents: false,
             base64: false,
             events: ['MESSAGES_UPSERT', 'CONNECTION_UPDATE'],
@@ -201,6 +198,38 @@ describe('EvolutionApiAdapter', () => {
 
     await expect(adapter.configureWebhook('megas-loja')).rejects.toThrow(
       'Evolution API POST /webhook/set/megas-loja respondeu 400 Bad Request: Bad Request | body={"status":400,"message":"Bad Request","token":"[redacted]","response":{"apikey":"[redacted]","message":"Invalid webhook payload"}}',
+    );
+  });
+
+  it('anexa token com & quando URL do webhook ja possui query string', async () => {
+    adapter = new EvolutionApiAdapter({
+      get: jest.fn((key: string) => {
+        if (key === 'EVOLUTION_API_URL') return 'https://evolution.example.com/';
+        if (key === 'EVOLUTION_API_KEY') return 'secret-key';
+        if (key === 'EVOLUTION_WEBHOOK_URL') {
+          return 'https://api.megasfood.tech/whatsapp/evolution/webhook?source=evolution';
+        }
+        if (key === 'EVOLUTION_WEBHOOK_SECRET') return 'webhook-secret';
+        return undefined;
+      }),
+    } as unknown as ConfigService);
+    fetchMock.mockResolvedValue(new Response(JSON.stringify({}), { status: 200 }));
+
+    await adapter.configureWebhook('megas-loja');
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      'https://evolution.example.com/webhook/set/megas-loja',
+      expect.objectContaining({
+        body: JSON.stringify({
+          webhook: {
+            enabled: true,
+            url: 'https://api.megasfood.tech/whatsapp/evolution/webhook?source=evolution&token=webhook-secret',
+            byEvents: false,
+            base64: false,
+            events: ['MESSAGES_UPSERT', 'CONNECTION_UPDATE'],
+          },
+        }),
+      }),
     );
   });
 
