@@ -37,9 +37,23 @@ describe('WhatsAppEvolutionWebhookController', () => {
   });
 
   it.each([
-    ['apikey', ['evolution-key', undefined, undefined, undefined]],
-    ['x-api-key', [undefined, 'evolution-key', undefined, undefined]],
-  ])('repassa credencial recebida no header %s', (_, headers) => {
+    ['apikey', ['evolution-key', undefined, undefined, undefined], 'evolution-key'],
+    [
+      'x-api-key',
+      [undefined, 'evolution-key', undefined, undefined],
+      'evolution-key',
+    ],
+    [
+      'x-evolution-webhook-secret',
+      [undefined, undefined, 'webhook-secret', undefined],
+      'webhook-secret',
+    ],
+    [
+      'query token',
+      [undefined, undefined, undefined, 'webhook-secret'],
+      'webhook-secret',
+    ],
+  ])('repassa credencial recebida no header %s', (_, headers, expected) => {
     const { controller, webhookService } = setup();
 
     controller.handleWebhook(
@@ -52,7 +66,7 @@ describe('WhatsAppEvolutionWebhookController', () => {
 
     expect(webhookService.accept).toHaveBeenCalledWith(
       { event: 'messages.upsert', instance: 'tenant-instance' },
-      ['evolution-key'],
+      [expected],
     );
   });
 

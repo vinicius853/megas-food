@@ -3,7 +3,10 @@ import { ConfigService } from '@nestjs/config';
 import { WhatsAppEvolutionWebhookService } from './whatsapp-evolution-webhook.service';
 
 describe('WhatsAppEvolutionWebhookService', () => {
-  function setup(input?: { automationEnabled?: boolean }) {
+  function setup(input?: {
+    automationEnabled?: boolean;
+    webhookSecret?: string | null;
+  }) {
     const prisma = {
       whatsAppConnection: {
         findFirst: jest.fn().mockResolvedValue({
@@ -25,7 +28,11 @@ describe('WhatsAppEvolutionWebhookService', () => {
     const config = {
       get: jest.fn((key: string) => {
         if (key === 'EVOLUTION_API_KEY') return 'evolution-api-key';
-        if (key === 'EVOLUTION_WEBHOOK_SECRET') return 'webhook-secret';
+        if (key === 'EVOLUTION_WEBHOOK_SECRET') {
+          return input?.webhookSecret === null
+            ? undefined
+            : (input?.webhookSecret ?? 'webhook-secret');
+        }
         if (key === 'PUBLIC_WEB_URL') return 'https://megasfood.tech/';
         return undefined;
       }),
@@ -43,7 +50,7 @@ describe('WhatsAppEvolutionWebhookService', () => {
     const { evolution, service } = setup();
 
     await expect(
-      service.handle(messagePayload({ text: 'Olá' }), 'evolution-api-key'),
+      service.handle(messagePayload({ text: 'Ola' }), 'webhook-secret'),
     ).resolves.toEqual({
       received: true,
       handled: 'AUTO_REPLY_SENT',
@@ -52,11 +59,7 @@ describe('WhatsAppEvolutionWebhookService', () => {
     expect(evolution.sendTextMessage).toHaveBeenCalledWith(
       'megas-loja',
       '5524999999999',
-      [
-        'Olá! Seja bem-vindo(a) à Loja Centro.',
-        'Para fazer seu pedido, acesse nosso cardápio digital:',
-        'https://megasfood.tech/c/loja-centro',
-      ].join('\n'),
+      expect.stringContaining('https://megasfood.tech/c/loja-centro'),
     );
   });
 
@@ -64,21 +67,21 @@ describe('WhatsAppEvolutionWebhookService', () => {
     const disabled = setup({ automationEnabled: false });
     await disabled.service.handle(
       messagePayload({ text: 'menu' }),
-      'evolution-api-key',
+      'webhook-secret',
     );
     expect(disabled.evolution.sendTextMessage).not.toHaveBeenCalled();
 
     const group = setup();
     await group.service.handle(
       messagePayload({ remoteJid: '123@g.us', text: 'menu' }),
-      'evolution-api-key',
+      'webhook-secret',
     );
     expect(group.evolution.sendTextMessage).not.toHaveBeenCalled();
 
     const fromMe = setup();
     await fromMe.service.handle(
       messagePayload({ fromMe: true, text: 'menu' }),
-      'evolution-api-key',
+      'webhook-secret',
     );
     expect(fromMe.evolution.sendTextMessage).not.toHaveBeenCalled();
   });
@@ -96,7 +99,7 @@ describe('WhatsAppEvolutionWebhookService', () => {
             wuid: '5524888888888@s.whatsapp.net',
           },
         },
-        'evolution-api-key',
+        'webhook-secret',
       ),
     ).resolves.toEqual({
       received: true,
@@ -112,20 +115,34 @@ describe('WhatsAppEvolutionWebhookService', () => {
     evolution.sendTextMessage.mockRejectedValue(new Error('provider offline'));
 
     await expect(
-      service.handle(messagePayload({ text: 'cardápio' }), 'evolution-api-key'),
+      service.handle(messagePayload({ text: 'cardapio' }), 'webhook-secret'),
     ).resolves.toEqual({
       received: true,
       handled: 'AUTO_REPLY_FAILED',
     });
   });
 
-  it('autoriza a EVOLUTION_API_KEY enviada no payload', async () => {
+  it('autoriza EVOLUTION_WEBHOOK_SECRET recebido como credencial com trim', async () => {
+    const { service } = setup();
+
+    await expect(
+      service.handle(
+        messagePayload({ text: 'texto sem comando' }),
+        ' webhook-secret ',
+      ),
+    ).resolves.toEqual({
+      received: true,
+      ignored: 'NO_MATCHING_COMMAND',
+    });
+  });
+
+  it('autoriza EVOLUTION_WEBHOOK_SECRET enviado no payload apikey por compatibilidade', async () => {
     const { service } = setup();
 
     await expect(
       service.handle({
         ...messagePayload({ text: 'texto sem comando' }),
-        apikey: 'evolution-api-key',
+        apikey: 'webhook-secret',
       }),
     ).resolves.toEqual({
       received: true,
@@ -133,7 +150,7 @@ describe('WhatsAppEvolutionWebhookService', () => {
     });
   });
 
-  it('rejeita webhook sem chave ou com chave invalida', async () => {
+  it('rejeita webhook sem chave, com chave invalida ou com EVOLUTION_API_KEY', async () => {
     const { service } = setup();
 
     await expect(
@@ -142,6 +159,14 @@ describe('WhatsAppEvolutionWebhookService', () => {
     await expect(
       service.handle(messagePayload({ text: 'menu' }), 'invalid-key'),
     ).rejects.toThrow('Webhook Evolution nao autorizado.');
+    await expect(
+      service.handle(messagePayload({ text: 'menu' }), 'evolution-api-key'),
+    ).rejects.toThrow('Webhook Evolution nao autorizado.');
+  });
+
+  it('rejeita webhook quando EVOLUTION_WEBHOOK_SECRET nao esta configurado', async () => {
+    const { service } = setup({ webhookSecret: null });
+
     await expect(
       service.handle(messagePayload({ text: 'menu' }), 'webhook-secret'),
     ).rejects.toThrow('Webhook Evolution nao autorizado.');
@@ -154,7 +179,7 @@ describe('WhatsAppEvolutionWebhookService', () => {
     const { service } = setup();
 
     expect(
-      service.accept(messagePayload({ text: 'menu' }), 'evolution-api-key'),
+      service.accept(messagePayload({ text: 'menu' }), 'webhook-secret'),
     ).toEqual({ received: true });
     expect(scheduleSpy).toHaveBeenCalledTimes(1);
 

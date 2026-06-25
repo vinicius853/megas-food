@@ -168,9 +168,9 @@ export class WhatsAppEvolutionWebhookService {
   }
 
   private assertAuthorized(suppliedCredentials?: string | readonly string[]) {
-    const expectedCredential =
-      this.configService.get<string>('EVOLUTION_API_KEY')?.trim() ||
-      this.configService.get<string>('EVOLUTION_WEBHOOK_SECRET')?.trim();
+    const expectedCredential = this.configService
+      .get<string>('EVOLUTION_WEBHOOK_SECRET')
+      ?.trim();
     const candidates = (
       Array.isArray(suppliedCredentials)
         ? suppliedCredentials
@@ -190,8 +190,8 @@ export class WhatsAppEvolutionWebhookService {
   }
 
   private credentialsMatch(expected: string, supplied: string) {
-    const expectedBuffer = Buffer.from(expected);
-    const suppliedBuffer = Buffer.from(supplied);
+    const expectedBuffer = Buffer.from(expected.trim());
+    const suppliedBuffer = Buffer.from(supplied.trim());
     return (
       expectedBuffer.length === suppliedBuffer.length &&
       timingSafeEqual(expectedBuffer, suppliedBuffer)
