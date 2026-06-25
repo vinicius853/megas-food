@@ -19,6 +19,7 @@ import { canUseAutomaticWhatsAppNotification } from './whatsapp-automation-polic
 import { WhatsAppOutboxService } from './whatsapp-outbox.service';
 import { WHATSAPP_PROVIDER } from './providers/whatsapp-provider.interface';
 import type { WhatsAppProviderAdapter } from './providers/whatsapp-provider.interface';
+import { buildWhatsAppInstanceName } from './whatsapp-instance-name';
 
 @Injectable()
 export class WhatsAppNotificationService {
@@ -106,7 +107,7 @@ export class WhatsAppNotificationService {
       this.prisma.whatsAppConnection.findUnique({ where: { tenantId } }),
       this.prisma.tenant.findUnique({
         where: { id: tenantId },
-        select: { whatsapp: true },
+        select: { slug: true, whatsapp: true },
       }),
     ]);
     const recipient = dto.recipient?.trim() || tenant?.whatsapp?.trim();
@@ -131,7 +132,7 @@ export class WhatsAppNotificationService {
       await this.prisma.whatsAppConnection.create({
         data: {
           tenantId,
-          instanceName: `megas-${tenantId.replace(/\W/g, '').slice(0, 20)}`,
+          instanceName: buildWhatsAppInstanceName(tenantId, tenant?.slug),
         },
       });
     }

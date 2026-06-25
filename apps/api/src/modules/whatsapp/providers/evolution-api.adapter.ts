@@ -96,6 +96,23 @@ export class EvolutionApiAdapter implements WhatsAppProviderAdapter {
     return this.normalizeQrCode(payload);
   }
 
+  async configureWebhook(instanceName: string): Promise<void> {
+    const webhookUrl = this.buildWebhookUrl();
+    await this.request(
+      `/webhook/set/${encodeURIComponent(this.sanitizeInstanceName(instanceName))}`,
+      {
+        method: 'POST',
+        body: JSON.stringify({
+          enabled: true,
+          url: webhookUrl,
+          webhook_by_events: true,
+          webhook_base64: false,
+          events: ['MESSAGES_UPSERT', 'CONNECTION_UPDATE'],
+        }),
+      },
+    );
+  }
+
   async fetchInstances(instanceName?: string): Promise<EvolutionInstance[]> {
     const expectedInstanceName = instanceName
       ? this.sanitizeInstanceName(instanceName)
@@ -294,5 +311,23 @@ export class EvolutionApiAdapter implements WhatsAppProviderAdapter {
 
   private getApiKey() {
     return this.configService.get<string>('EVOLUTION_API_KEY')?.trim();
+  }
+
+  private buildWebhookUrl() {
+    const webhookUrl = this.configService
+      .get<string>('EVOLUTION_WEBHOOK_URL')
+      ?.trim()
+      .replace(/\/+$/, '');
+    if (!webhookUrl) {
+      throw new Error('EVOLUTION_WEBHOOK_URL nao configurada.');
+    }
+
+    const webhookSecret = this.configService
+      .get<string>('EVOLUTION_WEBHOOK_SECRET')
+      ?.trim();
+    if (!webhookSecret) return webhookUrl;
+
+    const separator = webhookUrl.includes('?') ? '&' : '?';
+    return `${webhookUrl}${separator}token=${encodeURIComponent(webhookSecret)}`;
   }
 }

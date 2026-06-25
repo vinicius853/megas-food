@@ -11,11 +11,15 @@ describe('EvolutionApiAdapter', () => {
     fetchMock = jest.fn();
     global.fetch = fetchMock;
     adapter = new EvolutionApiAdapter({
-      get: jest.fn((key: string) =>
-        key === 'EVOLUTION_API_URL'
-          ? 'https://evolution.example.com/'
-          : 'secret-key',
-      ),
+      get: jest.fn((key: string) => {
+        if (key === 'EVOLUTION_API_URL') return 'https://evolution.example.com/';
+        if (key === 'EVOLUTION_API_KEY') return 'secret-key';
+        if (key === 'EVOLUTION_WEBHOOK_URL') {
+          return 'https://api.megasfood.tech/whatsapp/evolution/webhook';
+        }
+        if (key === 'EVOLUTION_WEBHOOK_SECRET') return 'webhook-secret';
+        return undefined;
+      }),
     } as unknown as ConfigService);
   });
 
@@ -151,5 +155,41 @@ describe('EvolutionApiAdapter', () => {
       state: 'open',
       connectedPhone: '5524999999999',
     });
+  });
+
+  it('configura webhook da instancia com eventos de mensagem e conexao', async () => {
+    fetchMock.mockResolvedValue(new Response(JSON.stringify({}), { status: 200 }));
+
+    await expect(adapter.configureWebhook('Megas Loja')).resolves.toBeUndefined();
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      'https://evolution.example.com/webhook/set/megas-loja',
+      expect.objectContaining({
+        method: 'POST',
+        headers: expect.objectContaining({ apikey: 'secret-key' }),
+        body: JSON.stringify({
+          enabled: true,
+          url: 'https://api.megasfood.tech/whatsapp/evolution/webhook?token=webhook-secret',
+          webhook_by_events: true,
+          webhook_base64: false,
+          events: ['MESSAGES_UPSERT', 'CONNECTION_UPDATE'],
+        }),
+      }),
+    );
+  });
+
+  it('falha com mensagem clara quando webhook da Evolution nao esta configurado', async () => {
+    adapter = new EvolutionApiAdapter({
+      get: jest.fn((key: string) => {
+        if (key === 'EVOLUTION_API_URL') return 'https://evolution.example.com/';
+        if (key === 'EVOLUTION_API_KEY') return 'secret-key';
+        return undefined;
+      }),
+    } as unknown as ConfigService);
+
+    await expect(adapter.configureWebhook('megas-loja')).rejects.toThrow(
+      'EVOLUTION_WEBHOOK_URL nao configurada.',
+    );
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 });

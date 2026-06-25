@@ -5,6 +5,7 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { UpdateWhatsAppSettingsDto } from './dto/update-whatsapp-settings.dto';
 import { EvolutionApiAdapter } from './providers/evolution-api.adapter';
 import type { WhatsAppQrResponse } from './providers/evolution-api.types';
+import { buildWhatsAppInstanceName } from './whatsapp-instance-name';
 
 export const defaultWhatsAppEvents: WhatsAppEventType[] = [
   WhatsAppEventType.ORDER_CREATED,
@@ -61,6 +62,14 @@ export class WhatsAppConnectionService {
 
   async updateSettings(tenantId: string, dto: UpdateWhatsAppSettingsDto) {
     const providerConfigured = this.evolutionApi.isConfigured();
+    const tenant = await this.prisma.tenant.findUnique({
+      where: { id: tenantId },
+      select: { slug: true },
+    });
+
+    if (!tenant) {
+      throw new BadRequestException('Tenant nao encontrado.');
+    }
 
     await this.prisma.whatsAppConnection.upsert({
       where: { tenantId },
@@ -68,7 +77,7 @@ export class WhatsAppConnectionService {
         tenantId,
         automationEnabled: dto.automationEnabled ?? false,
         enabledEvents: dto.enabledEvents ?? defaultWhatsAppEvents,
-        instanceName: this.buildInstanceName(tenantId),
+        instanceName: buildWhatsAppInstanceName(tenantId, tenant.slug),
         status: providerConfigured
           ? WhatsAppConnectionStatus.DISCONNECTED
           : WhatsAppConnectionStatus.AWAITING_CONFIGURATION,
@@ -148,7 +157,7 @@ export class WhatsAppConnectionService {
         });
       instanceName = this.evolutionApi.sanitizeInstanceName(
         existingConnection?.instanceName ??
-          this.buildInstanceName(tenant.id, tenant.slug),
+          buildWhatsAppInstanceName(tenant.id, tenant.slug),
       );
 
       const connection = await this.prisma.whatsAppConnection.upsert({
@@ -188,6 +197,11 @@ export class WhatsAppConnectionService {
           if (!providerInstance) throw error;
         }
       }
+
+      await this.evolutionApi.configureWebhook(instanceName);
+      this.logger.log(
+        `Webhook Evolution configurado para o tenant ${tenantId} na instancia ${instanceName}.`,
+      );
 
       const connectionState = createdNow
         ? { state: providerInstance.status ?? 'created' }
@@ -261,11 +275,6 @@ export class WhatsAppConnectionService {
         message,
       };
     }
-  }
-
-  private buildInstanceName(tenantId: string, tenantSlug?: string | null) {
-    const identity = tenantSlug?.trim() || tenantId;
-    return `megas-${identity}-${tenantId.slice(0, 8)}`;
   }
 
   private isConnected(...states: Array<string | undefined>) {

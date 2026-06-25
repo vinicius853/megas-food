@@ -47,6 +47,7 @@ describe('WhatsAppConnectionService', () => {
       connectInstance: jest
         .fn()
         .mockResolvedValue({ qrCodeBase64: 'base64-qr' }),
+      configureWebhook: jest.fn().mockResolvedValue(undefined),
     };
     const service = new WhatsAppConnectionService(
       prisma as never,
@@ -68,6 +69,9 @@ describe('WhatsAppConnectionService', () => {
     });
 
     expect(evolution.createInstance).toHaveBeenCalledTimes(1);
+    expect(evolution.configureWebhook).toHaveBeenCalledWith(
+      'megas-loja-centro-tenant-1',
+    );
     expect(evolution.connectInstance).not.toHaveBeenCalled();
     expect(prisma.whatsAppConnection.update).toHaveBeenCalledWith({
       where: { id: 'connection-1' },
@@ -99,6 +103,9 @@ describe('WhatsAppConnectionService', () => {
     expect(evolution.connectInstance).toHaveBeenCalledWith(
       'megas-loja-centro-tenant-1',
     );
+    expect(evolution.configureWebhook).toHaveBeenCalledWith(
+      'megas-loja-centro-tenant-1',
+    );
   });
 
   it('reaproveita instancia conectada sem pedir novo QR', async () => {
@@ -122,6 +129,9 @@ describe('WhatsAppConnectionService', () => {
 
     expect(evolution.createInstance).not.toHaveBeenCalled();
     expect(evolution.connectInstance).not.toHaveBeenCalled();
+    expect(evolution.configureWebhook).toHaveBeenCalledWith(
+      'megas-loja-centro-tenant-1',
+    );
     expect(prisma.whatsAppConnection.update).toHaveBeenCalledWith({
       where: { id: 'connection-1' },
       data: expect.objectContaining({
