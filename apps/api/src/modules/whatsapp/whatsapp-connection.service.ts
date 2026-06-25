@@ -41,22 +41,26 @@ export class WhatsAppConnectionService {
     }
 
     const providerConfigured = this.evolutionApi.isConfigured();
+    const currentConnection =
+      providerConfigured && connection?.instanceName
+        ? await this.refreshConnectionStatus(tenantId, connection)
+        : connection;
 
     return {
-      automationEnabled: connection?.automationEnabled ?? false,
-      enabledEvents: connection?.enabledEvents ?? defaultWhatsAppEvents,
+      automationEnabled: currentConnection?.automationEnabled ?? false,
+      enabledEvents: currentConnection?.enabledEvents ?? defaultWhatsAppEvents,
       status: providerConfigured
-        ? (connection?.status ?? WhatsAppConnectionStatus.DISCONNECTED)
+        ? (currentConnection?.status ?? WhatsAppConnectionStatus.DISCONNECTED)
         : WhatsAppConnectionStatus.AWAITING_CONFIGURATION,
-      connectedPhone: connection?.connectedPhone ?? null,
+      connectedPhone: currentConnection?.connectedPhone ?? null,
       recipientPhone: tenant.whatsapp ?? null,
-      lastError: connection?.lastError ?? null,
-      lastConnectedAt: connection?.lastConnectedAt ?? null,
+      lastError: currentConnection?.lastError ?? null,
+      lastConnectedAt: currentConnection?.lastConnectedAt ?? null,
       provider: 'EVOLUTION_API' as const,
       providerConfigured,
       qrCodeAvailable:
         providerConfigured &&
-        connection?.status !== WhatsAppConnectionStatus.CONNECTED,
+        currentConnection?.status !== WhatsAppConnectionStatus.CONNECTED,
     };
   }
 
@@ -210,7 +214,7 @@ export class WhatsAppConnectionService {
         connectionState.connectedPhone ??
         this.normalizeConnectedPhone(providerInstance.owner);
 
-      if (this.isConnected(connectionState.state, providerInstance.status)) {
+      if (this.isConnected(connectionState.state)) {
         await this.prisma.whatsAppConnection.update({
           where: { id: connection.id },
           data: {
@@ -274,6 +278,78 @@ export class WhatsAppConnectionService {
         instanceName,
         message,
       };
+    }
+  }
+
+  private async refreshConnectionStatus(
+    tenantId: string,
+    connection: {
+      id: string;
+      tenantId: string;
+      automationEnabled: boolean;
+      status: WhatsAppConnectionStatus;
+      instanceName: string | null;
+      connectedPhone: string | null;
+      enabledEvents: WhatsAppEventType[];
+      lastError: string | null;
+      lastConnectedAt: Date | null;
+      provider: unknown;
+      createdAt: Date;
+      updatedAt: Date;
+    },
+  ) {
+    if (!connection.instanceName) return connection;
+
+    try {
+      const connectionState = await this.evolutionApi.getConnectionStatus(
+        connection.instanceName,
+      );
+
+      if (this.isConnected(connectionState.state)) {
+        await this.evolutionApi.configureWebhook(connection.instanceName);
+        this.logger.log(
+          `Webhook Evolution configurado para o tenant ${tenantId} na instancia ${connection.instanceName}.`,
+        );
+
+        return this.prisma.whatsAppConnection.update({
+          where: { id: connection.id },
+          data: {
+            status: WhatsAppConnectionStatus.CONNECTED,
+            connectedPhone:
+              connectionState.connectedPhone ?? connection.connectedPhone,
+            lastConnectedAt: new Date(),
+            lastError: null,
+          },
+        });
+      }
+
+      return this.prisma.whatsAppConnection.update({
+        where: { id: connection.id },
+        data: {
+          status: WhatsAppConnectionStatus.DISCONNECTED,
+          connectedPhone: null,
+          lastError: null,
+        },
+      });
+    } catch (error) {
+      const message = this.sanitizeProviderError(error);
+      this.logger.warn(
+        `Falha ao consultar status real do WhatsApp do tenant ${tenantId}: ${message}`,
+      );
+
+      return this.prisma.whatsAppConnection
+        .update({
+          where: { id: connection.id },
+          data: {
+            status: WhatsAppConnectionStatus.ERROR,
+            lastError: message.slice(0, 500),
+          },
+        })
+        .catch(() => ({
+          ...connection,
+          status: WhatsAppConnectionStatus.ERROR,
+          lastError: message.slice(0, 500),
+        }));
     }
   }
 

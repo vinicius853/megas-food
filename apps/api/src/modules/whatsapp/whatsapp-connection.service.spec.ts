@@ -9,8 +9,36 @@ describe('WhatsAppConnectionService', () => {
       status?: string;
       owner?: string;
     }>;
+    connection?: {
+      id: string;
+      tenantId: string;
+      instanceName: string;
+      automationEnabled: boolean;
+      status: WhatsAppConnectionStatus;
+      connectedPhone: string | null;
+      enabledEvents: [];
+      lastError: string | null;
+      lastConnectedAt: Date | null;
+      provider: 'EVOLUTION_API';
+      createdAt: Date;
+      updatedAt: Date;
+    };
     state?: string;
   }) {
+    const defaultConnection = options?.connection ?? {
+      id: 'connection-1',
+      tenantId: 'tenant-1',
+      instanceName: 'megas-loja-centro-tenant-1',
+      automationEnabled: true,
+      status: WhatsAppConnectionStatus.DISCONNECTED,
+      connectedPhone: null,
+      enabledEvents: [],
+      lastError: null,
+      lastConnectedAt: null,
+      provider: 'EVOLUTION_API' as const,
+      createdAt: new Date('2026-01-01T00:00:00.000Z'),
+      updatedAt: new Date('2026-01-01T00:00:00.000Z'),
+    };
     const prisma = {
       tenant: {
         findUnique: jest.fn().mockResolvedValue({
@@ -19,13 +47,18 @@ describe('WhatsAppConnectionService', () => {
         }),
       },
       whatsAppConnection: {
-        findUnique: jest.fn().mockResolvedValue(null),
+        findUnique: jest.fn().mockResolvedValue(options?.connection ?? null),
         upsert: jest.fn().mockResolvedValue({
           id: 'connection-1',
           tenantId: 'tenant-1',
           instanceName: 'megas-loja-centro-tenant-1',
         }),
-        update: jest.fn().mockResolvedValue({}),
+        update: jest.fn().mockImplementation(({ data }) =>
+          Promise.resolve({
+            ...defaultConnection,
+            ...data,
+          }),
+        ),
       },
     };
     const evolution = {
@@ -140,6 +173,77 @@ describe('WhatsAppConnectionService', () => {
         lastError: null,
       }),
     });
+  });
+
+  it('prioriza status real close sobre status open listado e gera novo QR', async () => {
+    const { prisma, evolution, service } = setup({
+      instances: [
+        {
+          instanceName: 'megas-loja-centro-tenant-1',
+          status: 'open',
+          owner: '5524999999999@s.whatsapp.net',
+        },
+      ],
+      state: 'close',
+    });
+
+    await expect(service.getQrCode('tenant-1')).resolves.toEqual({
+      status: 'QR_PENDING',
+      instanceName: 'megas-loja-centro-tenant-1',
+      qrCodeBase64: 'base64-qr',
+      qrCode: undefined,
+      message: 'Aguardando leitura do QR Code.',
+    });
+
+    expect(evolution.getConnectionStatus).toHaveBeenCalledWith(
+      'megas-loja-centro-tenant-1',
+    );
+    expect(evolution.connectInstance).toHaveBeenCalledWith(
+      'megas-loja-centro-tenant-1',
+    );
+    expect(prisma.whatsAppConnection.update).toHaveBeenCalledWith({
+      where: { id: 'connection-1' },
+      data: {
+        status: WhatsAppConnectionStatus.DISCONNECTED,
+        connectedPhone: null,
+        lastError: null,
+      },
+    });
+  });
+
+  it('sincroniza getSettings com status real desconectado da Evolution', async () => {
+    const connectedAt = new Date('2026-01-01T00:00:00.000Z');
+    const { evolution, service } = setup({
+      connection: {
+        id: 'connection-1',
+        tenantId: 'tenant-1',
+        instanceName: 'megas-loja-centro-tenant-1',
+        automationEnabled: true,
+        status: WhatsAppConnectionStatus.CONNECTED,
+        connectedPhone: '5524999999999',
+        enabledEvents: [],
+        lastError: null,
+        lastConnectedAt: connectedAt,
+        provider: 'EVOLUTION_API',
+        createdAt: connectedAt,
+        updatedAt: connectedAt,
+      },
+      state: 'close',
+    });
+
+    await expect(service.getSettings('tenant-1')).resolves.toEqual(
+      expect.objectContaining({
+        automationEnabled: true,
+        status: WhatsAppConnectionStatus.DISCONNECTED,
+        connectedPhone: null,
+        providerConfigured: true,
+        qrCodeAvailable: true,
+      }),
+    );
+
+    expect(evolution.getConnectionStatus).toHaveBeenCalledWith(
+      'megas-loja-centro-tenant-1',
+    );
   });
 
   it('retorna erro estavel quando o provider nao esta configurado', async () => {
