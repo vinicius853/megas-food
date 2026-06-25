@@ -5,20 +5,31 @@ import { useState } from "react";
 
 import { Button } from "@/components/ui/button";
 
-import type { SizeOptionMatrixRow } from "../types/menu-management";
+import type {
+  Category,
+  SizeOptionMatrixRow,
+} from "../types/menu-management";
 import { getPizzaModelLabel } from "./pizza-pricing-helpers";
 import { PizzaSizeCard } from "./pizza-size-card";
 
 type Props = {
+  baseCategories: Category[];
+  baseCategoryId: string;
+  needsBaseCategory: boolean;
   sizes: SizeOptionMatrixRow[];
   onAdd: (type: "round" | "square") => string | null;
+  onBaseCategoryChange: (value: string) => void;
   onRemove: (id: string) => void;
   onUpdate: (id: string, patch: Partial<SizeOptionMatrixRow>) => void;
 };
 
 export function PizzaSizesPanel({
+  baseCategories,
+  baseCategoryId,
+  needsBaseCategory,
   sizes,
   onAdd,
+  onBaseCategoryChange,
   onRemove,
   onUpdate,
 }: Props) {
@@ -26,6 +37,7 @@ export function PizzaSizesPanel({
   const [inactiveOpen, setInactiveOpen] = useState(true);
   const activeSizes = sizes.filter((size) => size.isActive !== false);
   const inactiveSizes = sizes.filter((size) => size.isActive === false);
+  const canCreateBaseProduct = !needsBaseCategory || Boolean(baseCategoryId);
 
   function add(type: "round" | "square") {
     const created = onAdd(type);
@@ -65,6 +77,34 @@ export function PizzaSizesPanel({
 
       {open && (
         <div className="border-t border-slate-100 bg-slate-50/70 p-4 sm:p-5">
+          {needsBaseCategory && (
+            <div className="mb-4 rounded-2xl border border-slate-200 bg-white p-4">
+              <label className="block text-sm font-black text-slate-900">
+                Categoria visual do produto-base
+              </label>
+              <p className="mt-1 text-xs leading-relaxed text-slate-500">
+                Escolha em qual categoria visual o produto-base da pizza será
+                criado. Isso não limita os sabores; cada sabor poderá aparecer
+                em Tradicionais, Especiais, Doces etc.
+              </p>
+
+              <select
+                value={baseCategoryId}
+                onChange={(event) => onBaseCategoryChange(event.target.value)}
+                className="mt-3 h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm font-bold text-slate-700 outline-none focus:border-orange-500 sm:max-w-sm"
+              >
+                {baseCategories.length === 0 && (
+                  <option value="">Nenhuma categoria ativa</option>
+                )}
+                {baseCategories.map((category) => (
+                  <option key={category.id} value={category.id}>
+                    {category.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+
           <div className="mb-4 flex flex-col gap-3 rounded-2xl border border-orange-100 bg-orange-50 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <p className="text-sm font-black text-orange-900">
@@ -80,6 +120,7 @@ export function PizzaSizesPanel({
                 type="button"
                 size="sm"
                 variant="outline"
+                disabled={!canCreateBaseProduct}
                 onClick={() => add("round")}
               >
                 <CirclePlus className="h-4 w-4" />
@@ -89,6 +130,7 @@ export function PizzaSizesPanel({
                 type="button"
                 size="sm"
                 variant="outline"
+                disabled={!canCreateBaseProduct}
                 onClick={() => add("square")}
               >
                 <CirclePlus className="h-4 w-4" />

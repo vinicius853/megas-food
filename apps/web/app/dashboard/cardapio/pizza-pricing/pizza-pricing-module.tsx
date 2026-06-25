@@ -8,8 +8,12 @@ export function PizzaPricingModule(props: PizzaPricingModuleProps) {
   return (
     <div className="min-w-0 space-y-4">
       <PizzaSizesPanel
+        baseCategories={props.pizzaBaseCategories}
+        baseCategoryId={props.pizzaBaseCategoryId}
+        needsBaseCategory={props.needsPizzaBaseCategory}
         sizes={props.sizes}
         onAdd={props.onAddSize}
+        onBaseCategoryChange={props.onUpdatePizzaBaseCategory}
         onRemove={props.onRemoveSize}
         onUpdate={props.onUpdateSize}
       />

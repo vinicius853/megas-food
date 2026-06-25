@@ -117,6 +117,9 @@ function PizzariaMenuConfigurator() {
                       flavorGroups={menu.flavorDisplayGroups}
                       flavorPrices={menu.flavorPrices}
                       flavors={menu.flavors}
+                      needsPizzaBaseCategory={menu.needsPizzaBaseCategory}
+                      pizzaBaseCategories={menu.pizzaBaseCategories}
+                      pizzaBaseCategoryId={menu.pizzaBaseCategoryId}
                       search={menu.search}
                       sizes={menu.sizes}
                       setSearch={menu.setSearch}
@@ -133,6 +136,7 @@ function PizzariaMenuConfigurator() {
                       onUpdateFlavorImage={menu.updateFlavorImage}
                       onUpdateFlavorName={menu.updateFlavorName}
                       onUpdatePizzaPrice={menu.updatePizzaPrice}
+                      onUpdatePizzaBaseCategory={menu.setPizzaBaseCategoryId}
                       onUpdateSize={menu.updateSize}
                     />
                   )}
