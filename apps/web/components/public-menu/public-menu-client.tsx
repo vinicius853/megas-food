@@ -140,6 +140,13 @@ function PublicMenuContent({ slug }: { slug: string }) {
     [fixedProducts],
   );
   const visibleFixedProducts = useMemo(() => fixedProducts, [fixedProducts]);
+  const drinkCategoryName = useMemo(() => {
+    return (
+      visibleFixedProducts.find(
+        (product) => product.product.type === "DRINK" && product.price > 0,
+      )?.categoryName ?? null
+    );
+  }, [visibleFixedProducts]);
   const categories = useMemo(
     () => buildCategoryTabs(flavorCards, visibleFixedProducts),
     [flavorCards, visibleFixedProducts],
@@ -232,14 +239,18 @@ function PublicMenuContent({ slug }: { slug: string }) {
   }
 
   function scrollToDrinks() {
-    setActiveCategory("Bebidas");
+    if (!drinkCategoryName) return;
+
+    setActiveCategory(drinkCategoryName);
     setDrinkSuggestionShown(true);
 
     window.requestAnimationFrame(() => {
-      document.getElementById(getSectionDomId("Bebidas"))?.scrollIntoView({
-        behavior: "smooth",
-        block: "start",
-      });
+      document
+        .getElementById(getSectionDomId(drinkCategoryName))
+        ?.scrollIntoView({
+          behavior: "smooth",
+          block: "start",
+        });
     });
   }
 
@@ -482,7 +493,7 @@ function PublicMenuContent({ slug }: { slug: string }) {
           additionalProducts={pizzaAdditionalProducts}
           onClose={() => setPizzaFlowOpen(false)}
           shouldOfferDrinkSuggestion={
-            !drinkSuggestionShown && categories.includes("Bebidas")
+            !drinkSuggestionShown && Boolean(drinkCategoryName)
           }
           onDrinkSuggestionShown={markDrinkSuggestionShown}
           onViewDrinks={scrollToDrinks}
