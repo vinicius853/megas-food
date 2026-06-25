@@ -97,17 +97,28 @@ export class EvolutionApiAdapter implements WhatsAppProviderAdapter {
   }
 
   async configureWebhook(instanceName: string): Promise<void> {
-    const webhookUrl = this.buildWebhookUrl();
+    const sanitizedInstanceName = this.sanitizeInstanceName(instanceName);
+    const webhookUrl = this.getWebhookUrl();
+    const webhookSecret = this.getWebhookSecret();
     await this.request(
-      `/webhook/set/${encodeURIComponent(this.sanitizeInstanceName(instanceName))}`,
+      `/webhook/set/${encodeURIComponent(sanitizedInstanceName)}`,
       {
         method: 'POST',
         body: JSON.stringify({
-          enabled: true,
-          url: webhookUrl,
-          webhook_by_events: true,
-          webhook_base64: false,
-          events: ['MESSAGES_UPSERT', 'CONNECTION_UPDATE'],
+          webhook: {
+            enabled: true,
+            url: webhookUrl,
+            ...(webhookSecret
+              ? {
+                  headers: {
+                    'x-evolution-webhook-secret': webhookSecret,
+                  },
+                }
+              : {}),
+            byEvents: true,
+            base64: false,
+            events: ['MESSAGES_UPSERT', 'CONNECTION_UPDATE'],
+          },
         }),
       },
     );
@@ -211,8 +222,15 @@ export class EvolutionApiAdapter implements WhatsAppProviderAdapter {
 
     if (!response.ok) {
       const providerMessage = this.extractErrorMessage(payload);
+      const responseDetails = this.stringifySanitized(payload);
+      const method = init.method ?? 'GET';
       throw new Error(
-        providerMessage || `Evolution API respondeu ${response.status}.`,
+        [
+          `Evolution API ${method} ${path} respondeu ${response.status}`,
+          response.statusText ? ` ${response.statusText}` : '',
+          providerMessage ? `: ${providerMessage}` : '',
+          responseDetails ? ` | body=${responseDetails}` : '',
+        ].join(''),
       );
     }
 
@@ -313,7 +331,7 @@ export class EvolutionApiAdapter implements WhatsAppProviderAdapter {
     return this.configService.get<string>('EVOLUTION_API_KEY')?.trim();
   }
 
-  private buildWebhookUrl() {
+  private getWebhookUrl() {
     const webhookUrl = this.configService
       .get<string>('EVOLUTION_WEBHOOK_URL')
       ?.trim()
@@ -322,12 +340,55 @@ export class EvolutionApiAdapter implements WhatsAppProviderAdapter {
       throw new Error('EVOLUTION_WEBHOOK_URL nao configurada.');
     }
 
-    const webhookSecret = this.configService
-      .get<string>('EVOLUTION_WEBHOOK_SECRET')
-      ?.trim();
-    if (!webhookSecret) return webhookUrl;
+    return webhookUrl;
+  }
 
-    const separator = webhookUrl.includes('?') ? '&' : '?';
-    return `${webhookUrl}${separator}token=${encodeURIComponent(webhookSecret)}`;
+  private getWebhookSecret() {
+    return this.configService.get<string>('EVOLUTION_WEBHOOK_SECRET')?.trim();
+  }
+
+  private stringifySanitized(value: unknown) {
+    const sanitized = this.sanitizeForLog(value);
+    if (sanitized === undefined) return '';
+    try {
+      return JSON.stringify(sanitized).slice(0, 1000);
+    } catch {
+      return '[unserializable]';
+    }
+  }
+
+  private sanitizeForLog(value: unknown): unknown {
+    const apiKey = this.getApiKey();
+    const webhookSecret = this.getWebhookSecret();
+    const secrets = [apiKey, webhookSecret].filter(
+      (item): item is string => Boolean(item),
+    );
+
+    if (typeof value === 'string') {
+      return secrets.reduce(
+        (current, secret) => current.replaceAll(secret, '[redacted]'),
+        value,
+      );
+    }
+
+    if (Array.isArray(value)) {
+      return value.map((item) => this.sanitizeForLog(item));
+    }
+
+    const record = this.readRecord(value);
+    if (!record) return value;
+
+    return Object.fromEntries(
+      Object.entries(record).map(([key, entryValue]) => {
+        if (this.isSensitiveKey(key)) return [key, '[redacted]'];
+        return [key, this.sanitizeForLog(entryValue)];
+      }),
+    );
+  }
+
+  private isSensitiveKey(key: string) {
+    return /api[-_]?key|apikey|authorization|autorization|token|secret/i.test(
+      key,
+    );
   }
 }

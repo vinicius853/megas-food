@@ -168,13 +168,39 @@ describe('EvolutionApiAdapter', () => {
         method: 'POST',
         headers: expect.objectContaining({ apikey: 'secret-key' }),
         body: JSON.stringify({
-          enabled: true,
-          url: 'https://api.megasfood.tech/whatsapp/evolution/webhook?token=webhook-secret',
-          webhook_by_events: true,
-          webhook_base64: false,
-          events: ['MESSAGES_UPSERT', 'CONNECTION_UPDATE'],
+          webhook: {
+            enabled: true,
+            url: 'https://api.megasfood.tech/whatsapp/evolution/webhook',
+            headers: {
+              'x-evolution-webhook-secret': 'webhook-secret',
+            },
+            byEvents: true,
+            base64: false,
+            events: ['MESSAGES_UPSERT', 'CONNECTION_UPDATE'],
+          },
         }),
       }),
+    );
+  });
+
+  it('inclui endpoint status e body sanitizado quando provider responde erro', async () => {
+    fetchMock.mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          status: 400,
+          message: 'Bad Request',
+          token: 'webhook-secret',
+          response: {
+            apikey: 'secret-key',
+            message: 'Invalid webhook payload',
+          },
+        }),
+        { status: 400, statusText: 'Bad Request' },
+      ),
+    );
+
+    await expect(adapter.configureWebhook('megas-loja')).rejects.toThrow(
+      'Evolution API POST /webhook/set/megas-loja respondeu 400 Bad Request: Bad Request | body={"status":400,"message":"Bad Request","token":"[redacted]","response":{"apikey":"[redacted]","message":"Invalid webhook payload"}}',
     );
   });
 
