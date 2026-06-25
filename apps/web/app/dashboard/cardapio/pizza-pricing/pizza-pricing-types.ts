@@ -9,9 +9,6 @@ export type PizzaPricingModuleProps = {
   flavorGroups: Category[];
   flavorPrices: FlavorPrice[];
   flavors: FlavorOptionMatrixRow[];
-  needsPizzaBaseCategory: boolean;
-  pizzaBaseCategories: Category[];
-  pizzaBaseCategoryId: string;
   search: string;
   sizes: SizeOptionMatrixRow[];
   setSearch: (value: string) => void;
@@ -36,7 +33,6 @@ export type PizzaPricingModuleProps = {
     sizeId: string,
     value: string,
   ) => void;
-  onUpdatePizzaBaseCategory: (value: string) => void;
   onUpdateSize: (
     id: string,
     patch: Partial<SizeOptionMatrixRow>,

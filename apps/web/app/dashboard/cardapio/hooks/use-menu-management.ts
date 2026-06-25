@@ -25,7 +25,6 @@ import {
   getDrinks,
   getExtras,
   getFlavorDisplayGroups,
-  getInactivePizzaProduct,
   getPizzaProduct,
   getProductSections,
   getSelectedProductSection,
@@ -89,7 +88,6 @@ export function useMenuManagement() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
-  const [pizzaBaseCategoryId, setPizzaBaseCategoryId] = useState("");
 
   const autoSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -124,34 +122,6 @@ export function useMenuManagement() {
     () => getFlavorDisplayGroups(categories),
     [categories],
   );
-
-  const pizzaBaseCategories = productSections;
-
-  const defaultPizzaBaseCategory = useMemo(() => {
-    return (
-      pizzaBaseCategories.find((item) => item.slug === "pizzas") ??
-      pizzaBaseCategories[0] ??
-      null
-    );
-  }, [pizzaBaseCategories]);
-
-  const selectedPizzaBaseCategory = useMemo(() => {
-    return (
-      pizzaBaseCategories.find((item) => item.id === pizzaBaseCategoryId) ??
-      defaultPizzaBaseCategory
-    );
-  }, [defaultPizzaBaseCategory, pizzaBaseCategories, pizzaBaseCategoryId]);
-
-  const hasActiveRoundPizzaProduct = products.some(
-    (product) => product.type === "PIZZA_ROUND" && product.isActive,
-  );
-
-  const hasActiveSquarePizzaProduct = products.some(
-    (product) => product.type === "PIZZA_SQUARE" && product.isActive,
-  );
-
-  const needsPizzaBaseCategory =
-    !hasActiveRoundPizzaProduct || !hasActiveSquarePizzaProduct;
 
   const pizzaPricing = usePizzaPricingState({
     products,
@@ -242,20 +212,6 @@ export function useMenuManagement() {
   }, []);
 
   useEffect(() => {
-    if (!defaultPizzaBaseCategory) return;
-
-    if (
-      pizzaBaseCategoryId &&
-      pizzaBaseCategories.some((item) => item.id === pizzaBaseCategoryId)
-    ) {
-      return;
-    }
-
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setPizzaBaseCategoryId(defaultPizzaBaseCategory.id);
-  }, [defaultPizzaBaseCategory, pizzaBaseCategories, pizzaBaseCategoryId]);
-
-  useEffect(() => {
     if (selectedProductSectionId && !selectedProductSection) {
       // eslint-disable-next-line react-hooks/set-state-in-effect
       setActiveTabState("adicionais");
@@ -268,7 +224,7 @@ export function useMenuManagement() {
       : type === "DRINK"
         ? categories.find((item) => item.slug === "bebidas")
         : type === "PIZZA_ROUND" || type === "PIZZA_SQUARE"
-          ? selectedPizzaBaseCategory
+          ? categories.find((item) => item.slug === "pizzas")
           : categories.find((item) => item.slug === "adicionais");
 
     if (!category) {
@@ -304,34 +260,9 @@ export function useMenuManagement() {
       return pizzaPricing.addSize(type);
     }
 
-    const inactiveProduct = getInactivePizzaProduct(products, productType);
-    if (inactiveProduct) {
-      const productCategoryIsActive = pizzaBaseCategories.some(
-        (category) => category.id === inactiveProduct.categoryId,
-      );
-
-      setProducts((current) =>
-        current.map((product) =>
-          product.id === inactiveProduct.id
-            ? {
-                ...product,
-                isActive: true,
-                categoryId: productCategoryIsActive
-                  ? product.categoryId
-                  : (selectedPizzaBaseCategory?.id ?? product.categoryId),
-              }
-            : product,
-        ),
-      );
-
-      return pizzaPricing.addSize(type, inactiveProduct.id);
-    }
-
-    const category = selectedPizzaBaseCategory;
+    const category = categories.find((item) => item.slug === "pizzas");
     if (!category) {
-      setError(
-        "Cadastre ou reative uma categoria visual antes de criar o produto-base da pizza.",
-      );
+      setError("Categoria de pizzas não encontrada.");
       return null;
     }
 
@@ -802,11 +733,8 @@ export function useMenuManagement() {
     flavorPrices,
     flavors,
     loading,
-    needsPizzaBaseCategory,
     openPublicMenu,
     flavorDisplayGroups,
-    pizzaBaseCategories,
-    pizzaBaseCategoryId: selectedPizzaBaseCategory?.id ?? "",
     productSections,
     products,
     removeBorder,
@@ -821,7 +749,6 @@ export function useMenuManagement() {
     selectedProductSection,
     selectedProductSectionProducts,
     setActiveTab: changeActiveTab,
-    setPizzaBaseCategoryId,
     setSearch,
     setSizes,
     sizes,

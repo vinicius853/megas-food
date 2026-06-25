@@ -18,15 +18,6 @@ export function getPizzaProduct(
   )
 }
 
-export function getInactivePizzaProduct(
-  products: Product[],
-  type: 'PIZZA_ROUND' | 'PIZZA_SQUARE',
-) {
-  return products.find(
-    (product) => product.type === type && !product.isActive,
-  )
-}
-
 export function getProductSections(
   categories: Category[],
 ) {
@@ -81,8 +72,7 @@ export function getFlavorDisplayGroups(
   return categories.filter(
     (category) =>
       category.isActive &&
-      (category.type === 'PRODUCT_SECTION' ||
-        category.type === 'PIZZA_FLAVOR_GROUP'),
+      category.type === 'PIZZA_FLAVOR_GROUP',
   )
 }
 
