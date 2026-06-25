@@ -18,6 +18,84 @@ export function getPizzaProduct(
   )
 }
 
+export function getInactivePizzaProduct(
+  products: Product[],
+  type: 'PIZZA_ROUND' | 'PIZZA_SQUARE',
+) {
+  return products.find(
+    (product) => product.type === type && !product.isActive,
+  )
+}
+
+const preferredPizzaBaseCategorySlugs = [
+  'tradicionais',
+  'tradicional',
+  'especiais',
+  'especial',
+  'doces',
+  'doce',
+  'salgadas',
+  'salgada',
+]
+
+const avoidedPizzaBaseCategorySlugs = [
+  'bebidas',
+  'bebida',
+  'esfirras',
+  'esfirra',
+  'adicionais',
+  'adicional',
+  'bordas',
+  'borda',
+]
+
+export function getTechnicalPizzaBaseCategory(
+  categories: Category[],
+) {
+  const activeProductSections = categories
+    .filter(
+      (category) =>
+        category.isActive &&
+        category.type === 'PRODUCT_SECTION',
+    )
+    .sort(
+      (left, right) =>
+        (left.sortOrder ?? 0) - (right.sortOrder ?? 0),
+    )
+
+  return (
+    activeProductSections.find(
+      (category) => category.slug === 'pizzas',
+    ) ??
+    activeProductSections.find((category) =>
+      preferredPizzaBaseCategorySlugs.includes(
+        getCategoryLookupKey(category),
+      ),
+    ) ??
+    activeProductSections.find(
+      (category) =>
+        !avoidedPizzaBaseCategorySlugs.includes(
+          getCategoryLookupKey(category),
+        ),
+    ) ??
+    activeProductSections[0] ??
+    null
+  )
+}
+
+function getCategoryLookupKey(category: Category) {
+  return normalizeCategoryKey(category.slug || category.name)
+}
+
+function normalizeCategoryKey(value: string) {
+  return value
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/(^-|-$)/g, '')
+}
+
 export function getProductSections(
   categories: Category[],
 ) {
@@ -72,7 +150,8 @@ export function getFlavorDisplayGroups(
   return categories.filter(
     (category) =>
       category.isActive &&
-      category.type === 'PIZZA_FLAVOR_GROUP',
+      (category.type === 'PRODUCT_SECTION' ||
+        category.type === 'PIZZA_FLAVOR_GROUP'),
   )
 }
 

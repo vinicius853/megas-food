@@ -25,10 +25,12 @@ import {
   getDrinks,
   getExtras,
   getFlavorDisplayGroups,
+  getInactivePizzaProduct,
   getPizzaProduct,
   getProductSections,
   getSelectedProductSection,
   getSelectedProductSectionProducts,
+  getTechnicalPizzaBaseCategory,
 } from "./menu-management-selectors";
 import {
   generateSlug,
@@ -224,7 +226,7 @@ export function useMenuManagement() {
       : type === "DRINK"
         ? categories.find((item) => item.slug === "bebidas")
         : type === "PIZZA_ROUND" || type === "PIZZA_SQUARE"
-          ? categories.find((item) => item.slug === "pizzas")
+          ? getTechnicalPizzaBaseCategory(categories)
           : categories.find((item) => item.slug === "adicionais");
 
     if (!category) {
@@ -260,9 +262,27 @@ export function useMenuManagement() {
       return pizzaPricing.addSize(type);
     }
 
-    const category = categories.find((item) => item.slug === "pizzas");
+    const inactiveProduct = getInactivePizzaProduct(products, productType);
+    if (inactiveProduct) {
+      setProducts((current) =>
+        current.map((product) =>
+          product.id === inactiveProduct.id
+            ? {
+                ...product,
+                isActive: true,
+              }
+            : product,
+        ),
+      );
+
+      return pizzaPricing.addSize(type, inactiveProduct.id);
+    }
+
+    const category = getTechnicalPizzaBaseCategory(categories);
     if (!category) {
-      setError("Categoria de pizzas não encontrada.");
+      setError(
+        "Cadastre uma categoria do cardápio antes de configurar tamanhos de pizza.",
+      );
       return null;
     }
 

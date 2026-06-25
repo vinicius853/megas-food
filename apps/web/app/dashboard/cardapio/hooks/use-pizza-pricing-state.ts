@@ -156,8 +156,9 @@ export function usePizzaPricingState({
         products,
         type === "round" ? "PIZZA_ROUND" : "PIZZA_SQUARE",
       );
+    const productId = productIdOverride ?? product?.id;
 
-    if (!product) {
+    if (!productId) {
       onError(
         `Cadastre ou reative o produto de pizza ${
           type === "round" ? "redonda" : "quadrada"
@@ -169,7 +170,7 @@ export function usePizzaPricingState({
     const sizeId = temporaryId("size");
     const newSize: SizeOptionMatrixRow = {
       id: sizeId,
-      productId: product.id,
+      productId,
       name: "",
       subtitle: "",
       type: type === "round" ? "CM" : "SLICES",
