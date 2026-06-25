@@ -18,7 +18,7 @@ import {
 } from "../hooks/menu-management-drafts";
 import { getCategoryMoveAvailability } from "../hooks/category-order";
 
-const protectedCategorySlugs = ["pizzas", "bebidas", "adicionais"];
+const protectedCategorySlugs = ["pizzas"];
 
 function isProtectedCategory(category: Category) {
   return protectedCategorySlugs.includes(category.slug ?? "");
