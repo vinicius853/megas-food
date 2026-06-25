@@ -16,6 +16,39 @@ export class WhatsAppEvolutionWebhookController {
     @Headers('x-evolution-webhook-secret') headerSecret?: string,
     @Query('token') queryToken?: string,
   ) {
+    return this.processWebhookPayload(
+      payload,
+      apiKeyHeader,
+      alternateApiKeyHeader,
+      headerSecret,
+      queryToken,
+    );
+  }
+
+  @Post('webhook/:event')
+  handleWebhookEvent(
+    @Body() payload: unknown,
+    @Headers('apikey') apiKeyHeader?: string,
+    @Headers('x-api-key') alternateApiKeyHeader?: string,
+    @Headers('x-evolution-webhook-secret') headerSecret?: string,
+    @Query('token') queryToken?: string,
+  ) {
+    return this.processWebhookPayload(
+      payload,
+      apiKeyHeader,
+      alternateApiKeyHeader,
+      headerSecret,
+      queryToken,
+    );
+  }
+
+  private processWebhookPayload(
+    payload: unknown,
+    apiKeyHeader?: string,
+    alternateApiKeyHeader?: string,
+    headerSecret?: string,
+    queryToken?: string,
+  ) {
     const { apiKey: bodyApiKey, payload: sanitizedPayload } =
       sanitizeWebhookPayload(payload);
 

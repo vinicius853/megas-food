@@ -56,6 +56,23 @@ describe('WhatsAppEvolutionWebhookController', () => {
     );
   });
 
+  it('aceita webhook com sufixo de evento reutilizando o mesmo processamento', () => {
+    const { controller, webhookService } = setup();
+
+    controller.handleWebhookEvent(
+      { event: 'connection.update', instance: 'tenant-instance' },
+      undefined,
+      undefined,
+      'webhook-secret',
+      undefined,
+    );
+
+    expect(webhookService.accept).toHaveBeenCalledWith(
+      { event: 'connection.update', instance: 'tenant-instance' },
+      ['webhook-secret'],
+    );
+  });
+
   it('mantem a rejeicao do service quando nenhuma chave e enviada', () => {
     const webhookService = {
       accept: jest.fn().mockImplementation(() => {

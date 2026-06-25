@@ -174,7 +174,7 @@ describe('EvolutionApiAdapter', () => {
             headers: {
               'x-evolution-webhook-secret': 'webhook-secret',
             },
-            byEvents: true,
+            byEvents: false,
             base64: false,
             events: ['MESSAGES_UPSERT', 'CONNECTION_UPDATE'],
           },

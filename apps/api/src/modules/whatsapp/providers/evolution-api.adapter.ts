@@ -115,7 +115,7 @@ export class EvolutionApiAdapter implements WhatsAppProviderAdapter {
                   },
                 }
               : {}),
-            byEvents: true,
+            byEvents: false,
             base64: false,
             events: ['MESSAGES_UPSERT', 'CONNECTION_UPDATE'],
           },
