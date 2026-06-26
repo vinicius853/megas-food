@@ -446,6 +446,119 @@ describe('PublicOrdersV2Service', () => {
     );
   });
 
+  it('usa taxa da streetRule ativa quando a rua bate', async () => {
+    mockTenant(true, [
+      deliveryZone('zone-vista-alegre', 3, true, [
+        streetRule('rule-rua-x', 'Rua X', 5),
+      ]),
+    ]);
+    mockProduct();
+    mockPriceResult(40, []);
+    mockOrderCreate();
+
+    await service.createByTenantSlug('tenant-slug', {
+      ...orderDto(['size-30']),
+      deliveryFee: 999,
+      deliveryZoneId: 'zone-vista-alegre',
+      deliveryAddress: {
+        street: 'Rua X',
+      },
+    });
+
+    expect(prisma.order.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          deliveryFee: 5,
+          total: 45,
+        }),
+      }),
+    );
+  });
+
+  it('normaliza acento, caixa e prefixo ao comparar rua', async () => {
+    mockTenant(true, [
+      deliveryZone('zone-centro', 7, true, [
+        streetRule('rule-sao-jose', 'Avenida Sao Jose', 11),
+      ]),
+    ]);
+    mockProduct();
+    mockPriceResult(40, []);
+    mockOrderCreate();
+
+    await service.createByTenantSlug('tenant-slug', {
+      ...orderDto(['size-30']),
+      deliveryZoneId: 'zone-centro',
+      deliveryAddress: {
+        street: 'av. SAO JOSE',
+      },
+    });
+
+    expect(prisma.order.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          deliveryFee: 11,
+          total: 51,
+        }),
+      }),
+    );
+  });
+
+  it('ignora streetRule inativa e usa taxa padrao da zona', async () => {
+    mockTenant(true, [
+      deliveryZone('zone-vista-alegre', 3, true, [
+        streetRule('rule-rua-x', 'Rua X', 5, false),
+      ]),
+    ]);
+    mockProduct();
+    mockPriceResult(40, []);
+    mockOrderCreate();
+
+    await service.createByTenantSlug('tenant-slug', {
+      ...orderDto(['size-30']),
+      deliveryZoneId: 'zone-vista-alegre',
+      deliveryAddress: {
+        street: 'Rua X',
+      },
+    });
+
+    expect(prisma.order.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          deliveryFee: 3,
+          total: 43,
+        }),
+      }),
+    );
+  });
+
+  it('usa taxa padrao quando rua esta vazia', async () => {
+    mockTenant(true, [
+      deliveryZone('zone-vista-alegre', 3, true, [
+        streetRule('rule-rua-x', 'Rua X', 5),
+      ]),
+    ]);
+    mockProduct();
+    mockPriceResult(40, []);
+    mockOrderCreate();
+
+    await service.createByTenantSlug('tenant-slug', {
+      ...orderDto(['size-30']),
+      deliveryZoneId: 'zone-vista-alegre',
+      deliveryAddress: {
+        street: '',
+      },
+    });
+
+    expect(prisma.order.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          deliveryFee: 3,
+          total: 43,
+        }),
+      }),
+    );
+  });
+
   it('rejeita DELIVERY sem zona quando existem zonas ativas', async () => {
     mockTenant(true, [deliveryZone('zone-centro', 8)]);
 
@@ -752,12 +865,29 @@ function deliveryZone(
   id: string,
   fee: number,
   isActive = true,
+  streetRules: any[] = [],
 ) {
   return {
     id,
     name: id,
     fee,
     eta: '30-45 min',
+    isActive,
+    streetRules,
+  };
+}
+
+function streetRule(
+  id: string,
+  streetName: string,
+  fee: number,
+  isActive = true,
+) {
+  return {
+    id,
+    streetName,
+    fee,
+    eta: '40-50 min',
     isActive,
   };
 }

@@ -12,6 +12,7 @@ function run() {
   validatesQuantityTwo()
   validatesFixedProduct()
   validatesDeliveryZone()
+  validatesDeliveryAddress()
   validatesTakeawayWithoutDeliveryZone()
 }
 
@@ -104,12 +105,40 @@ function validatesDeliveryZone() {
   assert.equal(payload.deliveryZoneId, 'zone-centro')
 }
 
+function validatesDeliveryAddress() {
+  const payload = buildPayload([], {
+    type: 'DELIVERY',
+    deliveryZoneId: 'zone-centro',
+    deliveryAddress: {
+      street: 'Rua X',
+      number: '10',
+      neighborhood: 'Vista Alegre',
+      city: 'Barra Mansa',
+      state: 'RJ',
+      cep: '27320-360',
+    },
+  })
+
+  assert.deepEqual(payload.deliveryAddress, {
+    street: 'Rua X',
+    number: '10',
+    neighborhood: 'Vista Alegre',
+    city: 'Barra Mansa',
+    state: 'RJ',
+    cep: '27320-360',
+  })
+}
+
 function validatesTakeawayWithoutDeliveryZone() {
   const payload = buildPayload([], {
     type: 'TAKEAWAY',
+    deliveryAddress: {
+      street: 'Rua X',
+    },
   })
 
   assert.equal(payload.deliveryZoneId, undefined)
+  assert.equal(payload.deliveryAddress, undefined)
 }
 
 function buildPayload(
@@ -117,6 +146,15 @@ function buildPayload(
   overrides: {
     type?: 'DELIVERY' | 'TAKEAWAY'
     deliveryZoneId?: string
+    deliveryAddress?: {
+      street?: string
+      number?: string
+      complement?: string
+      neighborhood?: string
+      city?: string
+      state?: string
+      cep?: string
+    }
   } = {},
 ) {
   return buildPublicOrderV2Payload({
@@ -126,6 +164,7 @@ function buildPayload(
     paymentType: 'PIX',
     deliveryFee: 5,
     deliveryZoneId: overrides.deliveryZoneId,
+    deliveryAddress: overrides.deliveryAddress,
     couponCode: 'PROMO10',
     notes: 'Obs',
     privacyAccepted: true,

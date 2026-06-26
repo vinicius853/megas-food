@@ -36,6 +36,15 @@ type DeliveryZone = {
   fee: number;
   eta: string;
   isActive: boolean;
+  streetRules?: DeliveryStreetRule[];
+};
+
+type DeliveryStreetRule = {
+  id: string;
+  streetName: string;
+  fee: number;
+  eta?: string;
+  isActive: boolean;
 };
 
 type OpeningHourRange = {
@@ -150,6 +159,7 @@ export default function EntregasPage() {
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
   const [zoneToFocusId, setZoneToFocusId] = useState<string | null>(null);
+  const [expandedZoneIds, setExpandedZoneIds] = useState<string[]>([]);
 
   const summary = useMemo(() => {
     const activeZones = settings.zones.filter((zone) => zone.isActive);
@@ -260,16 +270,91 @@ export default function EntregasPage() {
           fee: 0,
           eta: "",
           isActive: false,
+          streetRules: [],
         },
       ],
     }));
     setZoneToFocusId(id);
+    setExpandedZoneIds((current) => [...current, id]);
   }
 
   function removeZone(id: string) {
     setSettings((current) => ({
       ...current,
       zones: current.zones.filter((zone) => zone.id !== id),
+    }));
+    setExpandedZoneIds((current) => current.filter((zoneId) => zoneId !== id));
+  }
+
+  function toggleZoneExpanded(id: string) {
+    setExpandedZoneIds((current) =>
+      current.includes(id)
+        ? current.filter((zoneId) => zoneId !== id)
+        : [...current, id],
+    );
+  }
+
+  function addStreetRule(zoneId: string) {
+    const id = crypto.randomUUID();
+
+    setSettings((current) => ({
+      ...current,
+      zones: current.zones.map((zone) =>
+        zone.id === zoneId
+          ? {
+              ...zone,
+              streetRules: [
+                ...(zone.streetRules ?? []),
+                {
+                  id,
+                  streetName: "",
+                  fee: zone.fee,
+                  eta: "",
+                  isActive: true,
+                },
+              ],
+            }
+          : zone,
+      ),
+    }));
+    setExpandedZoneIds((current) =>
+      current.includes(zoneId) ? current : [...current, zoneId],
+    );
+  }
+
+  function updateStreetRule(
+    zoneId: string,
+    ruleId: string,
+    patch: Partial<DeliveryStreetRule>,
+  ) {
+    setSettings((current) => ({
+      ...current,
+      zones: current.zones.map((zone) =>
+        zone.id === zoneId
+          ? {
+              ...zone,
+              streetRules: (zone.streetRules ?? []).map((rule) =>
+                rule.id === ruleId ? { ...rule, ...patch } : rule,
+              ),
+            }
+          : zone,
+      ),
+    }));
+  }
+
+  function removeStreetRule(zoneId: string, ruleId: string) {
+    setSettings((current) => ({
+      ...current,
+      zones: current.zones.map((zone) =>
+        zone.id === zoneId
+          ? {
+              ...zone,
+              streetRules: (zone.streetRules ?? []).filter(
+                (rule) => rule.id !== ruleId,
+              ),
+            }
+          : zone,
+      ),
     }));
   }
 
@@ -451,56 +536,160 @@ export default function EntregasPage() {
                   settings.zones.map((zone) => (
                     <div
                       key={zone.id}
-                      className="grid gap-3 rounded-3xl border border-slate-200 bg-white p-4 shadow-sm lg:grid-cols-[1.2fr_150px_150px_auto_auto] lg:items-center"
+                      className="rounded-3xl border border-slate-200 bg-white p-4 shadow-sm"
                     >
-                      <Input
-                        id={`delivery-zone-name-${zone.id}`}
-                        value={zone.name}
-                        onChange={(event) =>
-                          updateZone(zone.id, { name: event.target.value })
-                        }
-                        aria-label="Nome do bairro"
-                      />
+                      <div className="grid gap-3 lg:grid-cols-[1.2fr_150px_150px_auto_auto] lg:items-center">
+                        <Input
+                          id={`delivery-zone-name-${zone.id}`}
+                          value={zone.name}
+                          onChange={(event) =>
+                            updateZone(zone.id, { name: event.target.value })
+                          }
+                          aria-label="Nome do bairro"
+                        />
 
-                      <FeeInput
-                        value={zone.fee}
-                        onChange={(fee) => updateZone(zone.id, { fee })}
-                      />
+                        <FeeInput
+                          value={zone.fee}
+                          onChange={(fee) => updateZone(zone.id, { fee })}
+                        />
 
-                      <Input
-                        value={zone.eta}
-                        onChange={(event) =>
-                          updateZone(zone.id, { eta: event.target.value })
-                        }
-                        aria-label="Tempo estimado"
-                      />
-
-                      <button
-                        type="button"
-                        onClick={() =>
-                          updateZone(zone.id, { isActive: !zone.isActive })
-                        }
-                        className={`rounded-2xl px-4 py-3 text-xs font-black transition ${
-                          zone.isActive
-                            ? "bg-emerald-100 text-emerald-700"
-                            : "bg-slate-100 text-slate-500"
-                        }`}
-                      >
-                        {zone.isActive ? "Ativo" : "Inativo"}
-                      </button>
-
-                      <div className="flex gap-2">
-                        <button className="flex h-11 w-11 items-center justify-center rounded-2xl border border-slate-200 text-slate-500">
-                          <Edit3 className="h-4 w-4" />
-                        </button>
+                        <Input
+                          value={zone.eta}
+                          onChange={(event) =>
+                            updateZone(zone.id, { eta: event.target.value })
+                          }
+                          aria-label="Tempo estimado"
+                        />
 
                         <button
-                          onClick={() => removeZone(zone.id)}
-                          className="flex h-11 w-11 items-center justify-center rounded-2xl border border-red-100 text-red-600"
+                          type="button"
+                          onClick={() =>
+                            updateZone(zone.id, { isActive: !zone.isActive })
+                          }
+                          className={`rounded-2xl px-4 py-3 text-xs font-black transition ${
+                            zone.isActive
+                              ? "bg-emerald-100 text-emerald-700"
+                              : "bg-slate-100 text-slate-500"
+                          }`}
                         >
-                          <Trash2 className="h-4 w-4" />
+                          {zone.isActive ? "Ativo" : "Inativo"}
                         </button>
+
+                        <div className="flex gap-2">
+                          <button
+                            type="button"
+                            onClick={() => toggleZoneExpanded(zone.id)}
+                            className="flex h-11 min-w-24 items-center justify-center gap-2 rounded-2xl border border-slate-200 px-3 text-xs font-black text-slate-600"
+                          >
+                            <Edit3 className="h-4 w-4" />
+                            {(zone.streetRules ?? []).length} ruas
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => removeZone(zone.id)}
+                            className="flex h-11 w-11 items-center justify-center rounded-2xl border border-red-100 text-red-600"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </button>
+                        </div>
                       </div>
+
+                      {expandedZoneIds.includes(zone.id) && (
+                        <div className="mt-4 rounded-2xl border border-dashed border-slate-200 bg-slate-50 p-4">
+                          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                            <div>
+                              <p className="text-sm font-black text-slate-900">
+                                Ruas com taxa diferenciada
+                              </p>
+                              <p className="mt-1 text-xs font-semibold text-slate-500">
+                                Se a rua nao tiver taxa especifica, sera usada a taxa padrao do bairro.
+                              </p>
+                            </div>
+
+                            <Button
+                              type="button"
+                              onClick={() => addStreetRule(zone.id)}
+                              variant="outline"
+                              size="sm"
+                            >
+                              <Plus className="h-4 w-4" />
+                              Adicionar rua
+                            </Button>
+                          </div>
+
+                          <div className="mt-4 space-y-3">
+                            {(zone.streetRules ?? []).length === 0 && (
+                              <div className="rounded-2xl border border-dashed border-slate-300 bg-white px-4 py-5 text-center text-sm font-semibold text-slate-500">
+                                Nenhuma rua com taxa diferenciada.
+                              </div>
+                            )}
+
+                            {(zone.streetRules ?? []).map((rule) => (
+                              <div
+                                key={rule.id}
+                                className="grid gap-3 rounded-2xl border border-slate-200 bg-white p-3 lg:grid-cols-[1.2fr_150px_150px_auto_auto] lg:items-center"
+                              >
+                                <Input
+                                  value={rule.streetName}
+                                  onChange={(event) =>
+                                    updateStreetRule(zone.id, rule.id, {
+                                      streetName: event.target.value,
+                                    })
+                                  }
+                                  aria-label="Nome da rua"
+                                  placeholder="Nome da rua"
+                                />
+
+                                <FeeInput
+                                  value={rule.fee}
+                                  onChange={(fee) =>
+                                    updateStreetRule(zone.id, rule.id, { fee })
+                                  }
+                                />
+
+                                <Input
+                                  value={rule.eta ?? ""}
+                                  onChange={(event) =>
+                                    updateStreetRule(zone.id, rule.id, {
+                                      eta: event.target.value,
+                                    })
+                                  }
+                                  aria-label="Tempo estimado da rua"
+                                  placeholder="Prazo opcional"
+                                />
+
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    updateStreetRule(zone.id, rule.id, {
+                                      isActive: !rule.isActive,
+                                    })
+                                  }
+                                  className={`rounded-2xl px-4 py-3 text-xs font-black transition ${
+                                    rule.isActive
+                                      ? "bg-emerald-100 text-emerald-700"
+                                      : "bg-slate-100 text-slate-500"
+                                  }`}
+                                >
+                                  {rule.isActive ? "Ativa" : "Inativa"}
+                                </button>
+
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    removeStreetRule(zone.id, rule.id)
+                                  }
+                                  className="flex h-11 w-11 items-center justify-center rounded-2xl border border-red-100 text-red-600"
+                                  aria-label="Remover rua"
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </button>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
                     </div>
                   ))}
                 {!loading && settings.zones.length > 0 && (

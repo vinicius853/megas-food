@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { Banknote, CreditCard, MapPin, QrCode, Search, X } from 'lucide-react'
 
 import { apiFetch } from '@/lib/api'
+import { lookupCep } from '@/lib/cep-lookup'
 import { isLoadTestOrder } from '@/lib/order-external-effects'
 import {
   formatMoney,
@@ -13,7 +14,6 @@ import {
   parseMoneyInput,
 } from './checkout-formatters'
 import type {
-  CepResponse,
   CheckoutSuccessState,
   CheckoutModalProps,
   CreatedPublicOrder,
@@ -29,6 +29,20 @@ import {
 import { CheckoutWhatsAppSuccess } from './checkout-whatsapp-success'
 import { PublicMenuFloatingPanel } from './public-menu-floating-panel'
 import { PRIVACY_POLICY_VERSION } from '@/lib/legal'
+
+const CEP_LOOKUP_ERROR_MESSAGE =
+  'Não foi possível buscar o CEP. Preencha o endereço manualmente.'
+
+function normalizeStreetName(value: string) {
+  return normalizeText(value)
+    .replace(/[.,;:!?()[\]{}"'`´]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .replace(
+      /^(rua|r|avenida|av|travessa|tv|alameda|estrada)\s+/,
+      '',
+    )
+    .trim()
+}
 
 export function CheckoutModal({
   open,
@@ -124,19 +138,17 @@ export function CheckoutModal({
       setLoadingCep(true)
       setCepError('')
 
-      const response = await fetch(`https://viacep.com.br/ws/${cleanCep}/json/`)
+      const result = await lookupCep(cleanCep)
 
-      const data = (await response.json()) as CepResponse
-
-      if (data.erro) {
+      if (!result) {
         setCepError('CEP não encontrado. Preencha o endereço manualmente.')
         return
       }
 
-      setStreet(data.logradouro || '')
-      setNeighborhood(data.bairro || '')
-      setCity(data.localidade || '')
-      setStateUf(data.uf || '')
+      setStreet(result.street)
+      setNeighborhood(result.neighborhood)
+      setCity(result.city)
+      setStateUf(result.state)
     } catch {
       setCepError('Não foi possível buscar o CEP.')
     } finally {
@@ -173,11 +185,24 @@ export function CheckoutModal({
       ) ?? null
     )
   }, [activeDeliveryZones, deliveryType, neighborhood])
+  const selectedStreetRule = useMemo(() => {
+    if (!selectedDeliveryZone || !street.trim()) return null
+
+    const normalizedStreet = normalizeStreetName(street)
+
+    return (
+      (selectedDeliveryZone.streetRules ?? []).find(
+        (rule) =>
+          rule.isActive &&
+          normalizeStreetName(rule.streetName) === normalizedStreet,
+      ) ?? null
+    )
+  }, [selectedDeliveryZone, street])
 
   const hasDeliveryZones = activeDeliveryZones.length > 0
   const deliveryFee =
     deliveryType === 'DELIVERY' && selectedDeliveryZone
-      ? Number(selectedDeliveryZone.fee)
+      ? Number(selectedStreetRule?.fee ?? selectedDeliveryZone.fee)
       : 0
   const discountedSubtotal = Math.max(totalPrice - discountAmount, 0)
   const orderTotal = discountedSubtotal + deliveryFee
@@ -214,6 +239,9 @@ export function CheckoutModal({
     paymentMethod !== 'MONEY' ||
     cashAmountNumber === 0 ||
     cashAmountNumber >= orderTotal
+  const displayedCepError = cepError.includes('Digite')
+    ? cepError
+    : CEP_LOOKUP_ERROR_MESSAGE
 
   const paymentLabel = {
     MONEY: 'Dinheiro',
@@ -416,6 +444,18 @@ export function CheckoutModal({
               deliveryZoneId:
                 deliveryType === 'DELIVERY'
                   ? selectedDeliveryZone?.id
+                  : undefined,
+              deliveryAddress:
+                deliveryType === 'DELIVERY'
+                  ? {
+                      street: street.trim(),
+                      number: number.trim(),
+                      complement: complement.trim(),
+                      neighborhood: neighborhood.trim(),
+                      city: city.trim(),
+                      state: stateUf.trim(),
+                      cep: cep.trim(),
+                    }
                   : undefined,
               couponCode,
               notes: [
@@ -672,7 +712,7 @@ export function CheckoutModal({
 
                 {cepError && (
                   <div className="mb-3 rounded-xl bg-red-50 px-3 py-2 text-sm text-red-700">
-                    {cepError}
+                    {displayedCepError}
                   </div>
                 )}
 

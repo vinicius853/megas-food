@@ -28,6 +28,43 @@ class PublicOrderV2CustomerDto {
   phone?: string;
 }
 
+class PublicOrderV2DeliveryAddressDto {
+  @IsOptional()
+  @IsString()
+  @MaxLength(160)
+  street?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(30)
+  number?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(160)
+  complement?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(120)
+  neighborhood?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(120)
+  city?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(2)
+  state?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(12)
+  cep?: string;
+}
+
 class PublicOrderV2SelectedModifierDto {
   @IsOptional()
   @IsString()
@@ -122,6 +159,11 @@ export class CreatePublicOrderV2Dto {
   @IsString()
   @MaxLength(128)
   deliveryZoneId?: string;
+
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => PublicOrderV2DeliveryAddressDto)
+  deliveryAddress?: PublicOrderV2DeliveryAddressDto;
 
   @IsOptional()
   @IsString()

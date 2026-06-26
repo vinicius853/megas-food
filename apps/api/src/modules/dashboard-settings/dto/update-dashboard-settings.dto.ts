@@ -8,6 +8,8 @@ import {
   IsObject,
   IsOptional,
   IsString,
+  MaxLength,
+  Min,
   ValidateNested,
 } from 'class-validator'
 
@@ -19,10 +21,38 @@ export class DeliveryZoneDto {
   name: string
 
   @IsNumber()
+  @Min(0)
   fee: number
 
   @IsString()
   eta: string
+
+  @IsBoolean()
+  isActive: boolean
+
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => DeliveryStreetRuleDto)
+  streetRules?: DeliveryStreetRuleDto[]
+}
+
+export class DeliveryStreetRuleDto {
+  @IsString()
+  id: string
+
+  @IsString()
+  @MaxLength(160)
+  streetName: string
+
+  @IsNumber()
+  @Min(0)
+  fee: number
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(40)
+  eta?: string
 
   @IsBoolean()
   isActive: boolean

@@ -7,11 +7,22 @@ type PublicOrderV2PayloadInput = {
   paymentType?: 'CASH' | 'CREDIT_CARD' | 'PIX'
   deliveryFee: number
   deliveryZoneId?: string
+  deliveryAddress?: PublicOrderV2DeliveryAddressPayload
   couponCode?: string
   notes?: string
   privacyAccepted: boolean
   privacyPolicyVersion: string
   items: CartItem[]
+}
+
+type PublicOrderV2DeliveryAddressPayload = {
+  street?: string
+  number?: string
+  complement?: string
+  neighborhood?: string
+  city?: string
+  state?: string
+  cep?: string
 }
 
 type PublicOrderV2ItemPayload = {
@@ -40,6 +51,8 @@ export function buildPublicOrderV2Payload(input: PublicOrderV2PayloadInput) {
     deliveryFee: input.deliveryFee,
     deliveryZoneId:
       input.type === 'DELIVERY' ? input.deliveryZoneId : undefined,
+    deliveryAddress:
+      input.type === 'DELIVERY' ? input.deliveryAddress : undefined,
     couponCode: input.couponCode,
     notes: input.notes,
     privacyAccepted: input.privacyAccepted,

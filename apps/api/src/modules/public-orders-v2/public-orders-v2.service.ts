@@ -16,6 +16,10 @@ import {
 import { PriceEngineService } from '../price-engine/price-engine.service';
 import { WhatsAppEventType } from '@prisma/client';
 import { WhatsAppNotificationService } from '../whatsapp/whatsapp-notification.service';
+import {
+  calculateZoneDeliveryPricing,
+  type DeliveryZoneSetting,
+} from '../dashboard-settings/delivery-pricing';
 
 import { CreatePublicOrderV2Dto } from './dto/create-public-order-v2.dto';
 import {
@@ -247,46 +251,23 @@ export class PublicOrdersV2Service {
       throw new NotFoundException('Cardapio nao encontrado.');
     }
 
-    const activeZones = getActiveDeliveryZones(tenant.settings);
-
-    if (activeZones.length === 0) {
-      return 0;
-    }
-
-    if (!dto.deliveryZoneId) {
-      throw new BadRequestException(
-        'Selecione uma zona de entrega valida.',
-      );
-    }
-
-    const selectedZone = activeZones.find(
-      (zone) => zone.id === dto.deliveryZoneId,
+    const pricing = calculateZoneDeliveryPricing(
+      getDeliveryZones(tenant.settings),
+      {
+        deliveryZoneId: dto.deliveryZoneId,
+        street: dto.deliveryAddress?.street,
+      },
     );
 
-    if (!selectedZone) {
-      throw new BadRequestException(
-        'Zona de entrega inexistente ou inativa.',
-      );
+    if (pricing.status !== 'OK') {
+      throw new BadRequestException(pricing.reason);
     }
 
-    const deliveryFee = Number(selectedZone.fee);
-
-    if (!Number.isFinite(deliveryFee) || deliveryFee < 0) {
-      throw new BadRequestException(
-        'A zona de entrega possui uma taxa invalida.',
-      );
-    }
-
-    return deliveryFee;
+    return pricing.fee;
   }
 }
 
-type DeliveryZoneSetting = {
-  id: string;
-  fee: unknown;
-};
-
-function getActiveDeliveryZones(settings: unknown): DeliveryZoneSetting[] {
+function getDeliveryZones(settings: unknown): DeliveryZoneSetting[] {
   if (!isRecord(settings)) {
     return [];
   }
@@ -297,22 +278,7 @@ function getActiveDeliveryZones(settings: unknown): DeliveryZoneSetting[] {
     return [];
   }
 
-  return delivery.zones.flatMap((zone) => {
-    if (
-      !isRecord(zone) ||
-      zone.isActive !== true ||
-      typeof zone.id !== 'string'
-    ) {
-      return [];
-    }
-
-    return [
-      {
-        id: zone.id,
-        fee: zone.fee,
-      },
-    ];
-  });
+  return delivery.zones as DeliveryZoneSetting[];
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

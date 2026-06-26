@@ -35,6 +35,15 @@ export type DeliveryZone = {
   fee: number
   eta: string
   isActive: boolean
+  streetRules?: DeliveryStreetRule[]
+}
+
+export type DeliveryStreetRule = {
+  id: string
+  streetName: string
+  fee: number
+  eta?: string
+  isActive: boolean
 }
 
 export type DeliverySettings = {
@@ -45,15 +54,6 @@ export type DeliverySettings = {
   storeAddress?: string
   whatsapp?: string
   zones?: DeliveryZone[]
-}
-
-export type CepResponse = {
-  cep?: string
-  logradouro?: string
-  bairro?: string
-  localidade?: string
-  uf?: string
-  erro?: boolean
 }
 
 export type CreatedPublicOrder = {

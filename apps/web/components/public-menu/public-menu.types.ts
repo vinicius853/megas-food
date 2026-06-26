@@ -109,6 +109,15 @@ export type DeliveryZone = {
   fee: number;
   eta: string;
   isActive: boolean;
+  streetRules?: DeliveryStreetRule[];
+};
+
+export type DeliveryStreetRule = {
+  id: string;
+  streetName: string;
+  fee: number;
+  eta?: string;
+  isActive: boolean;
 };
 
 export type OpeningHourRange = {
