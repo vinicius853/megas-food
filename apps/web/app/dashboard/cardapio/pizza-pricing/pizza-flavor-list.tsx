@@ -11,6 +11,11 @@ import type {
   FlavorPrice,
   SizeOptionMatrixRow,
 } from "../types/menu-management";
+import {
+  ALL_FLAVOR_CATEGORIES,
+  buildFlavorCategoryOptions,
+  matchesFlavorCategoryFilter,
+} from "./pizza-pricing-helpers";
 import { PizzaFlavorCard } from "./pizza-flavor-card";
 
 type Props = {
@@ -44,6 +49,19 @@ type Props = {
 export function PizzaFlavorList(props: Props) {
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
   const [status, setStatus] = useState<"all" | "active" | "inactive">("all");
+  const [selectedCategory, setSelectedCategory] = useState(
+    ALL_FLAVOR_CATEGORIES,
+  );
+
+  const categoryOptions = useMemo(
+    () => buildFlavorCategoryOptions(props.flavors, props.flavorGroups),
+    [props.flavors, props.flavorGroups],
+  );
+  const selectedCategoryFilter = categoryOptions.some(
+    (option) => option.key === selectedCategory,
+  )
+    ? selectedCategory
+    : ALL_FLAVOR_CATEGORIES;
 
   const visibleFlavors = useMemo(() => {
     const query = props.search.trim().toLocaleLowerCase("pt-BR");
@@ -58,10 +76,21 @@ export function PizzaFlavorList(props: Props) {
         status === "all" ||
         (status === "active" && flavor.isActive) ||
         (status === "inactive" && !flavor.isActive);
+      const matchesCategory = matchesFlavorCategoryFilter(
+        flavor,
+        props.flavorGroups,
+        selectedCategoryFilter,
+      );
 
-      return matchesSearch && matchesStatus;
+      return matchesSearch && matchesCategory && matchesStatus;
     });
-  }, [props.flavors, props.search, status]);
+  }, [
+    props.flavors,
+    props.flavorGroups,
+    props.search,
+    selectedCategoryFilter,
+    status,
+  ]);
 
   function addFlavor() {
     const id = props.onAddFlavor();
@@ -89,8 +118,8 @@ export function PizzaFlavorList(props: Props) {
           </p>
         </div>
 
-        <div className="flex min-w-0 flex-col gap-2 sm:flex-row">
-          <div className="relative min-w-0 sm:w-64">
+        <div className="grid min-w-0 gap-2 sm:grid-cols-[minmax(13rem,1fr)_minmax(11rem,auto)_auto_auto] lg:min-w-[42rem]">
+          <div className="relative min-w-0">
             <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
             <input
               value={props.search}
@@ -99,6 +128,20 @@ export function PizzaFlavorList(props: Props) {
               className="h-10 w-full rounded-xl border border-slate-200 pl-10 pr-3 text-sm font-medium outline-none focus:border-orange-500 focus:ring-4 focus:ring-orange-500/10"
             />
           </div>
+
+          <select
+            value={selectedCategoryFilter}
+            onChange={(event) => setSelectedCategory(event.target.value)}
+            disabled={categoryOptions.length === 0}
+            className="h-10 min-w-0 rounded-xl border border-slate-200 bg-white px-3 text-sm font-bold text-slate-700 outline-none focus:border-orange-500 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-400"
+          >
+            <option value={ALL_FLAVOR_CATEGORIES}>Todas as categorias</option>
+            {categoryOptions.map((option) => (
+              <option key={option.key} value={option.key}>
+                {option.label}
+              </option>
+            ))}
+          </select>
 
           <select
             value={status}
@@ -173,4 +216,3 @@ export function PizzaFlavorList(props: Props) {
     </section>
   );
 }
-

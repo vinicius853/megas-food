@@ -5,13 +5,20 @@ import {
   validateFlavorDrafts,
   validateSizeDrafts,
 } from "../hooks/menu-management-drafts";
-import type { SizeOptionMatrixRow } from "../types/menu-management";
+import type {
+  Category,
+  FlavorOptionMatrixRow,
+  SizeOptionMatrixRow,
+} from "../types/menu-management";
 import {
+  ALL_FLAVOR_CATEGORIES,
+  buildFlavorCategoryOptions,
   countAvailableSizes,
   findFlavorPriceRecord,
   formatSlices,
   getPizzaModelLabel,
   getSizeSlices,
+  matchesFlavorCategoryFilter,
 } from "./pizza-pricing-helpers";
 
 const sizes: SizeOptionMatrixRow[] = Array.from({ length: 10 }, (_, index) => ({
@@ -103,4 +110,92 @@ assert.equal(
   null,
 );
 
+const flavorCategories: Category[] = [
+  category("cat-tradicionais", "Tradicionais", "tradicionais"),
+  category("cat-especiais", "Especiais", "especiais"),
+  category("cat-doces", "Doces", "doces"),
+];
+const flavorRows: FlavorOptionMatrixRow[] = [
+  flavor("calabresa", "Calabresa", "cat-tradicionais", true),
+  flavor("portuguesa", "Portuguesa", "tradicionais", false),
+  flavor("camarao", "Camarao", "cat-especiais", true),
+  flavor("banana", "Banana", "Doces", true),
+  flavor("sem-categoria", "Sem categoria", null, true),
+];
+const categoryOptions = buildFlavorCategoryOptions(
+  flavorRows,
+  flavorCategories,
+);
+
+assert.deepEqual(
+  categoryOptions.map((option) => option.label),
+  ["Doces", "Especiais", "Tradicionais"],
+);
+assert.equal(
+  matchesFlavorCategoryFilter(
+    flavorRows[0],
+    flavorCategories,
+    categoryOptions.find((option) => option.label === "Tradicionais")?.key ??
+      "",
+  ),
+  true,
+);
+assert.equal(
+  matchesFlavorCategoryFilter(
+    flavorRows[1],
+    flavorCategories,
+    categoryOptions.find((option) => option.label === "Tradicionais")?.key ??
+      "",
+  ),
+  true,
+);
+assert.equal(
+  matchesFlavorCategoryFilter(
+    flavorRows[3],
+    flavorCategories,
+    categoryOptions.find((option) => option.label === "Doces")?.key ?? "",
+  ),
+  true,
+);
+assert.equal(
+  matchesFlavorCategoryFilter(
+    flavorRows[4],
+    flavorCategories,
+    categoryOptions.find((option) => option.label === "Doces")?.key ?? "",
+  ),
+  false,
+);
+assert.equal(
+  matchesFlavorCategoryFilter(
+    flavorRows[4],
+    flavorCategories,
+    ALL_FLAVOR_CATEGORIES,
+  ),
+  true,
+);
+
 console.log("Pizza pricing validation passed.");
+
+function category(id: string, name: string, slug: string): Category {
+  return {
+    id,
+    name,
+    slug,
+    type: "PIZZA_FLAVOR_GROUP",
+    isActive: true,
+  };
+}
+
+function flavor(
+  id: string,
+  name: string,
+  categoryId: string | null,
+  isActive: boolean,
+): FlavorOptionMatrixRow {
+  return {
+    id,
+    name,
+    categoryId,
+    isActive,
+  };
+}
