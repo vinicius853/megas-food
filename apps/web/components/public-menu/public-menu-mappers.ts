@@ -290,6 +290,10 @@ function compareTypedCategory(
   secondSortOrder: number,
   secondType: MenuSection["type"],
 ) {
+  const sortDifference = firstSortOrder - secondSortOrder;
+
+  if (sortDifference !== 0) return sortDifference;
+
   const typeOrder = {
     flavors: 0,
     products: 1,
@@ -297,10 +301,6 @@ function compareTypedCategory(
   const typeDifference = typeOrder[firstType] - typeOrder[secondType];
 
   if (typeDifference !== 0) return typeDifference;
-
-  const sortDifference = firstSortOrder - secondSortOrder;
-
-  if (sortDifference !== 0) return sortDifference;
 
   return firstName.localeCompare(secondName, "pt-BR");
 }
