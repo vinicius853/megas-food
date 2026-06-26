@@ -6,6 +6,7 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 
 import type { SizeOptionMatrixRow } from "../types/menu-management";
+import { useFocusEditableItem } from "../hooks/use-focus-editable-item";
 import { getPizzaModelLabel } from "./pizza-pricing-helpers";
 import { PizzaSizeCard } from "./pizza-size-card";
 
@@ -24,12 +25,17 @@ export function PizzaSizesPanel({
 }: Props) {
   const [open, setOpen] = useState(false);
   const [inactiveOpen, setInactiveOpen] = useState(true);
+  const [sizeToFocusId, setSizeToFocusId] = useState<string | null>(null);
+  useFocusEditableItem(sizeToFocusId, setSizeToFocusId, "pizza-size-name");
   const activeSizes = sizes.filter((size) => size.isActive !== false);
   const inactiveSizes = sizes.filter((size) => size.isActive === false);
 
   function add(type: "round" | "square") {
     const created = onAdd(type);
-    if (created) setOpen(true);
+    if (created) {
+      setOpen(true);
+      setSizeToFocusId(created);
+    }
   }
 
   return (
@@ -118,6 +124,27 @@ export function PizzaSizesPanel({
               ))}
             </div>
           )}
+
+          <div className="mt-4 flex flex-wrap justify-center gap-2">
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              onClick={() => add("round")}
+            >
+              <CirclePlus className="h-4 w-4" />
+              Tamanho redondo
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              onClick={() => add("square")}
+            >
+              <CirclePlus className="h-4 w-4" />
+              Tamanho quadrado
+            </Button>
+          </div>
 
           {inactiveSizes.length > 0 && (
             <div className="mt-5 overflow-hidden rounded-2xl border border-slate-200 bg-white">

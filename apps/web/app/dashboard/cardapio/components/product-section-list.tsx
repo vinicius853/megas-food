@@ -1,4 +1,7 @@
+"use client";
+
 import { Plus, Trash2 } from "lucide-react";
+import { useState } from "react";
 
 import { Button } from "@/components/ui/button";
 
@@ -11,6 +14,7 @@ import {
 import { MoneyInput } from "./money-input";
 import { ImageUploadField } from "./image-upload-field";
 import { isNewProductDraft } from "../hooks/menu-management-drafts";
+import { useFocusEditableItem } from "../hooks/use-focus-editable-item";
 
 export function ProductSectionList({
   category,
@@ -21,10 +25,22 @@ export function ProductSectionList({
 }: {
   category: Category;
   products: Product[];
-  onAddProduct: (categoryId: string) => void;
+  onAddProduct: (categoryId: string) => string | undefined | void;
   onUpdateProduct: ProductUpdater;
   onRemoveProduct: (id: string) => void;
 }) {
+  const [productToFocusId, setProductToFocusId] = useState<string | null>(null);
+  useFocusEditableItem(
+    productToFocusId,
+    setProductToFocusId,
+    "product-section-product-name",
+  );
+
+  function addProduct() {
+    const productId = onAddProduct(category.id);
+    if (productId) setProductToFocusId(productId);
+  }
+
   return (
     <section>
       <div className="mb-5 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
@@ -42,7 +58,7 @@ export function ProductSectionList({
           type="button"
           variant="outline"
           size="sm"
-          onClick={() => onAddProduct(category.id)}
+          onClick={addProduct}
         >
           <Plus className="h-4 w-4" />
           Novo produto
@@ -58,11 +74,22 @@ export function ProductSectionList({
           <p className="mt-2 text-sm text-orange-700">
             Clique em “Novo produto” para adicionar o primeiro item desta seção.
           </p>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={addProduct}
+            className="mt-4 bg-white"
+          >
+            <Plus className="h-4 w-4" />
+            Novo produto
+          </Button>
         </div>
       ) : (
-        <div className="space-y-3">
-          {products.map((product) => (
-            <div
+        <>
+          <div className="space-y-3">
+            {products.map((product) => (
+              <div
               key={product.id}
               className="grid gap-3 rounded-3xl border border-slate-200 bg-white p-4 lg:grid-cols-[1fr_auto]"
             >
@@ -77,6 +104,7 @@ export function ProductSectionList({
 
                 <div className="space-y-2">
                   <input
+                    id={`product-section-product-name-${product.id}`}
                     autoFocus={isNewProductDraft(product)}
                     value={product.name}
                     onChange={(event) =>
@@ -134,9 +162,17 @@ export function ProductSectionList({
                   <Trash2 className="h-4 w-4" />
                 </button>
               </div>
-            </div>
-          ))}
-        </div>
+              </div>
+            ))}
+          </div>
+
+          <div className="mt-4 flex justify-center">
+            <Button type="button" variant="outline" size="sm" onClick={addProduct}>
+              <Plus className="h-4 w-4" />
+              Novo produto
+            </Button>
+          </div>
+        </>
       )}
     </section>
   );

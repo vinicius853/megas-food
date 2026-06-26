@@ -16,6 +16,7 @@ import {
   buildFlavorCategoryOptions,
   matchesFlavorCategoryFilter,
 } from "./pizza-pricing-helpers";
+import { useFocusEditableItem } from "../hooks/use-focus-editable-item";
 import { PizzaFlavorCard } from "./pizza-flavor-card";
 
 type Props = {
@@ -51,6 +52,12 @@ export function PizzaFlavorList(props: Props) {
   const [status, setStatus] = useState<"all" | "active" | "inactive">("all");
   const [selectedCategory, setSelectedCategory] = useState(
     ALL_FLAVOR_CATEGORIES,
+  );
+  const [flavorToFocusId, setFlavorToFocusId] = useState<string | null>(null);
+  useFocusEditableItem(
+    flavorToFocusId,
+    setFlavorToFocusId,
+    "pizza-flavor-name",
   );
 
   const categoryOptions = useMemo(
@@ -95,6 +102,7 @@ export function PizzaFlavorList(props: Props) {
   function addFlavor() {
     const id = props.onAddFlavor();
     setExpandedIds((current) => new Set(current).add(id));
+    setFlavorToFocusId(id);
   }
 
   function toggle(id: string) {

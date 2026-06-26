@@ -30,6 +30,7 @@ export function PizzaSizeCard({
             Nome do tamanho
           </label>
           <input
+            id={`pizza-size-name-${size.id}`}
             value={size.name}
             onChange={(event) => onChange({ name: event.target.value })}
             placeholder="Ex.: 30cm, Broto, Família"

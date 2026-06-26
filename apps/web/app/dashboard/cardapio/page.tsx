@@ -141,6 +141,7 @@ function PizzariaMenuConfigurator() {
                     <SimpleProductList
                       title="Bebidas"
                       items={menu.drinks}
+                      addLabel="Adicionar bebida"
                       onAdd={() => menu.addProduct("DRINK")}
                       onUpdate={menu.updateProduct}
                       onRemove={menu.removeProduct}
@@ -164,6 +165,7 @@ function PizzariaMenuConfigurator() {
                     <SimpleProductList
                       title="Adicionais"
                       items={menu.extras}
+                      addLabel="Adicionar adicional"
                       onAdd={() => menu.addProduct("OTHER")}
                       onUpdate={menu.updateProduct}
                       onRemove={menu.removeProduct}

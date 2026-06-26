@@ -149,6 +149,7 @@ export default function EntregasPage() {
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
+  const [zoneToFocusId, setZoneToFocusId] = useState<string | null>(null);
 
   const summary = useMemo(() => {
     const activeZones = settings.zones.filter((zone) => zone.isActive);
@@ -247,12 +248,14 @@ export default function EntregasPage() {
   }
 
   function addZone() {
+    const id = crypto.randomUUID();
+
     setSettings((current) => ({
       ...current,
       zones: [
         ...current.zones,
         {
-          id: crypto.randomUUID(),
+          id,
           name: "",
           fee: 0,
           eta: "",
@@ -260,6 +263,7 @@ export default function EntregasPage() {
         },
       ],
     }));
+    setZoneToFocusId(id);
   }
 
   function removeZone(id: string) {
@@ -272,6 +276,20 @@ export default function EntregasPage() {
   useEffect(() => {
     loadSettings();
   }, []);
+
+  useEffect(() => {
+    if (!zoneToFocusId) return;
+
+    const input = document.getElementById(
+      `delivery-zone-name-${zoneToFocusId}`,
+    );
+
+    if (!(input instanceof HTMLInputElement)) return;
+
+    input.scrollIntoView({ behavior: "smooth", block: "center" });
+    input.focus();
+    setZoneToFocusId(null);
+  }, [settings.zones, zoneToFocusId]);
 
   return (
     <PageContainer>
@@ -436,6 +454,7 @@ export default function EntregasPage() {
                       className="grid gap-3 rounded-3xl border border-slate-200 bg-white p-4 shadow-sm lg:grid-cols-[1.2fr_150px_150px_auto_auto] lg:items-center"
                     >
                       <Input
+                        id={`delivery-zone-name-${zone.id}`}
                         value={zone.name}
                         onChange={(event) =>
                           updateZone(zone.id, { name: event.target.value })
@@ -484,6 +503,14 @@ export default function EntregasPage() {
                       </div>
                     </div>
                   ))}
+                {!loading && settings.zones.length > 0 && (
+                  <div className="flex justify-center pt-2">
+                    <Button onClick={addZone} variant="outline" size="sm">
+                      <Plus className="h-4 w-4" />
+                      Adicionar bairro
+                    </Button>
+                  </div>
+                )}
               </CardContent>
             </Card>
           )}

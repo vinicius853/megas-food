@@ -136,6 +136,7 @@ export function PizzaFlavorCard({
               <label className="min-w-0 text-xs font-black uppercase text-slate-500">
                 Nome do sabor
                 <input
+                  id={`pizza-flavor-name-${flavor.id}`}
                   autoFocus={isNewFlavorDraft(flavor)}
                   value={flavor.name}
                   onChange={(event) => onUpdateName(event.target.value)}

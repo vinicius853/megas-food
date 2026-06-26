@@ -1,4 +1,7 @@
+"use client";
+
 import { Plus, Trash2 } from "lucide-react";
+import { useState } from "react";
 
 import { Button } from "@/components/ui/button";
 
@@ -11,6 +14,7 @@ import {
 
 import { MoneyInput } from "./money-input";
 import { isNewBorderDraft } from "../hooks/menu-management-drafts";
+import { useFocusEditableItem } from "../hooks/use-focus-editable-item";
 
 export function BorderPriceMatrix({
   borders,
@@ -25,7 +29,7 @@ export function BorderPriceMatrix({
   borders: BorderOptionMatrixRow[];
   sizes: SizeOptionMatrixRow[];
   borderPrices: BorderPrice[];
-  onAddBorder: () => void;
+  onAddBorder: () => string | undefined | void;
   onRemoveBorder: (id: string) => void;
   onUpdateBorderActive: (id: string, isActive: boolean) => void;
   onUpdateBorderName: (id: string, value: string) => void;
@@ -35,6 +39,14 @@ export function BorderPriceMatrix({
     value: string,
   ) => void;
 }) {
+  const [borderToFocusId, setBorderToFocusId] = useState<string | null>(null);
+  useFocusEditableItem(borderToFocusId, setBorderToFocusId, "border-name");
+
+  function addBorder() {
+    const borderId = onAddBorder();
+    if (borderId) setBorderToFocusId(borderId);
+  }
+
   return (
     <div>
       <div className="mb-5 flex items-center justify-between">
@@ -48,7 +60,7 @@ export function BorderPriceMatrix({
           </p>
         </div>
 
-        <Button type="button" variant="outline" size="sm" onClick={onAddBorder}>
+        <Button type="button" variant="outline" size="sm" onClick={addBorder}>
           <Plus className="h-4 w-4" />
           Nova borda
         </Button>
@@ -66,7 +78,8 @@ export function BorderPriceMatrix({
           </p>
         </div>
       ) : (
-        <div className="overflow-x-auto rounded-3xl border border-slate-200">
+        <>
+          <div className="overflow-x-auto rounded-3xl border border-slate-200">
           <table className="w-full min-w-[980px] border-collapse bg-white">
             <thead>
               <tr className="border-b border-slate-200 bg-slate-50">
@@ -99,6 +112,7 @@ export function BorderPriceMatrix({
                 >
                   <td className="px-5 py-4">
                     <input
+                      id={`border-name-${border.id}`}
                       autoFocus={isNewBorderDraft(border)}
                       value={border.name}
                       onChange={(event) =>
@@ -154,7 +168,15 @@ export function BorderPriceMatrix({
               ))}
             </tbody>
           </table>
-        </div>
+          </div>
+
+          <div className="mt-4 flex justify-center">
+            <Button type="button" variant="outline" size="sm" onClick={addBorder}>
+              <Plus className="h-4 w-4" />
+              Adicionar borda
+            </Button>
+          </div>
+        </>
       )}
     </div>
   );

@@ -231,13 +231,15 @@ export function useMenuManagement() {
 
     if (!category) {
       setError("Categoria necessária não encontrada para o novo produto.");
-      return;
+      return undefined;
     }
+
+    const productId = temporaryId("product");
 
     setProducts((prev) => [
       ...prev,
       {
-        id: temporaryId("product"),
+        id: productId,
         categoryId: category.id,
         name:
           type === "PIZZA_ROUND"
@@ -251,6 +253,8 @@ export function useMenuManagement() {
         sortOrder: prev.length,
       },
     ]);
+
+    return productId;
   }
 
   function addPizzaSize(type: "round" | "square") {
@@ -333,10 +337,12 @@ export function useMenuManagement() {
   }
 
   function addCategory(type: CategoryType = "PRODUCT_SECTION") {
+    const categoryId = temporaryId("category");
+
     setCategories((prev) => [
       ...prev,
       {
-        id: temporaryId("category"),
+        id: categoryId,
         name: "",
         slug: "",
         type,
@@ -346,6 +352,8 @@ export function useMenuManagement() {
         isActive: true,
       },
     ]);
+
+    return categoryId;
   }
 
   function updateCategory(
@@ -439,6 +447,8 @@ export function useMenuManagement() {
           })),
       ]),
     );
+
+    return borderId;
   }
 
   function updateBorderName(id: string, value: string) {

@@ -1,4 +1,7 @@
+"use client";
+
 import { ArrowDown, ArrowUp, Plus, Trash2 } from "lucide-react";
+import { useState } from "react";
 
 import { Button } from "@/components/ui/button";
 
@@ -17,6 +20,7 @@ import {
   isNewProductDraft,
 } from "../hooks/menu-management-drafts";
 import { getCategoryMoveAvailability } from "../hooks/category-order";
+import { useFocusEditableItem } from "../hooks/use-focus-editable-item";
 
 const protectedCategorySlugs = ["pizzas"];
 
@@ -33,16 +37,30 @@ function getCategoryTypeLabel(type: CategoryType) {
 export function SimpleProductList({
   title,
   items,
+  addLabel = "Novo produto",
   onAdd,
   onUpdate,
   onRemove,
 }: {
   title: string;
   items: Product[];
-  onAdd: () => void;
+  addLabel?: string;
+  onAdd: () => string | undefined | void;
   onUpdate: ProductUpdater;
   onRemove: (id: string) => void;
 }) {
+  const [itemToFocusId, setItemToFocusId] = useState<string | null>(null);
+  useFocusEditableItem(
+    itemToFocusId,
+    setItemToFocusId,
+    "simple-product-name",
+  );
+
+  function addItem() {
+    const itemId = onAdd();
+    if (itemId) setItemToFocusId(itemId);
+  }
+
   return (
     <div>
       <div className="mb-5 flex items-center justify-between">
@@ -54,9 +72,9 @@ export function SimpleProductList({
           </p>
         </div>
 
-        <Button type="button" variant="outline" size="sm" onClick={onAdd}>
+        <Button type="button" variant="outline" size="sm" onClick={addItem}>
           <Plus className="h-4 w-4" />
-          Novo
+          {addLabel}
         </Button>
       </div>
 
@@ -75,6 +93,7 @@ export function SimpleProductList({
 
               <div className="space-y-2">
                 <input
+                  id={`simple-product-name-${item.id}`}
                   autoFocus={isNewProductDraft(item)}
                   value={item.name}
                   onChange={(event) =>
@@ -125,6 +144,13 @@ export function SimpleProductList({
           </div>
         ))}
       </div>
+
+      <div className="mt-4 flex justify-center">
+        <Button type="button" variant="outline" size="sm" onClick={addItem}>
+          <Plus className="h-4 w-4" />
+          {addLabel}
+        </Button>
+      </div>
     </div>
   );
 }
@@ -137,11 +163,25 @@ export function SimpleCategoryList({
   onMove,
 }: {
   categories: Category[];
-  onAdd: (type?: CategoryType) => void;
+  onAdd: (type?: CategoryType) => string | undefined | void;
   onUpdate: CategoryUpdater;
   onRemove: (id: string) => void;
   onMove: (id: string, direction: "up" | "down") => void;
 }) {
+  const [categoryToFocusId, setCategoryToFocusId] = useState<string | null>(
+    null,
+  );
+  useFocusEditableItem(
+    categoryToFocusId,
+    setCategoryToFocusId,
+    "simple-category-name",
+  );
+
+  function addCategory(type: CategoryType) {
+    const categoryId = onAdd(type);
+    if (categoryId) setCategoryToFocusId(categoryId);
+  }
+
   return (
     <div>
       <div className="mb-5 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
@@ -158,7 +198,7 @@ export function SimpleCategoryList({
             type="button"
             variant="outline"
             size="sm"
-            onClick={() => onAdd("PRODUCT_SECTION")}
+            onClick={() => addCategory("PRODUCT_SECTION")}
           >
             <Plus className="h-4 w-4" />
             Seção de produtos
@@ -168,7 +208,7 @@ export function SimpleCategoryList({
             type="button"
             variant="outline"
             size="sm"
-            onClick={() => onAdd("PIZZA_FLAVOR_GROUP")}
+            onClick={() => addCategory("PIZZA_FLAVOR_GROUP")}
           >
             <Plus className="h-4 w-4" />
             Grupo de sabores
@@ -191,6 +231,7 @@ export function SimpleCategoryList({
             >
               <div className="min-w-0 space-y-3">
                 <input
+                  id={`simple-category-name-${category.id}`}
                   autoFocus={isNewCategoryDraft(category)}
                   value={category.name}
                   onChange={(event) =>
@@ -297,6 +338,28 @@ export function SimpleCategoryList({
             </div>
           );
         })}
+      </div>
+
+      <div className="mt-4 flex flex-wrap justify-center gap-2">
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          onClick={() => addCategory("PRODUCT_SECTION")}
+        >
+          <Plus className="h-4 w-4" />
+          Adicionar categoria
+        </Button>
+
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          onClick={() => addCategory("PIZZA_FLAVOR_GROUP")}
+        >
+          <Plus className="h-4 w-4" />
+          Adicionar grupo de sabores
+        </Button>
       </div>
     </div>
   );
