@@ -8,7 +8,7 @@ import type { DeliveryType, PaymentMethod } from './checkout.types'
 import { capitalizePublicDisplayName } from './public-menu-display-text'
 
 type BuildCheckoutWhatsAppMessageInput = {
-  orderNumber?: number
+  orderNumber?: string | number
   tenantName: string
   customerName: string
   customerWhatsapp: string
@@ -52,7 +52,7 @@ export function buildCheckoutWhatsAppMessage({
 }: BuildCheckoutWhatsAppMessageInput) {
   const publicStoreName = tenantName.trim() || 'Loja'
   const lines = [
-    `🍕 *Pedido #${orderNumber ?? 'registrado'} - ${publicStoreName}*`,
+    `🍕 *Pedido ${formatOrderNumber(orderNumber)} - ${publicStoreName}*`,
     '',
   ]
 
@@ -135,4 +135,11 @@ export function buildStoreWhatsAppUrl(
   if (!cleanPhone) return undefined
 
   return `https://wa.me/${cleanPhone}?text=${encodeURIComponent(message)}`
+}
+
+function formatOrderNumber(value?: string | number) {
+  if (!value) return '#registrado'
+
+  const text = String(value).trim()
+  return text.startsWith('#') ? text : `#${text}`
 }

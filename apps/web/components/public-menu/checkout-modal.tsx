@@ -84,6 +84,17 @@ export function CheckoutModal({
     textOnPrimary: '#FFFFFF',
   }
 
+  function getCreatedOrderDisplayNumber(order: CreatedPublicOrder) {
+    if (order.displayNumber) return order.displayNumber
+
+    const dailyNumber = order.dailyNumber ?? order.dailyOrderNumber
+    if (typeof dailyNumber === 'number') {
+      return `#${String(dailyNumber).padStart(3, '0')}`
+    }
+
+    return order.number
+  }
+
   useEffect(() => {
     if (!open) return
 
@@ -429,17 +440,19 @@ export function CheckoutModal({
       )
 
       if (isLoadTestOrder({ customerName })) {
+        const orderNumber = getCreatedOrderDisplayNumber(order)
         setPrivacyAccepted(true)
         setSuccess({
-          orderNumber: order.number,
+          orderNumber,
           popupBlocked: false,
           loadTest: true,
         })
         return
       }
 
+      const orderNumber = getCreatedOrderDisplayNumber(order)
       const message = buildCheckoutWhatsAppMessage({
-        orderNumber: order.number,
+        orderNumber,
         tenantName,
         customerName: customerName.trim(),
         customerWhatsapp: customerWhatsapp.trim(),
@@ -473,7 +486,7 @@ export function CheckoutModal({
       }
 
       setSuccess({
-        orderNumber: order.number,
+        orderNumber,
         whatsappUrl,
         popupBlocked: Boolean(whatsappUrl),
       })

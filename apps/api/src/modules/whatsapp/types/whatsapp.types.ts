@@ -3,6 +3,8 @@ import { WhatsAppEventType } from '@prisma/client';
 export type WhatsAppOrderSnapshot = {
   id: string;
   number: number;
+  dailyNumber?: number | null;
+  displayNumber?: string | null;
   customerName: string | null;
   customerPhone: string | null;
   type: string;

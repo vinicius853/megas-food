@@ -4,6 +4,7 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { SubscriptionAccessService } from '../billing/subscription-access.service';
 import { CouponsService } from '../coupons/coupons.service';
 import { OrdersService } from '../orders/orders.service';
+import { OrderNumberingService } from '../orders/order-numbering.service';
 import { PriceEngineService } from '../price-engine/price-engine.service';
 
 import { PublicOrdersV2Service } from './public-orders-v2.service';
@@ -35,6 +36,7 @@ async function main() {
       new CouponsService(prisma),
       gateway as never,
       { enqueueOrderEvent: async () => undefined } as never,
+      new OrderNumberingService(),
     );
     const dashboardOrders = new OrdersService(
       prisma,

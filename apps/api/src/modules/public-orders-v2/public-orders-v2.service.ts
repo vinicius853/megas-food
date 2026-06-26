@@ -9,6 +9,10 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { SubscriptionAccessService } from '../billing/subscription-access.service';
 import { CouponsService } from '../coupons/coupons.service';
 import { OrdersGateway } from '../orders/gateways/orders.gateway';
+import {
+  formatOrderDisplayNumber,
+  OrderNumberingService,
+} from '../orders/order-numbering.service';
 import { PriceEngineService } from '../price-engine/price-engine.service';
 import { WhatsAppEventType } from '@prisma/client';
 import { WhatsAppNotificationService } from '../whatsapp/whatsapp-notification.service';
@@ -30,6 +34,7 @@ export class PublicOrdersV2Service {
     private readonly couponsService: CouponsService,
     private readonly ordersGateway: OrdersGateway,
     private readonly whatsappNotifications: WhatsAppNotificationService,
+    private readonly orderNumbering: OrderNumberingService,
   ) {}
 
   async createByTenantSlug(
@@ -65,6 +70,19 @@ export class PublicOrdersV2Service {
 
     if (!dto.items?.length) {
       throw new BadRequestException('O pedido precisa ter pelo menos 1 item.');
+    }
+
+    const tenant = await this.prisma.tenant.findUnique({
+      where: {
+        id: tenantId,
+      },
+      select: {
+        settings: true,
+      },
+    });
+
+    if (!tenant) {
+      throw new NotFoundException('Cardapio nao encontrado.');
     }
 
     const deliveryFee = await this.resolveDeliveryFee(tenantId, dto);
@@ -146,47 +164,66 @@ export class PublicOrdersV2Service {
     const discountAmount = coupon?.discountAmount ?? 0;
     const total = Math.max(totalBeforeDiscount - discountAmount, 0);
     const sanitizedPrivacyContext = sanitizePrivacyContext(privacyContext);
+    const businessDate = this.orderNumbering.resolveBusinessDate(
+      tenant.settings,
+    );
 
-    const order = await this.prisma.order.create({
-      data: {
-        id: randomUUID(),
+    const order = await this.prisma.$transaction(async (tx) => {
+      const dailyNumber = await this.orderNumbering.reserveNextDailyNumber(
+        tx,
         tenantId,
-        customerName: dto.customer?.name ?? dto.customerName,
-        customerPhone: dto.customer?.phone ?? dto.customerPhone,
-        type: dto.type,
-        paymentType: dto.paymentType,
-        subtotal,
-        deliveryFee,
-        totalBeforeDiscount,
-        discountAmount,
-        couponCode: coupon?.code,
-        total,
-        notes: dto.notes,
-        privacyAcceptedAt: new Date(),
-        privacyPolicyVersion: PRIVACY_POLICY_VERSION,
-        privacyAcceptedIp: sanitizedPrivacyContext.ip,
-        privacyAcceptedUserAgent: sanitizedPrivacyContext.userAgent,
-        items: {
-          create: itemsData,
-        },
-      },
-      include: {
-        items: {
-          include: {
-            modifiers: true,
+        businessDate,
+      );
+
+      return tx.order.create({
+        data: {
+          id: randomUUID(),
+          tenantId,
+          dailyNumber,
+          businessDate,
+          customerName: dto.customer?.name ?? dto.customerName,
+          customerPhone: dto.customer?.phone ?? dto.customerPhone,
+          type: dto.type,
+          paymentType: dto.paymentType,
+          subtotal,
+          deliveryFee,
+          totalBeforeDiscount,
+          discountAmount,
+          couponCode: coupon?.code,
+          total,
+          notes: dto.notes,
+          privacyAcceptedAt: new Date(),
+          privacyPolicyVersion: PRIVACY_POLICY_VERSION,
+          privacyAcceptedIp: sanitizedPrivacyContext.ip,
+          privacyAcceptedUserAgent: sanitizedPrivacyContext.userAgent,
+          items: {
+            create: itemsData,
           },
         },
-      },
+        include: {
+          items: {
+            include: {
+              modifiers: true,
+            },
+          },
+        },
+      });
     });
 
-    this.ordersGateway.emitOrderCreated(tenantId, order);
+    const publicOrder = {
+      ...order,
+      dailyOrderNumber: order.dailyNumber,
+      displayNumber: formatOrderDisplayNumber(order),
+    };
+
+    this.ordersGateway.emitOrderCreated(tenantId, publicOrder);
     await this.whatsappNotifications.enqueueOrderEvent({
       tenantId,
       orderId: order.id,
       eventType: WhatsAppEventType.ORDER_CREATED,
     });
 
-    return order;
+    return publicOrder;
   }
 
   private async resolveDeliveryFee(

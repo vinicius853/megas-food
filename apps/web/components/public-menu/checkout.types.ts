@@ -59,10 +59,13 @@ export type CepResponse = {
 export type CreatedPublicOrder = {
   id: string
   number?: number
+  dailyNumber?: number
+  dailyOrderNumber?: number
+  displayNumber?: string | number
 }
 
 export type CheckoutSuccessState = {
-  orderNumber?: number
+  orderNumber?: string | number
   whatsappUrl?: string
   popupBlocked: boolean
   loadTest?: boolean

@@ -3,6 +3,7 @@ import { AuthModule } from '../auth/auth.module';
 import { PrismaModule } from '../../prisma/prisma.module';
 
 import { OrdersService } from './orders.service';
+import { OrderNumberingService } from './order-numbering.service';
 
 import { OrdersController } from './orders.controller';
 
@@ -14,6 +15,7 @@ import { WhatsAppModule } from '../whatsapp/whatsapp.module';
 
   controllers: [OrdersController],
 
-  providers: [OrdersService, OrdersGateway],
+  providers: [OrdersService, OrderNumberingService, OrdersGateway],
+  exports: [OrderNumberingService],
 })
 export class OrdersModule {}

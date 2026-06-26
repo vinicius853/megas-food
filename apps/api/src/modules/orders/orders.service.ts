@@ -11,6 +11,7 @@ import { OrdersGateway } from './gateways/orders.gateway';
 import { WhatsAppEventType } from '@prisma/client';
 import { WhatsAppNotificationService } from '../whatsapp/whatsapp-notification.service';
 import { resolvePublicStoreName } from '../tenants/public-store-name';
+import { formatOrderDisplayNumber } from './order-numbering.service';
 
 const dashboardOrdersTimeZone = 'America/Sao_Paulo';
 
@@ -41,6 +42,8 @@ export class OrdersService {
       select: {
         id: true,
         number: true,
+        dailyNumber: true,
+        businessDate: true,
         customerName: true,
         customerPhone: true,
         type: true,
@@ -72,6 +75,10 @@ export class OrdersService {
     return orders.map((order) => ({
       id: order.id,
       number: order.number,
+      dailyNumber: order.dailyNumber,
+      dailyOrderNumber: order.dailyNumber,
+      businessDate: order.businessDate,
+      displayNumber: formatOrderDisplayNumber(order),
       customerName: order.customerName,
       customerPhone: order.customerPhone,
       type: order.type,
@@ -182,6 +189,8 @@ export class OrdersService {
 
   private withPublicStoreName<
     T extends {
+      number?: number | null;
+      dailyNumber?: number | null;
       tenant: {
         name: string;
         settings?: unknown;
@@ -190,6 +199,8 @@ export class OrdersService {
   >(order: T) {
     return {
       ...order,
+      dailyOrderNumber: order.dailyNumber,
+      displayNumber: formatOrderDisplayNumber(order),
       tenant: {
         name: order.tenant.name,
       },

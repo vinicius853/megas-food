@@ -1,6 +1,7 @@
 type OrderWithDisplayNumber = {
   id?: string | null
   displayNumber?: string | number | null
+  dailyNumber?: string | number | null
   dailyOrderNumber?: string | number | null
   orderNumber?: string | number | null
   number?: string | number | null
@@ -13,10 +14,11 @@ type OrderNumberContext<TOrder> = {
   index?: number
 }
 
-function formatDisplayNumber(value: string | number) {
+function formatDisplayNumber(value: string | number, pad = false) {
   const text = String(value).trim()
+  const formatted = pad && /^\d+$/.test(text) ? text.padStart(3, '0') : text
 
-  return text.startsWith('#') ? text : `#${text}`
+  return formatted.startsWith('#') ? formatted : `#${formatted}`
 }
 
 export function getOrderDisplayNumber<TOrder extends OrderWithDisplayNumber>(
@@ -24,15 +26,26 @@ export function getOrderDisplayNumber<TOrder extends OrderWithDisplayNumber>(
   context: OrderNumberContext<TOrder> = {},
 ) {
   const explicitNumber =
-    order.displayNumber ??
-    order.dailyOrderNumber ??
+    order.displayNumber
+
+  if (explicitNumber) {
+    return formatDisplayNumber(explicitNumber)
+  }
+
+  const dailyNumber = order.dailyNumber ?? order.dailyOrderNumber
+
+  if (dailyNumber) {
+    return formatDisplayNumber(dailyNumber, true)
+  }
+
+  const fallbackNumber =
     order.orderNumber ??
     order.number ??
     order.code ??
     order.sequence
 
-  if (explicitNumber) {
-    return formatDisplayNumber(explicitNumber)
+  if (fallbackNumber) {
+    return formatDisplayNumber(fallbackNumber)
   }
 
   if (

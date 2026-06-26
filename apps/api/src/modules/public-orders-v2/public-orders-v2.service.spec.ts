@@ -10,6 +10,7 @@ import {
 } from '@prisma/client';
 
 import { PublicOrdersV2Service } from './public-orders-v2.service';
+import { OrderNumberingService } from '../orders/order-numbering.service';
 
 describe('PublicOrdersV2Service', () => {
   let service: PublicOrdersV2Service;
@@ -41,6 +42,8 @@ describe('PublicOrdersV2Service', () => {
       order: {
         create: jest.fn(),
       },
+      $transaction: jest.fn((callback) => callback(prisma)),
+      $queryRaw: jest.fn().mockResolvedValue([{ lastNumber: 1 }]),
     };
     priceEngineService = {
       calculate: jest.fn(),
@@ -67,6 +70,7 @@ describe('PublicOrdersV2Service', () => {
       couponsService as any,
       ordersGateway as any,
       whatsappNotifications as any,
+      new OrderNumberingService(),
     );
   });
 
@@ -88,6 +92,8 @@ describe('PublicOrdersV2Service', () => {
     expect(prisma.order.create).toHaveBeenCalledWith(
       expect.objectContaining({
         data: expect.objectContaining({
+          dailyNumber: 1,
+          businessDate: expect.any(Date),
           privacyAcceptedAt: expect.any(Date),
           privacyPolicyVersion: '2026-06-12',
           items: expect.objectContaining({
@@ -115,7 +121,11 @@ describe('PublicOrdersV2Service', () => {
     expect(createdItem).not.toHaveProperty('flavors');
     expect(ordersGateway.emitOrderCreated).toHaveBeenCalledWith(
       'tenant-1',
-      order,
+      expect.objectContaining({
+        ...order,
+        dailyOrderNumber: 1,
+        displayNumber: '#001',
+      }),
     );
     expect(whatsappNotifications.enqueueOrderEvent).toHaveBeenCalledWith({
       tenantId: 'tenant-1',
@@ -150,6 +160,38 @@ describe('PublicOrdersV2Service', () => {
       subscriptionAccessService.assertTenantCanAcceptOrders,
     ).toHaveBeenCalledWith('tenant-1');
     expect(prisma.order.create).toHaveBeenCalledTimes(1);
+  });
+
+  it('reserva numero diario dentro da transacao antes de criar o pedido', async () => {
+    mockTenant();
+    mockProduct();
+    mockPriceResult(40, []);
+    mockOrderCreate();
+    prisma.$queryRaw.mockResolvedValue([{ lastNumber: 2 }]);
+
+    const order = await service.createByTenantSlug(
+      'tenant-slug',
+      orderDto(['size-30']),
+    );
+
+    expect(prisma.$transaction).toHaveBeenCalledTimes(1);
+    expect(prisma.$queryRaw).toHaveBeenCalledTimes(1);
+    expect(prisma.order.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          tenantId: 'tenant-1',
+          dailyNumber: 2,
+          businessDate: expect.any(Date),
+        }),
+      }),
+    );
+    expect(order).toEqual(
+      expect.objectContaining({
+        dailyNumber: 2,
+        dailyOrderNumber: 2,
+        displayNumber: '#002',
+      }),
+    );
   });
 
   it.each([
@@ -644,6 +686,9 @@ describe('PublicOrdersV2Service', () => {
       Promise.resolve({
         id: data.id,
         tenantId: data.tenantId,
+        number: 99,
+        dailyNumber: data.dailyNumber,
+        businessDate: data.businessDate,
         subtotal: data.subtotal,
         total: data.total,
         items: data.items.create.map((item: any) => ({

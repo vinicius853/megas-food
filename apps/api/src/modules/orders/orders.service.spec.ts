@@ -1,4 +1,8 @@
 import { OrdersService } from './orders.service';
+import {
+  formatOrderDisplayNumber,
+  getBusinessDateForTimeZone,
+} from './order-numbering.service';
 
 describe('OrdersService', () => {
   it('nao oferece mais criacao de pedidos V1', () => {
@@ -68,6 +72,8 @@ describe('OrdersService', () => {
           {
             id: 'order-1',
             number: 123,
+            dailyNumber: 7,
+            businessDate: new Date('2026-06-26T00:00:00.000Z'),
             customerName: 'Cliente',
             customerPhone: '24999999999',
             type: 'DELIVERY',
@@ -101,6 +107,8 @@ describe('OrdersService', () => {
         select: expect.objectContaining({
           id: true,
           number: true,
+          dailyNumber: true,
+          businessDate: true,
           items: {
             select: {
               name: true,
@@ -122,12 +130,40 @@ describe('OrdersService', () => {
     expect(result).toEqual([
       expect.objectContaining({
         id: 'order-1',
+        dailyNumber: 7,
+        dailyOrderNumber: 7,
+        displayNumber: '#007',
         itemsCount: 1,
         itemsSummary: '1x Nova pizza redonda - 25cm, Mussarela',
       }),
     ]);
     expect(result[0]).not.toHaveProperty('items');
     expect(result[0]).not.toHaveProperty('tenant');
+  });
+
+  it('formata numero operacional diario com fallback para numero interno', () => {
+    expect(formatOrderDisplayNumber({ dailyNumber: 1, number: 999 })).toBe(
+      '#001',
+    );
+    expect(formatOrderDisplayNumber({ dailyNumber: 123, number: 999 })).toBe(
+      '#123',
+    );
+    expect(formatOrderDisplayNumber({ number: 999 })).toBe('#999');
+  });
+
+  it('calcula data operacional em America/Sao_Paulo sem depender de UTC', () => {
+    expect(
+      getBusinessDateForTimeZone(
+        new Date('2026-06-27T02:59:59.000Z'),
+        'America/Sao_Paulo',
+      ).toISOString(),
+    ).toBe('2026-06-26T00:00:00.000Z');
+    expect(
+      getBusinessDateForTimeZone(
+        new Date('2026-06-27T03:00:00.000Z'),
+        'America/Sao_Paulo',
+      ).toISOString(),
+    ).toBe('2026-06-27T00:00:00.000Z');
   });
 
   it('informa ao painel quando a notificacao automatica foi agendada', async () => {

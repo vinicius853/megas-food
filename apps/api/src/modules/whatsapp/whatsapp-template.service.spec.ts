@@ -7,6 +7,7 @@ describe('WhatsAppTemplateService', () => {
   const order = {
     id: 'order-1',
     number: 42,
+    dailyNumber: 1,
     customerName: 'Ana',
     customerPhone: '24999999999',
     type: 'TAKEAWAY',
@@ -30,20 +31,20 @@ describe('WhatsAppTemplateService', () => {
   it.each([
     [
       WhatsAppEventType.ORDER_CONFIRMED,
-      'Olá, Ana! Seu pedido #42 foi confirmado e já entrou em preparo.',
+      'Olá, Ana! Seu pedido #001 foi confirmado e já entrou em preparo.',
     ],
-    [WhatsAppEventType.ORDER_READY, 'Olá, Ana! Seu pedido #42 está pronto.'],
+    [WhatsAppEventType.ORDER_READY, 'Olá, Ana! Seu pedido #001 está pronto.'],
     [
       WhatsAppEventType.ORDER_OUT_FOR_DELIVERY,
-      'Olá, Ana! Seu pedido #42 saiu para entrega 🚚',
+      'Olá, Ana! Seu pedido #001 saiu para entrega 🚚',
     ],
     [
       WhatsAppEventType.ORDER_DELIVERED,
-      'Pedido #42 entregue com sucesso. Obrigado pela preferência!',
+      'Pedido #001 entregue com sucesso. Obrigado pela preferência!',
     ],
     [
       WhatsAppEventType.ORDER_CANCELLED,
-      'Seu pedido #42 foi cancelado. Em caso de dúvidas, entre em contato com a loja.',
+      'Seu pedido #001 foi cancelado. Em caso de dúvidas, entre em contato com a loja.',
     ],
   ])('gera a mensagem oficial para %s', (eventType, expected) => {
     expect(service.buildOrderMessage(order, eventType)).toBe(expected);
@@ -56,7 +57,17 @@ describe('WhatsAppTemplateService', () => {
     );
 
     expect(message).toContain('Recebemos seu pedido');
+    expect(message).toContain('#001');
     expect(message).not.toContain('foi confirmado');
+  });
+
+  it('usa numero global como fallback para pedidos antigos', () => {
+    expect(
+      service.buildOrderMessage(
+        { ...order, dailyNumber: null },
+        WhatsAppEventType.ORDER_READY,
+      ),
+    ).toContain('#42');
   });
 
   it('mantem texto seguro para atendimento fora do horario', () => {

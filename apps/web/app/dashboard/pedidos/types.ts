@@ -39,6 +39,9 @@ export type OrderItem = {
 export type OrderListItem = {
   id: string;
   number?: number | null;
+  dailyNumber?: number | null;
+  dailyOrderNumber?: number | null;
+  businessDate?: string | null;
   displayNumber?: string | number | null;
   customerName?: string | null;
   customerPhone?: string | null;
@@ -53,6 +56,9 @@ export type OrderListItem = {
 export type Order = {
   id: string;
   number?: number | null;
+  dailyNumber?: number | null;
+  dailyOrderNumber?: number | null;
+  businessDate?: string | null;
   displayNumber?: string | number | null;
   tenant?: {
     name?: string | null;

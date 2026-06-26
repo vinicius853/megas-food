@@ -31,6 +31,7 @@ model Tenant {
   categories                 Category[]
   products                   Product[]
   orders                     Order[]
+  dailyOrderCounters         DailyOrderCounter[]
   coupons                    Coupon[]
   billingInvoices            BillingInvoice[]
   subscriptions              Subscription[]
@@ -448,6 +449,8 @@ model Order {
   tenantId                 String
   userId                   String?
   number                   Int          @default(autoincrement())
+  dailyNumber              Int?
+  businessDate             DateTime?    @db.Date
   customerName             String?
   customerPhone            String?
   type                     OrderType
@@ -475,7 +478,24 @@ model Order {
   items OrderItem[]
   whatsappNotifications WhatsAppNotification[]
 
+  @@unique([tenantId, businessDate, dailyNumber])
+  @@index([tenantId, businessDate])
   @@map("orders")
+}
+
+model DailyOrderCounter {
+  id           String   @id @default(uuid())
+  tenantId     String
+  businessDate DateTime @db.Date
+  lastNumber   Int      @default(0)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, businessDate])
+  @@index([tenantId])
+  @@map("daily_order_counters")
 }
 
 model WhatsAppConnection {

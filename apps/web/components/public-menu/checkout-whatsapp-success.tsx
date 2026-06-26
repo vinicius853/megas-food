@@ -3,7 +3,7 @@
 import { CheckCircle2, MessageCircle, X } from 'lucide-react'
 
 type CheckoutWhatsAppSuccessProps = {
-  orderNumber?: number
+  orderNumber?: string | number
   whatsappUrl?: string
   popupBlocked: boolean
   loadTest?: boolean
@@ -49,7 +49,7 @@ export function CheckoutWhatsAppSuccess({
 
         {orderNumber && (
           <p className="mt-2 text-sm font-bold text-slate-600">
-            Pedido #{orderNumber}
+            Pedido {formatOrderNumber(orderNumber)}
           </p>
         )}
 
@@ -92,4 +92,9 @@ export function CheckoutWhatsAppSuccess({
       </div>
     </div>
   )
+}
+
+function formatOrderNumber(value: string | number) {
+  const text = String(value).trim()
+  return text.startsWith('#') ? text : `#${text}`
 }
