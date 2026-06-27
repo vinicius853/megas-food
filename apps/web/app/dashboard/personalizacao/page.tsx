@@ -1,20 +1,17 @@
 "use client";
 
 import Link from "next/link";
-import { ChangeEvent, useEffect, useMemo, useState } from "react";
+import { ChangeEvent, useEffect, useState } from "react";
 import {
   Check,
   Eye,
   ImageIcon,
-  Monitor,
   Save,
-  Smartphone,
   Trash2,
   Upload,
 } from "lucide-react";
 
 import { apiFetch } from "@/lib/api";
-import { EmptyState } from "@/components/feedback/empty-state";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -77,6 +74,46 @@ const palettes: Palette[] = [
     name: "Doce & Aconchego",
     colors: ["#F5E7D3", "#FDBA9B", "#FDA4AF", "#FFF7ED"],
   },
+  {
+    id: "wood-fired-oven",
+    name: "Forno a Lenha",
+    colors: ["#B8321B", "#E85D1C", "#F6A23A", "#FFF1DC"],
+  },
+  {
+    id: "italian-cantina",
+    name: "Cantina Italiana",
+    colors: ["#0F6B3A", "#D62828", "#F4A261", "#FFF3E0"],
+  },
+  {
+    id: "popular-delivery",
+    name: "Delivery Popular",
+    colors: ["#E63900", "#FFB703", "#2B2D42", "#FFF8E8"],
+  },
+  {
+    id: "bbq-ember",
+    name: "Churrasco & Brasa",
+    colors: ["#3A1F12", "#7A2E12", "#D97706", "#FFF4E6"],
+  },
+  {
+    id: "tropical-acai",
+    name: "Acai Tropical",
+    colors: ["#4B145F", "#7B2CBF", "#F72585", "#E9D8FD"],
+  },
+  {
+    id: "bakery-coffee",
+    name: "Padaria & Cafe",
+    colors: ["#5C3317", "#A0522D", "#D9A441", "#FFF4DC"],
+  },
+  {
+    id: "crispy-pastry",
+    name: "Pastelaria Crocante",
+    colors: ["#C2410C", "#F59E0B", "#78350F", "#FFF7ED"],
+  },
+  {
+    id: "dark-premium",
+    name: "Premium Escuro",
+    colors: ["#111827", "#7C2D12", "#D97706", "#F8E7C9"],
+  },
 ];
 
 const emptySettings: CustomizationSettings = {
@@ -106,7 +143,7 @@ function clampCoverPosition(value: number) {
   return Math.min(100, Math.max(0, value));
 }
 
-const tabs = ["Identidade visual", "Capa e imagens", "Previa do cardapio"];
+const tabs = ["Identidade visual", "Capa e imagens"];
 
 export default function PersonalizacaoPage() {
   const [settings, setSettings] =
@@ -114,9 +151,6 @@ export default function PersonalizacaoPage() {
   const [tenantSlug, setTenantSlug] = useState("");
   const [tenantName, setTenantName] = useState("");
   const [activeTab, setActiveTab] = useState(tabs[0]);
-  const [previewDevice, setPreviewDevice] = useState<"desktop" | "mobile">(
-    "desktop",
-  );
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [uploadingField, setUploadingField] = useState<
@@ -124,13 +158,6 @@ export default function PersonalizacaoPage() {
   >(null);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
-
-  const selectedPalette = useMemo(
-    () =>
-      palettes.find((palette) => palette.id === settings.paletteId) ??
-      palettes[0],
-    [settings.paletteId],
-  );
 
   async function loadSettings() {
     try {
@@ -322,95 +349,54 @@ export default function PersonalizacaoPage() {
         ))}
       </div>
 
-      <div className="grid gap-5 xl:grid-cols-[1fr_520px]">
-        <div className="space-y-5">
-          {(activeTab === "Identidade visual" ||
-            activeTab === "Previa do cardapio") && (
-            <>
-              <PublicNameCard
-                brandName={settings.brandName}
-                tenantName={tenantName}
-                onChange={(brandName) =>
-                  setSettings((current) => ({ ...current, brandName }))
-                }
-              />
-
-              <LogoCard
-                logoUrl={settings.logoUrl}
-                onChange={(event) => handleFile("logoUrl", event)}
-                onRemove={() =>
-                  setSettings((current) => ({ ...current, logoUrl: "" }))
-                }
-                uploading={uploadingField === "logoUrl"}
-              />
-
-              <PaletteCard
-                selectedId={settings.paletteId}
-                onSelect={(paletteId) =>
-                  setSettings((current) => ({ ...current, paletteId }))
-                }
-              />
-            </>
-          )}
-
-          {(activeTab === "Capa e imagens" ||
-            activeTab === "Previa do cardapio") && (
-            <CoverCard
-              coverUrl={settings.coverUrl}
-              coverPositionX={settings.coverPositionX}
-              coverPositionY={settings.coverPositionY}
-              onChange={(event) => handleFile("coverUrl", event)}
-              onRemove={() =>
-                setSettings((current) => ({ ...current, coverUrl: "" }))
-              }
-              onPositionChange={(coverPositionX, coverPositionY) =>
-                setSettings((current) => ({
-                  ...current,
-                  coverPositionX,
-                  coverPositionY,
-                }))
-              }
-              uploading={uploadingField === "coverUrl"}
-            />
-          )}
-        </div>
-
-        <Card className="xl:sticky xl:top-6 xl:self-start">
-          <CardHeader>
-            <div className="flex items-start justify-between gap-3">
-              <div>
-                <CardTitle>Previa do seu cardapio</CardTitle>
-                <CardDescription>
-                  Veja como a identidade aparece para o cliente.
-                </CardDescription>
-              </div>
-
-              <div className="flex rounded-2xl bg-slate-100 p-1">
-                <button
-                  onClick={() => setPreviewDevice("desktop")}
-                  className={`rounded-xl p-2 ${previewDevice === "desktop" ? "bg-white text-orange-600 shadow-sm" : "text-slate-500"}`}
-                >
-                  <Monitor className="h-4 w-4" />
-                </button>
-                <button
-                  onClick={() => setPreviewDevice("mobile")}
-                  className={`rounded-xl p-2 ${previewDevice === "mobile" ? "bg-white text-orange-600 shadow-sm" : "text-slate-500"}`}
-                >
-                  <Smartphone className="h-4 w-4" />
-                </button>
-              </div>
-            </div>
-          </CardHeader>
-
-          <CardContent>
-            <MenuPreview
-              settings={settings}
+      <div className="space-y-5">
+        {activeTab === "Identidade visual" && (
+          <>
+            <PublicNameCard
+              brandName={settings.brandName}
               tenantName={tenantName}
-              palette={selectedPalette}
-              mode={previewDevice}
+              onChange={(brandName) =>
+                setSettings((current) => ({ ...current, brandName }))
+              }
             />
-          </CardContent>
-        </Card>
+
+            <LogoCard
+              logoUrl={settings.logoUrl}
+              onChange={(event) => handleFile("logoUrl", event)}
+              onRemove={() =>
+                setSettings((current) => ({ ...current, logoUrl: "" }))
+              }
+              uploading={uploadingField === "logoUrl"}
+            />
+
+            <PaletteCard
+              selectedId={settings.paletteId}
+              onSelect={(paletteId) =>
+                setSettings((current) => ({ ...current, paletteId }))
+              }
+            />
+          </>
+        )}
+
+        {activeTab === "Capa e imagens" && (
+          <CoverCard
+            coverUrl={settings.coverUrl}
+            coverPositionX={settings.coverPositionX}
+            coverPositionY={settings.coverPositionY}
+            onChange={(event) => handleFile("coverUrl", event)}
+            onRemove={() =>
+              setSettings((current) => ({ ...current, coverUrl: "" }))
+            }
+            onPositionChange={(coverPositionX, coverPositionY) =>
+              setSettings((current) => ({
+                ...current,
+                coverPositionX,
+                coverPositionY,
+              }))
+            }
+            uploading={uploadingField === "coverUrl"}
+          />
+        )}
       </div>
     </PageContainer>
   );
@@ -533,7 +519,7 @@ function PaletteCard({
           Escolha uma paleta de cores que combine com sua marca.
         </CardDescription>
       </CardHeader>
-      <CardContent className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+      <CardContent className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">
         {palettes.map((palette) => {
           const selected = selectedId === palette.id;
           return (
@@ -737,109 +723,5 @@ function FileButton({
         disabled={disabled}
       />
     </label>
-  );
-}
-
-function MenuPreview({
-  settings,
-  tenantName,
-  palette,
-  mode,
-}: {
-  settings: CustomizationSettings;
-  tenantName: string;
-  palette: Palette;
-  mode: "desktop" | "mobile";
-}) {
-  const [primary, secondary, accent, soft] = palette.colors;
-  const hasIdentity = Boolean(
-    settings.logoUrl ||
-    settings.coverUrl ||
-    settings.brandName ||
-    settings.tagline,
-  );
-
-  return (
-    <div className={mode === "mobile" ? "mx-auto max-w-[300px]" : ""}>
-      <div
-        className={`overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-lg ${mode === "mobile" ? "min-h-[560px]" : ""}`}
-      >
-        <div
-          className="relative min-h-44 bg-slate-900 p-5 text-white"
-          style={{
-            background: settings.coverUrl
-              ? undefined
-              : `linear-gradient(135deg, ${primary}, ${secondary})`,
-          }}
-        >
-          {settings.coverUrl && (
-            <>
-              <img
-                src={settings.coverUrl}
-                alt=""
-                aria-hidden="true"
-                className="absolute inset-0 h-full w-full object-cover"
-                style={{
-                  objectPosition: `${settings.coverPositionX}% ${settings.coverPositionY}%`,
-                }}
-              />
-              <div
-                className="absolute inset-0"
-                style={{
-                  background: `linear-gradient(90deg, ${primary}dd, #00000066)`,
-                }}
-              />
-            </>
-          )}
-          <div className="relative flex items-center gap-3">
-            <div className="flex h-14 w-14 items-center justify-center overflow-hidden rounded-2xl bg-white/90">
-              {settings.logoUrl ? (
-                <img
-                  src={settings.logoUrl}
-                  alt="Logo"
-                  className="h-full w-full object-cover"
-                />
-              ) : (
-                <ImageIcon className="h-7 w-7" style={{ color: secondary }} />
-              )}
-            </div>
-            <div>
-              <p className="text-lg font-black">
-                {settings.brandName.trim() || tenantName.trim() || "Loja"}
-              </p>
-              <p className="text-xs font-semibold text-white/80">
-                {settings.tagline || "Adicione uma descrição para sua marca"}
-              </p>
-            </div>
-          </div>
-        </div>
-
-        <div className="p-4">
-          <EmptyState
-            icon={ImageIcon}
-            title={
-              hasIdentity
-                ? "Identidade visual pronta para visualizar"
-                : "Nenhuma personalização configurada"
-            }
-            description="Os produtos reais aparecem no cardápio público. Esta prévia mostra apenas a identidade visual."
-            className="border-0 bg-slate-50"
-          />
-          <div className="mt-3 flex overflow-hidden rounded-xl">
-            {[primary, secondary, accent, soft].map((color) => (
-              <span
-                key={color}
-                className="h-3 flex-1"
-                style={{ backgroundColor: color }}
-              />
-            ))}
-          </div>
-        </div>
-      </div>
-
-      <p className="mt-3 rounded-2xl bg-slate-50 px-4 py-3 text-xs font-medium text-slate-500">
-        Abra o cardápio público para conferir produtos e preços reais.
-      </p>
-    </div>
   );
 }
