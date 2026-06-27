@@ -20,6 +20,7 @@ import {
   calculateZoneDeliveryPricing,
   type DeliveryZoneSetting,
 } from '../dashboard-settings/delivery-pricing';
+import { resolveDeliveryOrderingStatus } from '../dashboard-settings/delivery-ordering-status';
 
 import { CreatePublicOrderV2Dto } from './dto/create-public-order-v2.dto';
 import {
@@ -87,6 +88,11 @@ export class PublicOrdersV2Service {
 
     if (!tenant) {
       throw new NotFoundException('Cardapio nao encontrado.');
+    }
+
+    const orderingStatus = resolveDeliveryOrderingStatus(tenant.settings);
+    if (!orderingStatus.canAcceptOrders) {
+      throw new BadRequestException(orderingStatus.message);
     }
 
     const deliveryFee = await this.resolveDeliveryFee(tenantId, dto);

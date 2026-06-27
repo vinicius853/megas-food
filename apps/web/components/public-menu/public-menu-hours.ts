@@ -62,7 +62,7 @@ export function getStoreOpenStatus(delivery?: DeliverySettings) {
   if (delivery?.isDeliveryOpen === false) {
     return {
       isOpen: false,
-      message: 'O estabelecimento esta fechado para entregas no momento.',
+      message: 'Esta loja não está recebendo pedidos no momento.',
     }
   }
 

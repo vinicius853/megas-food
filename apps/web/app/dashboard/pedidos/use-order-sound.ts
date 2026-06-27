@@ -60,15 +60,18 @@ export function useOrderSound() {
     playTone()
   }
 
-  function enableSound() {
-    soundEnabledRef.current = true
+  function toggleSound() {
+    const nextSoundEnabled = !soundEnabledRef.current
 
-    setSoundEnabled(true)
+    soundEnabledRef.current = nextSoundEnabled
+    setSoundEnabled(nextSoundEnabled)
 
     localStorage.setItem(
       'ordersSoundEnabled',
-      'true',
+      String(nextSoundEnabled),
     )
+
+    if (!nextSoundEnabled) return
 
     playNewOrderSound()
   }
@@ -98,7 +101,7 @@ export function useOrderSound() {
 
   return {
     soundEnabled,
-    enableSound,
+    toggleSound,
     playNewOrderSound,
   }
 }

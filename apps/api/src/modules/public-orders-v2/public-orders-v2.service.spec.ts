@@ -194,6 +194,37 @@ describe('PublicOrdersV2Service', () => {
     );
   });
 
+  it('bloqueia pedido publico quando a loja esta pausada manualmente', async () => {
+    mockTenant(true, [], { isDeliveryOpen: false });
+
+    await expect(
+      service.createByTenantSlug('tenant-slug', orderDto(['size-30'])),
+    ).rejects.toMatchObject({
+      message: 'Esta loja não está recebendo pedidos no momento.',
+    });
+
+    expect(prisma.product.findFirst).not.toHaveBeenCalled();
+    expect(priceEngineService.calculate).not.toHaveBeenCalled();
+    expect(prisma.order.create).not.toHaveBeenCalled();
+  });
+
+  it('bloqueia pedido publico fora do horario configurado', async () => {
+    mockTenant(true, [], {
+      isDeliveryOpen: true,
+      openingHours: closedAllWeekOpeningHours(),
+    });
+
+    await expect(
+      service.createByTenantSlug('tenant-slug', orderDto(['size-30'])),
+    ).rejects.toMatchObject({
+      message: 'Estamos fora do horario de atendimento.',
+    });
+
+    expect(prisma.product.findFirst).not.toHaveBeenCalled();
+    expect(priceEngineService.calculate).not.toHaveBeenCalled();
+    expect(prisma.order.create).not.toHaveBeenCalled();
+  });
+
   it.each([
     ['BLOCKED', SubscriptionStatus.BLOCKED],
     ['PENDING', SubscriptionStatus.PENDING],
@@ -745,12 +776,17 @@ describe('PublicOrdersV2Service', () => {
     );
   });
 
-  function mockTenant(isActive = true, zones: any[] = []) {
+  function mockTenant(
+    isActive = true,
+    zones: any[] = [],
+    deliveryPatch: Record<string, unknown> = {},
+  ) {
     prisma.tenant.findUnique.mockResolvedValue({
       id: 'tenant-1',
       isActive,
       settings: {
         delivery: {
+          ...deliveryPatch,
           zones,
         },
       },
@@ -833,6 +869,20 @@ function orderDto(optionIds: string[]) {
         })),
       },
     ],
+  };
+}
+
+function closedAllWeekOpeningHours() {
+  const closed = { enabled: false, open: '00:00', close: '23:59' };
+
+  return {
+    monday: closed,
+    tuesday: closed,
+    wednesday: closed,
+    thursday: closed,
+    friday: closed,
+    saturday: closed,
+    sunday: closed,
   };
 }
 

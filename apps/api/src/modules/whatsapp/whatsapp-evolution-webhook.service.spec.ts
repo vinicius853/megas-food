@@ -6,6 +6,7 @@ describe('WhatsAppEvolutionWebhookService', () => {
   function setup(input?: {
     automationEnabled?: boolean;
     webhookSecret?: string | null;
+    deliverySettings?: Record<string, unknown>;
   }) {
     const prisma = {
       whatsAppConnection: {
@@ -17,6 +18,9 @@ describe('WhatsAppEvolutionWebhookService', () => {
             id: 'tenant-1',
             name: 'Loja Centro',
             slug: 'loja-centro',
+            settings: {
+              delivery: input?.deliverySettings ?? {},
+            },
           },
         }),
         update: jest.fn().mockResolvedValue({}),
@@ -60,6 +64,25 @@ describe('WhatsAppEvolutionWebhookService', () => {
       'megas-loja',
       '5524999999999',
       expect.stringContaining('https://megasfood.tech/c/loja-centro'),
+    );
+  });
+
+  it('responde mensagem de pausa quando a loja nao esta recebendo pedidos', async () => {
+    const { evolution, service } = setup({
+      deliverySettings: { isDeliveryOpen: false },
+    });
+
+    await expect(
+      service.handle(messagePayload({ text: 'menu' }), 'webhook-secret'),
+    ).resolves.toEqual({
+      received: true,
+      handled: 'AUTO_REPLY_SENT',
+    });
+
+    expect(evolution.sendTextMessage).toHaveBeenCalledWith(
+      'megas-loja',
+      '5524999999999',
+      'Esta loja não está recebendo pedidos no momento.',
     );
   });
 

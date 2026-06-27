@@ -4,7 +4,6 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import {
   CheckCircle2,
-  Clock,
   Edit3,
   Eye,
   MapPin,
@@ -12,7 +11,6 @@ import {
   Save,
   Trash2,
   Truck,
-  Settings,
 } from "lucide-react";
 
 import { apiFetch } from "@/lib/api";
@@ -163,12 +161,10 @@ export default function EntregasPage() {
 
   const summary = useMemo(() => {
     const activeZones = settings.zones.filter((zone) => zone.isActive);
-    const inactiveZones = settings.zones.filter((zone) => !zone.isActive);
     const fees = activeZones.map((zone) => zone.fee);
 
     return {
       activeCount: activeZones.length,
-      inactiveCount: inactiveZones.length,
       minFee: fees.length ? Math.min(...fees) : 0,
       maxFee: fees.length ? Math.max(...fees) : 0,
       etaRange: activeZones.length
@@ -419,7 +415,7 @@ export default function EntregasPage() {
 
       <Card className="mb-6 overflow-hidden">
         <CardContent className="p-6">
-          <div className="grid gap-5 lg:grid-cols-[1fr_auto_auto_auto_auto] lg:items-center">
+          <div className="grid gap-5 lg:grid-cols-[1fr_auto_auto] lg:items-center">
             <div className="flex items-center gap-4">
               <div className="flex h-16 w-16 items-center justify-center rounded-3xl bg-orange-50 text-orange-600">
                 <Truck className="h-8 w-8" />
@@ -460,20 +456,6 @@ export default function EntregasPage() {
               }
               label="Taxa de entrega"
             />
-            <StatusMetric
-              icon={Clock}
-              value={summary.etaRange}
-              label="Tempo medio"
-            />
-
-            <Button
-              variant={settings.isDeliveryOpen ? "outline" : "primary"}
-              onClick={() =>
-                updateField("isDeliveryOpen", !settings.isDeliveryOpen)
-              }
-            >
-              {settings.isDeliveryOpen ? "Fechar entregas" : "Abrir entregas"}
-            </Button>
           </div>
         </CardContent>
       </Card>
@@ -495,9 +477,8 @@ export default function EntregasPage() {
         ))}
       </div>
 
-      <div className="grid gap-5 xl:grid-cols-[1fr_420px]">
-        <div>
-          {activeTab === "Areas de entrega" && (
+      <div>
+        {activeTab === "Areas de entrega" && (
             <Card>
               <CardHeader>
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -711,18 +692,11 @@ export default function EntregasPage() {
             />
           )}
           {activeTab === "Configuracoes" && (
-            <EmptyState
-              icon={Settings}
-              title="Nenhuma configuração adicional"
-              description="As opções de entrega serão exibidas aqui quando estiverem disponíveis."
+            <DeliveryInfoCard
+              settings={settings}
+              updateField={updateField}
             />
           )}
-        </div>
-
-        <aside className="space-y-5">
-          <DeliveryInfoCard settings={settings} updateField={updateField} />
-          <DeliverySummaryCard summary={summary} />
-        </aside>
       </div>
     </PageContainer>
   );
@@ -797,40 +771,6 @@ function DeliveryInfoCard({
   );
 }
 
-function DeliverySummaryCard({
-  summary,
-}: {
-  summary: {
-    activeCount: number;
-    inactiveCount: number;
-    minFee: number;
-    maxFee: number;
-    etaRange: string;
-  };
-}) {
-  return (
-    <Card className="bg-gradient-to-br from-orange-50 to-white">
-      <CardHeader>
-        <CardTitle>Resumo das entregas</CardTitle>
-      </CardHeader>
-
-      <CardContent className="space-y-3 text-sm">
-        <SummaryRow label="Bairros ativos" value={summary.activeCount} />
-        <SummaryRow label="Bairros inativos" value={summary.inactiveCount} />
-        <SummaryRow
-          label="Menor taxa de entrega"
-          value={formatMoney(summary.minFee)}
-        />
-        <SummaryRow
-          label="Maior taxa de entrega"
-          value={formatMoney(summary.maxFee)}
-        />
-        <SummaryRow label="Tempo medio de entrega" value={summary.etaRange} />
-      </CardContent>
-    </Card>
-  );
-}
-
 function LabeledInput({
   label,
   value,
@@ -900,21 +840,6 @@ function FeeInput({
       placeholder="0,00"
       aria-label="Taxa de entrega"
     />
-  );
-}
-
-function SummaryRow({
-  label,
-  value,
-}: {
-  label: string;
-  value: string | number;
-}) {
-  return (
-    <div className="flex items-center justify-between gap-4">
-      <span className="text-slate-500">{label}</span>
-      <strong className="text-slate-950">{value}</strong>
-    </div>
   );
 }
 

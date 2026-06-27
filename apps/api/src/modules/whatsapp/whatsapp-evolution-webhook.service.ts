@@ -9,6 +9,10 @@ import {
   normalizeIncomingText,
   parseEvolutionWebhook,
 } from './types/evolution-webhook.types';
+import {
+  ORDERING_PAUSED_MESSAGE,
+  resolveDeliveryOrderingStatus,
+} from '../dashboard-settings/delivery-ordering-status';
 
 const menuCommands = new Set(['oi', 'ola', 'menu', 'cardapio']);
 const messageDedupeTtlMs = 10 * 60 * 1000;
@@ -60,6 +64,7 @@ export class WhatsAppEvolutionWebhookService {
             id: true,
             name: true,
             slug: true,
+            settings: true,
           },
         },
       },
@@ -112,6 +117,18 @@ export class WhatsAppEvolutionWebhookService {
       return { received: true, ignored: 'INVALID_PHONE' };
     }
 
+    const orderingStatus = resolveDeliveryOrderingStatus(
+      connection.tenant.settings,
+    );
+    if (orderingStatus.reason === 'MANUAL_PAUSE') {
+      return this.sendAutomaticReply(
+        connection.instanceName ?? event.instanceName,
+        phone,
+        ORDERING_PAUSED_MESSAGE,
+        connection.tenantId,
+      );
+    }
+
     const menuUrl = `${this.getPublicWebUrl()}/c/${connection.tenant.slug}`;
     const message = [
       `Olá! Seja bem-vindo(a) à ${connection.tenant.name}.`,
@@ -134,6 +151,26 @@ export class WhatsAppEvolutionWebhookService {
         error instanceof Error ? error.message : 'Falha desconhecida.';
       this.logger.warn(
         `Resposta automática falhou no tenant ${connection.tenantId}: ${message}`,
+      );
+      return { received: true, handled: 'AUTO_REPLY_FAILED' };
+    }
+  }
+
+  private async sendAutomaticReply(
+    instanceName: string,
+    phone: string,
+    message: string,
+    tenantId: string,
+  ) {
+    try {
+      await this.evolutionApi.sendTextMessage(instanceName, phone, message);
+      this.logger.log(`Resposta automÃ¡tica enviada pelo tenant ${tenantId}.`);
+      return { received: true, handled: 'AUTO_REPLY_SENT' };
+    } catch (error) {
+      const errorMessage =
+        error instanceof Error ? error.message : 'Falha desconhecida.';
+      this.logger.warn(
+        `Resposta automÃ¡tica falhou no tenant ${tenantId}: ${errorMessage}`,
       );
       return { received: true, handled: 'AUTO_REPLY_FAILED' };
     }

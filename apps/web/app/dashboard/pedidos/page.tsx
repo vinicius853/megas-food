@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react'
 
-import { Bell, Plus, RefreshCw } from 'lucide-react'
+import { Bell, CheckCircle2, PauseCircle, Plus, RefreshCw } from 'lucide-react'
 
 import {
   PageContainer,
@@ -10,6 +10,7 @@ import {
 } from '@/components/layout/page-container'
 
 import { Button } from '@/components/ui/button'
+import { apiFetch } from '@/lib/api'
 
 import { useOrderSound } from './use-order-sound'
 import { useOrdersSocket } from './use-orders-socket'
@@ -22,6 +23,18 @@ import { useOrders } from './use-orders'
 
 import type { Order, OrderStatus, OrderType } from './types'
 import type { OrdersPeriod } from './use-orders'
+
+type DeliverySettings = {
+  isDeliveryOpen?: boolean
+  city?: string
+  state?: string
+  storeCep?: string
+  storeAddress?: string
+  whatsapp?: string
+  zones?: unknown[]
+  openingHours?: Record<string, unknown>
+  options?: Record<string, unknown>
+}
 
 const statusLabels: Record<OrderStatus, string> = {
   PENDING: 'Pendente',
@@ -71,7 +84,19 @@ export default function PedidosPage() {
     useState<Order | null>(null)
   const [selectedOrderId, setSelectedOrderId] =
     useState<string | null>(null)
+  const [deliverySettings, setDeliverySettings] =
+    useState<DeliverySettings | null>(null)
+  const [deliverySettingsLoading, setDeliverySettingsLoading] =
+    useState(true)
+  const [deliveryPauseSaving, setDeliveryPauseSaving] =
+    useState(false)
+  const [deliveryConfirmOpen, setDeliveryConfirmOpen] =
+    useState(false)
+  const [deliveryActionError, setDeliveryActionError] =
+    useState('')
+  const [orderDetailError, setOrderDetailError] = useState('')
   const detailRequestRef = useRef(0)
+  const deliveryConfirmRef = useRef<HTMLDivElement | null>(null)
 
   const {
     orders,
@@ -87,23 +112,104 @@ export default function PedidosPage() {
     loadOrderDetails,
   } = useOrders()
 
-  const { soundEnabled, enableSound, playNewOrderSound } =
+  const { soundEnabled, toggleSound, playNewOrderSound } =
     useOrderSound()
 
   useEffect(() => {
     loadOrders()
   }, [loadOrders])
 
+  useEffect(() => {
+    loadDeliverySettings()
+  }, [])
+
+  useEffect(() => {
+    if (!deliveryConfirmOpen) return
+
+    function handleOutsideClick(event: MouseEvent) {
+      if (
+        deliveryConfirmRef.current &&
+        !deliveryConfirmRef.current.contains(event.target as Node)
+      ) {
+        setDeliveryConfirmOpen(false)
+        setDeliveryActionError('')
+      }
+    }
+
+    document.addEventListener('mousedown', handleOutsideClick)
+
+    return () => {
+      document.removeEventListener('mousedown', handleOutsideClick)
+    }
+  }, [deliveryConfirmOpen])
+
   useOrdersSocket({
     loadOrders,
     playNewOrderSound,
   })
+
+  async function loadDeliverySettings() {
+    try {
+      setDeliverySettingsLoading(true)
+      const delivery = await apiFetch<DeliverySettings>(
+        '/dashboard-settings/delivery',
+      )
+      setDeliverySettings(delivery)
+    } catch {
+      setDeliverySettings(null)
+    } finally {
+      setDeliverySettingsLoading(false)
+    }
+  }
+
+  function openDeliveryConfirmation() {
+    setDeliveryActionError('')
+    setDeliveryConfirmOpen((current) => !current)
+  }
+
+  async function confirmDeliveryPauseToggle() {
+    if (!deliverySettings) {
+      setDeliveryActionError(
+        'Nao foi possivel carregar o status de recebimento de pedidos.',
+      )
+      return
+    }
+
+    const isAcceptingOrders = deliverySettings.isDeliveryOpen !== false
+    const nextSettings = {
+      ...deliverySettings,
+      isDeliveryOpen: !isAcceptingOrders,
+    }
+
+    try {
+      setDeliveryPauseSaving(true)
+      const updated = await apiFetch<DeliverySettings>(
+        '/dashboard-settings/delivery',
+        {
+          method: 'PUT',
+          body: JSON.stringify(nextSettings),
+        },
+      )
+      setDeliverySettings(updated)
+      setDeliveryConfirmOpen(false)
+      setDeliveryActionError('')
+    } catch (err) {
+      setDeliveryActionError(
+        err instanceof Error
+          ? err.message
+          : 'Nao foi possivel atualizar o recebimento de pedidos.',
+      )
+    } finally {
+      setDeliveryPauseSaving(false)
+    }
+  }
 
   async function openOrderDetails(orderId: string) {
     const requestId = ++detailRequestRef.current
 
     setSelectedOrderId(orderId)
     setSelectedOrder(null)
+    setOrderDetailError('')
 
     try {
       const order = await loadOrderDetails(orderId)
@@ -114,7 +220,9 @@ export default function PedidosPage() {
     } catch {
       if (detailRequestRef.current === requestId) {
         setSelectedOrderId(null)
-        alert('Nao foi possivel carregar os detalhes do pedido.')
+        setOrderDetailError(
+          'Nao foi possivel carregar os detalhes do pedido.',
+        )
       }
     }
   }
@@ -123,6 +231,7 @@ export default function PedidosPage() {
     detailRequestRef.current += 1
     setSelectedOrderId(null)
     setSelectedOrder(null)
+    setOrderDetailError('')
   }
 
   async function updateStatusAndDetail(
@@ -143,23 +252,65 @@ export default function PedidosPage() {
     return automaticScheduled
   }
 
+  const isAcceptingOrders = deliverySettings?.isDeliveryOpen !== false
+
   return (
     <PageContainer>
       <PageHeader
         title="Pedidos de hoje"
         description={`Pedidos do período: ${periodLabel}. Atualização em tempo real.`}
         actions={
-          <div className="grid w-full grid-cols-1 gap-2 sm:w-auto sm:grid-cols-3">
+          <div className="grid w-full grid-cols-1 gap-2 sm:w-auto sm:grid-cols-4">
             <Button
               variant={soundEnabled ? 'primary' : 'outline'}
               size="sm"
-              onClick={enableSound}
+              onClick={toggleSound}
               className="w-full sm:w-auto"
             >
               <Bell className="h-4 w-4" />
 
-              {soundEnabled ? 'Som ativo' : 'Ativar som'}
+              {soundEnabled ? 'Som ativo' : 'Som desligado'}
             </Button>
+
+            <div
+              ref={deliveryConfirmRef}
+              className="relative w-full sm:w-auto"
+            >
+              <Button
+                type="button"
+                variant={isAcceptingOrders ? 'outline' : 'destructive'}
+                size="sm"
+                onClick={openDeliveryConfirmation}
+                disabled={deliverySettingsLoading || deliveryPauseSaving}
+                className={
+                  isAcceptingOrders
+                    ? 'w-full border-emerald-200 bg-emerald-50 text-emerald-700 hover:border-emerald-300 hover:bg-emerald-100 sm:w-auto'
+                    : 'w-full sm:w-auto'
+                }
+              >
+                {isAcceptingOrders ? (
+                  <CheckCircle2 className="h-4 w-4" />
+                ) : (
+                  <PauseCircle className="h-4 w-4" />
+                )}
+                {isAcceptingOrders
+                  ? 'Recebendo pedidos'
+                  : 'Pedidos pausados'}
+              </Button>
+
+              {deliveryConfirmOpen && (
+                <DeliveryPauseConfirmation
+                  isAcceptingOrders={isAcceptingOrders}
+                  saving={deliveryPauseSaving}
+                  error={deliveryActionError}
+                  onCancel={() => {
+                    setDeliveryConfirmOpen(false)
+                    setDeliveryActionError('')
+                  }}
+                  onConfirm={confirmDeliveryPauseToggle}
+                />
+              )}
+            </div>
 
             <Button
               variant="outline"
@@ -187,6 +338,12 @@ export default function PedidosPage() {
       {error && (
         <div className="mb-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
           {error}
+        </div>
+      )}
+
+      {orderDetailError && (
+        <div className="mb-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+          {orderDetailError}
         </div>
       )}
 
@@ -236,5 +393,65 @@ export default function PedidosPage() {
         />
       )}
     </PageContainer>
+  )
+}
+
+function DeliveryPauseConfirmation({
+  isAcceptingOrders,
+  saving,
+  error,
+  onCancel,
+  onConfirm,
+}: {
+  isAcceptingOrders: boolean
+  saving: boolean
+  error: string
+  onCancel: () => void
+  onConfirm: () => void
+}) {
+  return (
+    <div className="absolute left-0 top-full z-30 mt-2 w-full min-w-72 rounded-2xl border border-slate-200 bg-white p-4 text-left shadow-xl shadow-slate-900/10 sm:left-1/2 sm:w-80 sm:-translate-x-1/2">
+      <h3 className="text-sm font-black text-slate-950">
+        {isAcceptingOrders
+          ? 'Pausar recebimento de pedidos?'
+          : 'Retomar recebimento de pedidos?'}
+      </h3>
+
+      <p className="mt-1 text-xs font-medium leading-5 text-slate-500">
+        {isAcceptingOrders
+          ? 'Novos pedidos serão bloqueados até você retomar.'
+          : 'A loja voltará a receber pedidos se estiver dentro do horário de funcionamento.'}
+      </p>
+
+      {error && (
+        <p className="mt-3 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-xs font-bold text-red-700">
+          {error}
+        </p>
+      )}
+
+      <div className="mt-4 grid grid-cols-2 gap-2">
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          onClick={onCancel}
+          disabled={saving}
+          className="w-full"
+        >
+          Cancelar
+        </Button>
+
+        <Button
+          type="button"
+          variant={isAcceptingOrders ? 'destructive' : 'primary'}
+          size="sm"
+          onClick={onConfirm}
+          disabled={saving}
+          className="w-full"
+        >
+          {isAcceptingOrders ? 'Pausar pedidos' : 'Retomar pedidos'}
+        </Button>
+      </div>
+    </div>
   )
 }
