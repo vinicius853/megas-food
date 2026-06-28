@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
+import { Clock, CreditCard, MessageCircle, Save, Store } from "lucide-react";
 
 import { apiFetch } from "@/lib/api";
 
@@ -18,6 +19,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { WhatsAppSettingsContent } from "./whatsapp/whatsapp-settings-content";
 
 type Tenant = {
   id: string;
@@ -25,6 +27,10 @@ type Tenant = {
   slug: string;
   phone?: string | null;
   whatsapp?: string | null;
+  city?: string | null;
+  state?: string | null;
+  address?: string | null;
+  zipCode?: string | null;
   logoUrl?: string | null;
   isActive: boolean;
 };
@@ -36,31 +42,104 @@ type OpeningHourRange = {
 };
 
 type DeliveryOpeningHours = {
-  monday?: OpeningHourRange;
-  tuesday?: OpeningHourRange;
-  wednesday?: OpeningHourRange;
-  thursday?: OpeningHourRange;
-  friday?: OpeningHourRange;
+  monday: OpeningHourRange;
+  tuesday: OpeningHourRange;
+  wednesday: OpeningHourRange;
+  thursday: OpeningHourRange;
+  friday: OpeningHourRange;
+  saturday: OpeningHourRange;
+  sunday: OpeningHourRange;
   weekday?: OpeningHourRange;
-  saturday?: OpeningHourRange;
-  sunday?: OpeningHourRange;
 };
 
 type DeliverySettings = {
   isDeliveryOpen?: boolean;
+  city?: string;
+  state?: string;
+  storeCep?: string;
+  storeAddress?: string;
+  whatsapp?: string;
+  zones?: unknown[];
   openingHours?: DeliveryOpeningHours;
+  options?: Record<string, unknown>;
 };
 
-const fallbackOpeningHours: Required<DeliveryOpeningHours> = {
+type SettingsTab = "store" | "hours" | "whatsapp" | "subscription";
+type WeekDayKey = Exclude<keyof DeliveryOpeningHours, "weekday">;
+
+const fallbackOpeningHours: DeliveryOpeningHours = {
   monday: { enabled: false, open: "", close: "" },
   tuesday: { enabled: false, open: "", close: "" },
   wednesday: { enabled: false, open: "", close: "" },
   thursday: { enabled: false, open: "", close: "" },
   friday: { enabled: false, open: "", close: "" },
-  weekday: { enabled: false, open: "", close: "" },
   saturday: { enabled: false, open: "", close: "" },
   sunday: { enabled: false, open: "", close: "" },
 };
+
+const tabs: Array<{
+  id: SettingsTab;
+  label: string;
+  icon: typeof Store;
+}> = [
+  { id: "store", label: "Dados da loja", icon: Store },
+  { id: "hours", label: "Horarios", icon: Clock },
+  { id: "whatsapp", label: "WhatsApp", icon: MessageCircle },
+  { id: "subscription", label: "Assinatura", icon: CreditCard },
+];
+
+const weekDays: Array<{
+  key: WeekDayKey;
+  label: string;
+}> = [
+  { key: "monday", label: "Segunda" },
+  { key: "tuesday", label: "Terca" },
+  { key: "wednesday", label: "Quarta" },
+  { key: "thursday", label: "Quinta" },
+  { key: "friday", label: "Sexta" },
+  { key: "saturday", label: "Sabado" },
+  { key: "sunday", label: "Domingo" },
+];
+
+function normalizeOpeningHours(openingHours?: Partial<DeliveryOpeningHours>) {
+  const weekday = openingHours?.weekday;
+
+  return {
+    monday: {
+      ...fallbackOpeningHours.monday,
+      ...(weekday ?? {}),
+      ...(openingHours?.monday ?? {}),
+    },
+    tuesday: {
+      ...fallbackOpeningHours.tuesday,
+      ...(weekday ?? {}),
+      ...(openingHours?.tuesday ?? {}),
+    },
+    wednesday: {
+      ...fallbackOpeningHours.wednesday,
+      ...(weekday ?? {}),
+      ...(openingHours?.wednesday ?? {}),
+    },
+    thursday: {
+      ...fallbackOpeningHours.thursday,
+      ...(weekday ?? {}),
+      ...(openingHours?.thursday ?? {}),
+    },
+    friday: {
+      ...fallbackOpeningHours.friday,
+      ...(weekday ?? {}),
+      ...(openingHours?.friday ?? {}),
+    },
+    saturday: {
+      ...fallbackOpeningHours.saturday,
+      ...(openingHours?.saturday ?? {}),
+    },
+    sunday: {
+      ...fallbackOpeningHours.sunday,
+      ...(openingHours?.sunday ?? {}),
+    },
+  };
+}
 
 function timeToMinutes(value?: string) {
   const [hours, minutes] = String(value ?? "")
@@ -72,43 +151,15 @@ function timeToMinutes(value?: string) {
   return hours * 60 + minutes;
 }
 
-function getTodayOpeningRange(openingHours?: DeliveryOpeningHours) {
+function getTodayOpeningRange(
+  openingHours?: DeliveryOpeningHours,
+): OpeningHourRange {
   const day = new Date().getDay();
+  const key = weekDays[day === 0 ? 6 : day - 1]?.key;
 
-  if (day === 1)
-    return (
-      openingHours?.monday ??
-      openingHours?.weekday ??
-      fallbackOpeningHours.monday
-    );
-  if (day === 2)
-    return (
-      openingHours?.tuesday ??
-      openingHours?.weekday ??
-      fallbackOpeningHours.tuesday
-    );
-  if (day === 3)
-    return (
-      openingHours?.wednesday ??
-      openingHours?.weekday ??
-      fallbackOpeningHours.wednesday
-    );
-  if (day === 4)
-    return (
-      openingHours?.thursday ??
-      openingHours?.weekday ??
-      fallbackOpeningHours.thursday
-    );
-  if (day === 5)
-    return (
-      openingHours?.friday ??
-      openingHours?.weekday ??
-      fallbackOpeningHours.friday
-    );
-  if (day === 0) return openingHours?.sunday ?? fallbackOpeningHours.sunday;
-  if (day === 6) return openingHours?.saturday ?? fallbackOpeningHours.saturday;
-
-  return fallbackOpeningHours.weekday;
+  return key
+    ? (openingHours?.[key] ?? fallbackOpeningHours[key])
+    : fallbackOpeningHours.monday;
 }
 
 function isOpenNow(delivery?: DeliverySettings | null) {
@@ -131,14 +182,20 @@ function isOpenNow(delivery?: DeliverySettings | null) {
 }
 
 export default function ConfiguracoesPizzariaPage() {
+  const [activeTab, setActiveTab] = useState<SettingsTab>("store");
   const [name, setName] = useState("");
   const [slug, setSlug] = useState("");
   const [phone, setPhone] = useState("");
   const [whatsapp, setWhatsapp] = useState("");
+  const [address, setAddress] = useState("");
+  const [city, setCity] = useState("");
+  const [state, setState] = useState("");
+  const [zipCode, setZipCode] = useState("");
   const [delivery, setDelivery] = useState<DeliverySettings | null>(null);
 
   const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
+  const [savingStore, setSavingStore] = useState(false);
+  const [savingHours, setSavingHours] = useState(false);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
 
@@ -157,56 +214,130 @@ export default function ConfiguracoesPizzariaPage() {
       setSlug(tenant.slug || "");
       setPhone(tenant.phone || "");
       setWhatsapp(tenant.whatsapp || "");
+      setAddress(tenant.address || deliverySettings.storeAddress || "");
+      setCity(tenant.city || deliverySettings.city || "");
+      setState(tenant.state || deliverySettings.state || "");
+      setZipCode(tenant.zipCode || deliverySettings.storeCep || "");
       setDelivery({
         ...deliverySettings,
-        openingHours: {
-          ...fallbackOpeningHours,
-          ...(deliverySettings.openingHours ?? {}),
-        },
+        openingHours: normalizeOpeningHours(deliverySettings.openingHours),
       });
-    } catch (err: any) {
-      setError(err.message || "Erro ao carregar configurações.");
+    } catch (err) {
+      setError(
+        err instanceof Error ? err.message : "Erro ao carregar configuracoes.",
+      );
     } finally {
       setLoading(false);
     }
   }
 
-  async function handleSave() {
+  async function saveStoreData() {
     try {
-      setSaving(true);
+      setSavingStore(true);
       setError("");
       setMessage("");
 
       if (!name.trim()) {
-        throw new Error("Informe o nome da pizzaria.");
+        throw new Error("Informe o nome da loja.");
       }
 
       if (!slug.trim()) {
-        throw new Error("Informe o slug do cardápio.");
+        throw new Error("Informe o slug do cardapio.");
       }
+
+      const payload = {
+        name: name.trim(),
+        slug: slug.trim(),
+        phone: phone.trim() || undefined,
+        whatsapp: whatsapp.trim() || undefined,
+        address: address.trim() || undefined,
+        city: city.trim() || undefined,
+        state: state.trim() || undefined,
+        zipCode: zipCode.trim() || undefined,
+      };
 
       const updatedTenant = await apiFetch<Tenant>("/tenants/me", {
         method: "PATCH",
-        body: JSON.stringify({
-          name: name.trim(),
-          slug: slug.trim(),
-          phone: phone.trim() || undefined,
-          whatsapp: whatsapp.trim() || undefined,
-        }),
+        body: JSON.stringify(payload),
+      });
+
+      const updatedDelivery = await apiFetch<DeliverySettings>(
+        "/dashboard-settings/delivery",
+        {
+          method: "PUT",
+          body: JSON.stringify({
+            ...(delivery ?? {}),
+            city: city.trim(),
+            state: state.trim(),
+            storeCep: zipCode.trim(),
+            storeAddress: address.trim(),
+            whatsapp: whatsapp.trim(),
+          }),
+        },
+      );
+
+      setDelivery({
+        ...updatedDelivery,
+        openingHours: normalizeOpeningHours(updatedDelivery.openingHours),
       });
 
       localStorage.setItem("tenantName", updatedTenant.name);
-
       localStorage.setItem("tenantSlug", updatedTenant.slug);
-
       window.dispatchEvent(new Event("dashboard-brand-updated"));
 
-      setMessage("Configurações salvas com sucesso.");
-    } catch (err: any) {
-      setError(err.message || "Erro ao salvar configurações.");
+      setMessage("Dados da loja salvos com sucesso.");
+    } catch (err) {
+      setError(
+        err instanceof Error ? err.message : "Erro ao salvar dados da loja.",
+      );
     } finally {
-      setSaving(false);
+      setSavingStore(false);
     }
+  }
+
+  async function saveOpeningHours() {
+    try {
+      setSavingHours(true);
+      setError("");
+      setMessage("");
+
+      const updatedDelivery = await apiFetch<DeliverySettings>(
+        "/dashboard-settings/delivery",
+        {
+          method: "PUT",
+          body: JSON.stringify({
+            ...(delivery ?? {}),
+            openingHours: delivery?.openingHours ?? fallbackOpeningHours,
+          }),
+        },
+      );
+
+      setDelivery({
+        ...updatedDelivery,
+        openingHours: normalizeOpeningHours(updatedDelivery.openingHours),
+      });
+      setMessage("Horarios salvos com sucesso.");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Erro ao salvar horarios.");
+    } finally {
+      setSavingHours(false);
+    }
+  }
+
+  function updateOpeningHours(
+    key: WeekDayKey,
+    patch: Partial<OpeningHourRange>,
+  ) {
+    setDelivery((current) => ({
+      ...(current ?? {}),
+      openingHours: {
+        ...normalizeOpeningHours(current?.openingHours),
+        [key]: {
+          ...normalizeOpeningHours(current?.openingHours)[key],
+          ...patch,
+        },
+      },
+    }));
   }
 
   useEffect(() => {
@@ -220,127 +351,145 @@ export default function ConfiguracoesPizzariaPage() {
   );
 
   return (
-    <PageContainer size="narrow">
+    <PageContainer>
       <PageHeader
-        title="Configurações"
-        description="Dados e preferências da sua pizzaria."
+        title="Configuracoes da loja"
+        description="Organize os dados e preferencias da sua loja em um so lugar."
       />
 
       {error && (
-        <div className="mb-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+        <div className="mb-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-bold text-red-700">
           {error}
         </div>
       )}
 
       {message && (
-        <div className="mb-4 rounded-xl border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-700">
+        <div className="mb-4 rounded-xl border border-green-200 bg-green-50 px-4 py-3 text-sm font-bold text-green-700">
           {message}
         </div>
       )}
 
-      <div className="space-y-4">
+      <div className="mb-5 overflow-x-auto rounded-2xl border border-slate-200 bg-white p-1 shadow-sm">
+        <div className="grid min-w-max grid-cols-4 gap-1">
+          {tabs.map((tab) => {
+            const Icon = tab.icon;
+            const active = activeTab === tab.id;
+
+            return (
+              <button
+                key={tab.id}
+                type="button"
+                onClick={() => setActiveTab(tab.id)}
+                className={`flex items-center justify-center gap-2 rounded-xl px-4 py-3 text-sm font-black transition ${
+                  active
+                    ? "bg-orange-50 text-orange-600 ring-1 ring-orange-200"
+                    : "text-slate-500 hover:bg-slate-50 hover:text-slate-900"
+                }`}
+              >
+                <Icon className="h-4 w-4" />
+                {tab.label}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {activeTab === "store" && (
         <Card>
           <CardHeader>
-            <CardTitle>Dados da pizzaria</CardTitle>
-
+            <CardTitle>Dados da loja</CardTitle>
             <CardDescription>
-              Informações exibidas no cardápio público e nos pedidos.
+              Informacoes exibidas no cardapio publico e usadas nos pedidos.
             </CardDescription>
           </CardHeader>
 
-          <CardContent className="space-y-4">
+          <CardContent className="space-y-5">
             {loading ? (
-              <p className="text-sm text-slate-500">
-                Carregando configurações...
+              <p className="text-sm font-bold text-slate-500">
+                Carregando configuracoes...
               </p>
             ) : (
               <>
-                <div className="grid gap-1.5">
-                  <label className="text-sm font-medium text-slate-700">
-                    Nome
-                  </label>
-
-                  <Input
+                <div className="grid gap-4 md:grid-cols-2">
+                  <LabeledInput
+                    label="Nome da loja"
                     value={name}
-                    onChange={(e) => setName(e.target.value)}
-                    placeholder="Ex: Pizzaria Bella Napoli"
+                    onChange={setName}
                   />
-                </div>
-
-                <div className="grid gap-1.5">
-                  <label className="text-sm font-medium text-slate-700">
-                    Slug do cardápio público
-                  </label>
-
-                  <Input
+                  <LabeledInput
+                    label="Slug do cardapio publico"
                     value={slug}
-                    onChange={(e) => setSlug(e.target.value)}
-                    placeholder="ex: bella-napoli"
+                    onChange={setSlug}
+                    helper={`URL: /c/${slug || "sua-loja"}`}
                   />
-
-                  <p className="text-xs text-slate-500">
-                    URL: /c/
-                    {slug || "sua-pizzaria"}
-                  </p>
-                </div>
-
-                <div className="grid gap-1.5">
-                  <label className="text-sm font-medium text-slate-700">
-                    Telefone
-                  </label>
-
-                  <Input
+                  <LabeledInput
+                    label="Telefone"
                     value={phone}
-                    onChange={(e) => setPhone(e.target.value)}
-                    placeholder="Ex: (24) 99999-9999"
+                    onChange={setPhone}
+                  />
+                  <LabeledInput
+                    label="WhatsApp para receber pedidos"
+                    value={whatsapp}
+                    onChange={setWhatsapp}
+                    helper="Use DDD + numero. Ex: 24999999999."
                   />
                 </div>
 
-                <div className="grid gap-1.5">
-                  <label className="text-sm font-medium text-slate-700">
-                    WhatsApp para receber pedidos
-                  </label>
+                <LabeledInput
+                  label="Endereco fisico da loja"
+                  value={address}
+                  onChange={setAddress}
+                />
 
-                  <Input
-                    value={whatsapp}
-                    onChange={(e) => setWhatsapp(e.target.value)}
-                    placeholder="Ex: 24999999999"
+                <div className="grid gap-4 md:grid-cols-[1fr_160px_1fr]">
+                  <LabeledInput
+                    label="Cidade"
+                    value={city}
+                    onChange={setCity}
                   />
+                  <LabeledInput
+                    label="Estado"
+                    value={state}
+                    onChange={setState}
+                  />
+                  <LabeledInput
+                    label="CEP"
+                    value={zipCode}
+                    onChange={setZipCode}
+                  />
+                </div>
 
-                  <p className="text-xs text-slate-500">
-                    Use DDD + número. Ex: 24999999999.
-                  </p>
+                <div className="flex flex-col gap-2 border-t border-slate-100 pt-5 sm:flex-row sm:justify-end">
+                  <Button
+                    variant="outline"
+                    onClick={loadTenant}
+                    disabled={loading || savingStore}
+                  >
+                    Cancelar
+                  </Button>
+                  <Button
+                    variant="primary"
+                    onClick={saveStoreData}
+                    disabled={loading || savingStore}
+                  >
+                    <Save className="h-4 w-4" />
+                    {savingStore ? "Salvando..." : "Salvar alteracoes"}
+                  </Button>
                 </div>
               </>
             )}
           </CardContent>
         </Card>
+      )}
 
+      {activeTab === "hours" && (
         <Card>
           <CardHeader>
-            <CardTitle>WhatsApp</CardTitle>
-            <CardDescription>
-              Configure automações de status e acompanhe a conexão.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="flex items-center justify-between gap-4">
-            <p className="text-sm text-slate-600">
-              O envio manual permanece disponível como fallback.
-            </p>
-            <Button asChild variant="outline">
-              <Link href="/dashboard/configuracoes/whatsapp">Configurar</Link>
-            </Button>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <div className="flex items-start justify-between">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
               <div>
-                <CardTitle>Horários de funcionamento</CardTitle>
-
+                <CardTitle>Horarios de funcionamento</CardTitle>
                 <CardDescription>
-                  Quando o cardápio aceita pedidos.
+                  Controle quando o cardapio aceita pedidos.
                 </CardDescription>
               </div>
 
@@ -350,99 +499,78 @@ export default function ConfiguracoesPizzariaPage() {
             </div>
           </CardHeader>
 
-          <CardContent className="space-y-4">
+          <CardContent className="space-y-5">
             {loading ? (
-              <p className="text-sm text-slate-500">Carregando horarios...</p>
+              <p className="text-sm font-bold text-slate-500">
+                Carregando horarios...
+              </p>
             ) : (
               <>
-                <div className="grid gap-3 md:grid-cols-3">
-                  <ScheduleSummaryItem
-                    label="Segunda"
-                    range={
-                      delivery?.openingHours?.monday ??
-                      delivery?.openingHours?.weekday
-                    }
-                  />
-                  <ScheduleSummaryItem
-                    label="Terca"
-                    range={
-                      delivery?.openingHours?.tuesday ??
-                      delivery?.openingHours?.weekday
-                    }
-                  />
-                  <ScheduleSummaryItem
-                    label="Quarta"
-                    range={
-                      delivery?.openingHours?.wednesday ??
-                      delivery?.openingHours?.weekday
-                    }
-                  />
-                  <ScheduleSummaryItem
-                    label="Quinta"
-                    range={
-                      delivery?.openingHours?.thursday ??
-                      delivery?.openingHours?.weekday
-                    }
-                  />
-                  <ScheduleSummaryItem
-                    label="Sexta"
-                    range={
-                      delivery?.openingHours?.friday ??
-                      delivery?.openingHours?.weekday
-                    }
-                  />
-                  <ScheduleSummaryItem
-                    label="Sabado"
-                    range={delivery?.openingHours?.saturday}
-                  />
-                  <ScheduleSummaryItem
-                    label="Domingo"
-                    range={delivery?.openingHours?.sunday}
-                  />
+                <div className="rounded-2xl bg-slate-50 p-4 text-sm text-slate-600">
+                  Hoje:{" "}
+                  <strong className="text-slate-950">
+                    {currentRange.enabled === false
+                      ? "Fechado"
+                      : `${currentRange.open} - ${currentRange.close}`}
+                  </strong>
                 </div>
 
-                <div className="flex flex-col gap-3 rounded-2xl bg-slate-50 p-4 text-sm text-slate-600 md:flex-row md:items-center md:justify-between">
-                  <p>
-                    Hoje:{" "}
-                    <strong className="text-slate-950">
-                      {currentRange.enabled === false
-                        ? "Fechado"
-                        : `${currentRange.open} - ${currentRange.close}`}
-                    </strong>
-                  </p>
+                <div className="grid gap-3">
+                  {weekDays.map((day) => (
+                    <ScheduleEditorRow
+                      key={day.key}
+                      label={day.label}
+                      range={
+                        delivery?.openingHours?.[day.key] ??
+                        fallbackOpeningHours[day.key]
+                      }
+                      onChange={(patch) => updateOpeningHours(day.key, patch)}
+                    />
+                  ))}
+                </div>
 
-                  <Button asChild variant="outline" size="sm">
-                    <Link href="/dashboard/entregas">Editar horarios</Link>
+                <div className="flex flex-col gap-2 border-t border-slate-100 pt-5 sm:flex-row sm:justify-end">
+                  <Button
+                    variant="outline"
+                    onClick={loadTenant}
+                    disabled={loading || savingHours}
+                  >
+                    Cancelar
+                  </Button>
+                  <Button
+                    variant="primary"
+                    onClick={saveOpeningHours}
+                    disabled={loading || savingHours}
+                  >
+                    <Save className="h-4 w-4" />
+                    {savingHours ? "Salvando..." : "Salvar horarios"}
                   </Button>
                 </div>
               </>
             )}
-            <p className="hidden text-sm text-slate-500">
-              Configuração detalhada será adicionada em etapa futura.
-            </p>
           </CardContent>
         </Card>
+      )}
 
+      {activeTab === "whatsapp" && <WhatsAppSettingsContent />}
+
+      {activeTab === "subscription" && (
         <Card>
           <CardHeader>
             <CardTitle>Assinatura</CardTitle>
-
             <CardDescription>
-              Acompanhe seu plano, vencimento, status de acesso e suporte de
-              cancelamento.
+              Acompanhe plano, vencimento, status de acesso e cobrancas.
             </CardDescription>
           </CardHeader>
-
-          <CardContent className="flex flex-col gap-3 rounded-b-3xl md:flex-row md:items-center md:justify-between">
+          <CardContent className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
             <div>
               <p className="text-sm font-semibold text-slate-500">
-                Plano e situação da assinatura
+                Plano e situacao da assinatura
               </p>
               <p className="mt-1 text-sm font-medium text-slate-700">
-                Consulte os dados reais de cobrança e acesso.
+                Consulte os dados reais de cobranca e acesso.
               </p>
             </div>
-
             <Button asChild variant="outline">
               <Link href="/dashboard/configuracoes/assinatura">
                 Gerenciar assinatura
@@ -450,49 +578,81 @@ export default function ConfiguracoesPizzariaPage() {
             </Button>
           </CardContent>
         </Card>
-
-        <div className="flex items-center justify-end gap-2">
-          <Button
-            variant="outline"
-            onClick={loadTenant}
-            disabled={loading || saving}
-          >
-            Cancelar
-          </Button>
-
-          <Button
-            variant="primary"
-            onClick={handleSave}
-            disabled={loading || saving}
-          >
-            {saving ? "Salvando..." : "Salvar alterações"}
-          </Button>
-        </div>
-      </div>
+      )}
     </PageContainer>
   );
 }
 
-function ScheduleSummaryItem({
+function LabeledInput({
   label,
-  range,
+  value,
+  onChange,
+  helper,
 }: {
   label: string;
-  range?: OpeningHourRange;
+  value: string;
+  onChange: (value: string) => void;
+  helper?: string;
 }) {
-  const safeRange = range ?? { enabled: false, open: "", close: "" };
+  return (
+    <label className="grid gap-1.5">
+      <span className="text-sm font-bold text-slate-700">{label}</span>
+      <Input value={value} onChange={(event) => onChange(event.target.value)} />
+      {helper && <span className="text-xs text-slate-500">{helper}</span>}
+    </label>
+  );
+}
+
+function ScheduleEditorRow({
+  label,
+  range,
+  onChange,
+}: {
+  label: string;
+  range: OpeningHourRange;
+  onChange: (patch: Partial<OpeningHourRange>) => void;
+}) {
+  const closed = range.enabled === false;
 
   return (
-    <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-      <p className="text-xs font-bold uppercase tracking-wide text-slate-400">
-        {label}
-      </p>
+    <div className="grid gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm md:grid-cols-[160px_1fr_auto] md:items-center">
+      <div>
+        <p className="text-sm font-black text-slate-950">{label}</p>
+        <p className="text-xs font-medium text-slate-500">
+          {closed ? "Fechado" : "Aberto"}
+        </p>
+      </div>
 
-      <p className="mt-2 text-base font-black text-slate-950">
-        {safeRange.enabled === false
-          ? "Fechado"
-          : `${safeRange.open} - ${safeRange.close}`}
-      </p>
+      <div className="grid gap-3 sm:grid-cols-2">
+        <label className="grid gap-1.5">
+          <span className="text-xs font-bold text-slate-500">Abertura</span>
+          <Input
+            type="time"
+            value={range.open}
+            disabled={closed}
+            onChange={(event) => onChange({ open: event.target.value })}
+          />
+        </label>
+        <label className="grid gap-1.5">
+          <span className="text-xs font-bold text-slate-500">Fechamento</span>
+          <Input
+            type="time"
+            value={range.close}
+            disabled={closed}
+            onChange={(event) => onChange({ close: event.target.value })}
+          />
+        </label>
+      </div>
+
+      <label className="flex items-center justify-between gap-3 rounded-2xl bg-slate-50 px-4 py-3 text-sm font-bold text-slate-700 md:justify-center">
+        Fechado
+        <input
+          type="checkbox"
+          checked={closed}
+          onChange={(event) => onChange({ enabled: !event.target.checked })}
+          className="h-5 w-5 accent-orange-600"
+        />
+      </label>
     </div>
   );
 }

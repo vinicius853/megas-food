@@ -92,8 +92,6 @@ const emptySettings: DeliverySettings = {
   },
 };
 
-const tabs = ["Areas de entrega", "Horarios de funcionamento", "Configuracoes"];
-
 function formatMoney(value: number) {
   return value.toLocaleString("pt-BR", {
     style: "currency",
@@ -151,7 +149,6 @@ function normalizeOpeningHours(
 export default function EntregasPage() {
   const [settings, setSettings] = useState<DeliverySettings>(emptySettings);
   const [tenantSlug, setTenantSlug] = useState("");
-  const [activeTab, setActiveTab] = useState(tabs[0]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
@@ -221,35 +218,12 @@ export default function EntregasPage() {
     }
   }
 
-  function updateField(field: keyof DeliverySettings, value: string | boolean) {
-    setSettings((current) => ({
-      ...current,
-      [field]: value,
-    }));
-  }
-
   function updateZone(id: string, patch: Partial<DeliveryZone>) {
     setSettings((current) => ({
       ...current,
       zones: current.zones.map((zone) =>
         zone.id === id ? { ...zone, ...patch } : zone,
       ),
-    }));
-  }
-
-  function updateOpeningHours(
-    key: keyof Omit<DeliveryOpeningHours, "weekday">,
-    patch: Partial<OpeningHourRange>,
-  ) {
-    setSettings((current) => ({
-      ...current,
-      openingHours: {
-        ...current.openingHours,
-        [key]: {
-          ...current.openingHours[key],
-          ...patch,
-        },
-      },
     }));
   }
 
@@ -376,7 +350,7 @@ export default function EntregasPage() {
     <PageContainer>
       <PageHeader
         title="Entregas"
-        description="Gerencie suas areas de entrega, taxas e horarios de funcionamento."
+        description="Gerencie areas de entrega, taxas, prazos e ruas com valores diferenciados."
         actions={
           <>
             {tenantSlug && (
@@ -460,244 +434,209 @@ export default function EntregasPage() {
         </CardContent>
       </Card>
 
-      <div className="mb-5 flex gap-2 overflow-x-auto border-b border-slate-200">
-        {tabs.map((tab) => (
-          <button
-            key={tab}
-            type="button"
-            onClick={() => setActiveTab(tab)}
-            className={`whitespace-nowrap border-b-2 px-5 py-4 text-sm font-black transition ${
-              activeTab === tab
-                ? "border-orange-600 text-orange-600"
-                : "border-transparent text-slate-500 hover:text-slate-900"
-            }`}
-          >
-            {tab}
-          </button>
-        ))}
-      </div>
+      <Card>
+        <CardHeader>
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <CardTitle>Areas de entrega</CardTitle>
+              <CardDescription>
+                Gerencie bairros atendidos pela sua pizzaria e os valores de
+                frete.
+              </CardDescription>
+            </div>
 
-      <div>
-        {activeTab === "Areas de entrega" && (
-            <Card>
-              <CardHeader>
-                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                  <div>
-                    <CardTitle>Areas de entrega</CardTitle>
-                    <CardDescription>
-                      Gerencie bairros atendidos pela sua pizzaria e os valores
-                      de frete.
-                    </CardDescription>
-                  </div>
+            <Button onClick={addZone} variant="outline" size="sm">
+              <Plus className="h-4 w-4" />
+              Adicionar bairro
+            </Button>
+          </div>
+        </CardHeader>
 
-                  <Button onClick={addZone} variant="outline" size="sm">
-                    <Plus className="h-4 w-4" />
-                    Adicionar bairro
-                  </Button>
-                </div>
-              </CardHeader>
-
-              <CardContent className="space-y-3">
-                {loading && <Skeleton className="h-40 w-full rounded-3xl" />}
-                {!loading && settings.zones.length === 0 && (
-                  <EmptyState
-                    icon={MapPin}
-                    title="Nenhuma entrega cadastrada"
-                    description="Adicione um bairro para configurar taxa e prazo de entrega."
-                    action={
-                      <Button onClick={addZone} variant="outline" size="sm">
-                        <Plus className="h-4 w-4" />
-                        Adicionar bairro
-                      </Button>
+        <CardContent className="space-y-3">
+          {loading && <Skeleton className="h-40 w-full rounded-3xl" />}
+          {!loading && settings.zones.length === 0 && (
+            <EmptyState
+              icon={MapPin}
+              title="Nenhuma entrega cadastrada"
+              description="Adicione um bairro para configurar taxa e prazo de entrega."
+              action={
+                <Button onClick={addZone} variant="outline" size="sm">
+                  <Plus className="h-4 w-4" />
+                  Adicionar bairro
+                </Button>
+              }
+              className="bg-slate-50"
+            />
+          )}
+          {!loading &&
+            settings.zones.map((zone) => (
+              <div
+                key={zone.id}
+                className="rounded-3xl border border-slate-200 bg-white p-4 shadow-sm"
+              >
+                <div className="grid gap-3 lg:grid-cols-[1.2fr_150px_150px_auto_auto] lg:items-center">
+                  <Input
+                    id={`delivery-zone-name-${zone.id}`}
+                    value={zone.name}
+                    onChange={(event) =>
+                      updateZone(zone.id, { name: event.target.value })
                     }
-                    className="bg-slate-50"
+                    aria-label="Nome do bairro"
                   />
-                )}
-                {!loading &&
-                  settings.zones.map((zone) => (
-                    <div
-                      key={zone.id}
-                      className="rounded-3xl border border-slate-200 bg-white p-4 shadow-sm"
+
+                  <FeeInput
+                    value={zone.fee}
+                    onChange={(fee) => updateZone(zone.id, { fee })}
+                  />
+
+                  <Input
+                    value={zone.eta}
+                    onChange={(event) =>
+                      updateZone(zone.id, { eta: event.target.value })
+                    }
+                    aria-label="Tempo estimado"
+                  />
+
+                  <button
+                    type="button"
+                    onClick={() =>
+                      updateZone(zone.id, { isActive: !zone.isActive })
+                    }
+                    className={`rounded-2xl px-4 py-3 text-xs font-black transition ${
+                      zone.isActive
+                        ? "bg-emerald-100 text-emerald-700"
+                        : "bg-slate-100 text-slate-500"
+                    }`}
+                  >
+                    {zone.isActive ? "Ativo" : "Inativo"}
+                  </button>
+
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={() => toggleZoneExpanded(zone.id)}
+                      className="flex h-11 min-w-24 items-center justify-center gap-2 rounded-2xl border border-slate-200 px-3 text-xs font-black text-slate-600"
                     >
-                      <div className="grid gap-3 lg:grid-cols-[1.2fr_150px_150px_auto_auto] lg:items-center">
-                        <Input
-                          id={`delivery-zone-name-${zone.id}`}
-                          value={zone.name}
-                          onChange={(event) =>
-                            updateZone(zone.id, { name: event.target.value })
-                          }
-                          aria-label="Nome do bairro"
-                        />
+                      <Edit3 className="h-4 w-4" />
+                      {(zone.streetRules ?? []).length} ruas
+                    </button>
 
-                        <FeeInput
-                          value={zone.fee}
-                          onChange={(fee) => updateZone(zone.id, { fee })}
-                        />
+                    <button
+                      type="button"
+                      onClick={() => removeZone(zone.id)}
+                      className="flex h-11 w-11 items-center justify-center rounded-2xl border border-red-100 text-red-600"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  </div>
+                </div>
 
-                        <Input
-                          value={zone.eta}
-                          onChange={(event) =>
-                            updateZone(zone.id, { eta: event.target.value })
-                          }
-                          aria-label="Tempo estimado"
-                        />
+                {expandedZoneIds.includes(zone.id) && (
+                  <div className="mt-4 rounded-2xl border border-dashed border-slate-200 bg-slate-50 p-4">
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                      <div>
+                        <p className="text-sm font-black text-slate-900">
+                          Ruas com taxa diferenciada
+                        </p>
+                        <p className="mt-1 text-xs font-semibold text-slate-500">
+                          Se a rua nao tiver taxa especifica, sera usada a taxa
+                          padrao do bairro.
+                        </p>
+                      </div>
 
-                        <button
-                          type="button"
-                          onClick={() =>
-                            updateZone(zone.id, { isActive: !zone.isActive })
-                          }
-                          className={`rounded-2xl px-4 py-3 text-xs font-black transition ${
-                            zone.isActive
-                              ? "bg-emerald-100 text-emerald-700"
-                              : "bg-slate-100 text-slate-500"
-                          }`}
+                      <Button
+                        type="button"
+                        onClick={() => addStreetRule(zone.id)}
+                        variant="outline"
+                        size="sm"
+                      >
+                        <Plus className="h-4 w-4" />
+                        Adicionar rua
+                      </Button>
+                    </div>
+
+                    <div className="mt-4 space-y-3">
+                      {(zone.streetRules ?? []).length === 0 && (
+                        <div className="rounded-2xl border border-dashed border-slate-300 bg-white px-4 py-5 text-center text-sm font-semibold text-slate-500">
+                          Nenhuma rua com taxa diferenciada.
+                        </div>
+                      )}
+
+                      {(zone.streetRules ?? []).map((rule) => (
+                        <div
+                          key={rule.id}
+                          className="grid gap-3 rounded-2xl border border-slate-200 bg-white p-3 lg:grid-cols-[1.2fr_150px_150px_auto_auto] lg:items-center"
                         >
-                          {zone.isActive ? "Ativo" : "Inativo"}
-                        </button>
+                          <Input
+                            value={rule.streetName}
+                            onChange={(event) =>
+                              updateStreetRule(zone.id, rule.id, {
+                                streetName: event.target.value,
+                              })
+                            }
+                            aria-label="Nome da rua"
+                            placeholder="Nome da rua"
+                          />
 
-                        <div className="flex gap-2">
+                          <FeeInput
+                            value={rule.fee}
+                            onChange={(fee) =>
+                              updateStreetRule(zone.id, rule.id, { fee })
+                            }
+                          />
+
+                          <Input
+                            value={rule.eta ?? ""}
+                            onChange={(event) =>
+                              updateStreetRule(zone.id, rule.id, {
+                                eta: event.target.value,
+                              })
+                            }
+                            aria-label="Tempo estimado da rua"
+                            placeholder="Prazo opcional"
+                          />
+
                           <button
                             type="button"
-                            onClick={() => toggleZoneExpanded(zone.id)}
-                            className="flex h-11 min-w-24 items-center justify-center gap-2 rounded-2xl border border-slate-200 px-3 text-xs font-black text-slate-600"
+                            onClick={() =>
+                              updateStreetRule(zone.id, rule.id, {
+                                isActive: !rule.isActive,
+                              })
+                            }
+                            className={`rounded-2xl px-4 py-3 text-xs font-black transition ${
+                              rule.isActive
+                                ? "bg-emerald-100 text-emerald-700"
+                                : "bg-slate-100 text-slate-500"
+                            }`}
                           >
-                            <Edit3 className="h-4 w-4" />
-                            {(zone.streetRules ?? []).length} ruas
+                            {rule.isActive ? "Ativa" : "Inativa"}
                           </button>
 
                           <button
                             type="button"
-                            onClick={() => removeZone(zone.id)}
+                            onClick={() => removeStreetRule(zone.id, rule.id)}
                             className="flex h-11 w-11 items-center justify-center rounded-2xl border border-red-100 text-red-600"
+                            aria-label="Remover rua"
                           >
                             <Trash2 className="h-4 w-4" />
                           </button>
                         </div>
-                      </div>
-
-                      {expandedZoneIds.includes(zone.id) && (
-                        <div className="mt-4 rounded-2xl border border-dashed border-slate-200 bg-slate-50 p-4">
-                          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                            <div>
-                              <p className="text-sm font-black text-slate-900">
-                                Ruas com taxa diferenciada
-                              </p>
-                              <p className="mt-1 text-xs font-semibold text-slate-500">
-                                Se a rua nao tiver taxa especifica, sera usada a taxa padrao do bairro.
-                              </p>
-                            </div>
-
-                            <Button
-                              type="button"
-                              onClick={() => addStreetRule(zone.id)}
-                              variant="outline"
-                              size="sm"
-                            >
-                              <Plus className="h-4 w-4" />
-                              Adicionar rua
-                            </Button>
-                          </div>
-
-                          <div className="mt-4 space-y-3">
-                            {(zone.streetRules ?? []).length === 0 && (
-                              <div className="rounded-2xl border border-dashed border-slate-300 bg-white px-4 py-5 text-center text-sm font-semibold text-slate-500">
-                                Nenhuma rua com taxa diferenciada.
-                              </div>
-                            )}
-
-                            {(zone.streetRules ?? []).map((rule) => (
-                              <div
-                                key={rule.id}
-                                className="grid gap-3 rounded-2xl border border-slate-200 bg-white p-3 lg:grid-cols-[1.2fr_150px_150px_auto_auto] lg:items-center"
-                              >
-                                <Input
-                                  value={rule.streetName}
-                                  onChange={(event) =>
-                                    updateStreetRule(zone.id, rule.id, {
-                                      streetName: event.target.value,
-                                    })
-                                  }
-                                  aria-label="Nome da rua"
-                                  placeholder="Nome da rua"
-                                />
-
-                                <FeeInput
-                                  value={rule.fee}
-                                  onChange={(fee) =>
-                                    updateStreetRule(zone.id, rule.id, { fee })
-                                  }
-                                />
-
-                                <Input
-                                  value={rule.eta ?? ""}
-                                  onChange={(event) =>
-                                    updateStreetRule(zone.id, rule.id, {
-                                      eta: event.target.value,
-                                    })
-                                  }
-                                  aria-label="Tempo estimado da rua"
-                                  placeholder="Prazo opcional"
-                                />
-
-                                <button
-                                  type="button"
-                                  onClick={() =>
-                                    updateStreetRule(zone.id, rule.id, {
-                                      isActive: !rule.isActive,
-                                    })
-                                  }
-                                  className={`rounded-2xl px-4 py-3 text-xs font-black transition ${
-                                    rule.isActive
-                                      ? "bg-emerald-100 text-emerald-700"
-                                      : "bg-slate-100 text-slate-500"
-                                  }`}
-                                >
-                                  {rule.isActive ? "Ativa" : "Inativa"}
-                                </button>
-
-                                <button
-                                  type="button"
-                                  onClick={() =>
-                                    removeStreetRule(zone.id, rule.id)
-                                  }
-                                  className="flex h-11 w-11 items-center justify-center rounded-2xl border border-red-100 text-red-600"
-                                  aria-label="Remover rua"
-                                >
-                                  <Trash2 className="h-4 w-4" />
-                                </button>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      )}
+                      ))}
                     </div>
-                  ))}
-                {!loading && settings.zones.length > 0 && (
-                  <div className="flex justify-center pt-2">
-                    <Button onClick={addZone} variant="outline" size="sm">
-                      <Plus className="h-4 w-4" />
-                      Adicionar bairro
-                    </Button>
                   </div>
                 )}
-              </CardContent>
-            </Card>
+              </div>
+            ))}
+          {!loading && settings.zones.length > 0 && (
+            <div className="flex justify-center pt-2">
+              <Button onClick={addZone} variant="outline" size="sm">
+                <Plus className="h-4 w-4" />
+                Adicionar bairro
+              </Button>
+            </div>
           )}
-
-          {activeTab === "Horarios de funcionamento" && (
-            <ScheduleCard
-              openingHours={settings.openingHours}
-              updateOpeningHours={updateOpeningHours}
-            />
-          )}
-          {activeTab === "Configuracoes" && (
-            <DeliveryInfoCard
-              settings={settings}
-              updateField={updateField}
-            />
-          )}
-      </div>
+        </CardContent>
+      </Card>
     </PageContainer>
   );
 }
@@ -721,72 +660,6 @@ function StatusMetric({
         <p className="text-xs font-medium text-slate-500">{label}</p>
       </div>
     </div>
-  );
-}
-
-function DeliveryInfoCard({
-  settings,
-  updateField,
-}: {
-  settings: DeliverySettings;
-  updateField: (field: keyof DeliverySettings, value: string | boolean) => void;
-}) {
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Informacoes da entrega</CardTitle>
-        <CardDescription>
-          Dados usados no atendimento ao cliente.
-        </CardDescription>
-      </CardHeader>
-
-      <CardContent className="space-y-3">
-        <LabeledInput
-          label="Cidade"
-          value={settings.city}
-          onChange={(value) => updateField("city", value)}
-        />
-        <LabeledInput
-          label="Estado"
-          value={settings.state}
-          onChange={(value) => updateField("state", value)}
-        />
-        <LabeledInput
-          label="CEP da loja"
-          value={settings.storeCep}
-          onChange={(value) => updateField("storeCep", value)}
-        />
-        <LabeledInput
-          label="Endereco da loja"
-          value={settings.storeAddress}
-          onChange={(value) => updateField("storeAddress", value)}
-        />
-        <LabeledInput
-          label="WhatsApp para pedidos"
-          value={settings.whatsapp}
-          onChange={(value) => updateField("whatsapp", value)}
-        />
-      </CardContent>
-    </Card>
-  );
-}
-
-function LabeledInput({
-  label,
-  value,
-  onChange,
-}: {
-  label: string;
-  value: string;
-  onChange: (value: string) => void;
-}) {
-  return (
-    <label className="block">
-      <span className="mb-1.5 block text-xs font-bold text-slate-500">
-        {label}
-      </span>
-      <Input value={value} onChange={(event) => onChange(event.target.value)} />
-    </label>
   );
 }
 
@@ -840,89 +713,5 @@ function FeeInput({
       placeholder="0,00"
       aria-label="Taxa de entrega"
     />
-  );
-}
-
-function ScheduleCard({
-  openingHours,
-  updateOpeningHours,
-}: {
-  openingHours: DeliveryOpeningHours;
-  updateOpeningHours: (
-    key: keyof Omit<DeliveryOpeningHours, "weekday">,
-    patch: Partial<OpeningHourRange>,
-  ) => void;
-}) {
-  const days: Array<{
-    key: keyof Omit<DeliveryOpeningHours, "weekday">;
-    label: string;
-  }> = [
-    { key: "monday", label: "Segunda-feira" },
-    { key: "tuesday", label: "Terca-feira" },
-    { key: "wednesday", label: "Quarta-feira" },
-    { key: "thursday", label: "Quinta-feira" },
-    { key: "friday", label: "Sexta-feira" },
-    { key: "saturday", label: "Sabado" },
-    { key: "sunday", label: "Domingo" },
-  ];
-
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Horarios de funcionamento</CardTitle>
-        <CardDescription>
-          Configure quando sua pizzaria aceita pedidos de entrega.
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="grid gap-3 md:grid-cols-2">
-        {days.map((day) => (
-          <div
-            key={day.key}
-            className="rounded-3xl border border-slate-200 bg-slate-50 p-4"
-          >
-            <div className="flex items-center justify-between gap-3">
-              <p className="text-sm font-black text-slate-950">{day.label}</p>
-              <button
-                type="button"
-                onClick={() =>
-                  updateOpeningHours(day.key, {
-                    enabled: openingHours[day.key].enabled === false,
-                  })
-                }
-                className={`rounded-full px-3 py-1 text-xs font-black transition ${
-                  openingHours[day.key].enabled === false
-                    ? "bg-slate-200 text-slate-500"
-                    : "bg-emerald-100 text-emerald-700"
-                }`}
-              >
-                {openingHours[day.key].enabled === false ? "Fechado" : "Aberto"}
-              </button>
-            </div>
-            <div
-              className={`mt-3 grid grid-cols-2 gap-2 ${
-                openingHours[day.key].enabled === false ? "opacity-45" : ""
-              }`}
-            >
-              <Input
-                type="time"
-                value={openingHours[day.key].open}
-                disabled={openingHours[day.key].enabled === false}
-                onChange={(event) =>
-                  updateOpeningHours(day.key, { open: event.target.value })
-                }
-              />
-              <Input
-                type="time"
-                value={openingHours[day.key].close}
-                disabled={openingHours[day.key].enabled === false}
-                onChange={(event) =>
-                  updateOpeningHours(day.key, { close: event.target.value })
-                }
-              />
-            </div>
-          </div>
-        ))}
-      </CardContent>
-    </Card>
   );
 }
