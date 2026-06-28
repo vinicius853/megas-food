@@ -1,10 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Clock, CreditCard, MessageCircle, Save, Store } from "lucide-react";
 
 import { apiFetch } from "@/lib/api";
+import { lookupCep } from "@/lib/cep-lookup";
 
 import { PageContainer, PageHeader } from "@/components/layout/page-container";
 
@@ -181,13 +182,72 @@ function isOpenNow(delivery?: DeliverySettings | null) {
   return currentMinutes >= openMinutes || currentMinutes <= closeMinutes;
 }
 
+function parseLegacyStoreAddress(value?: string | null) {
+  const address = String(value ?? "").trim();
+
+  if (!address) {
+    return {
+      street: "",
+      number: "",
+      neighborhood: "",
+      complement: "",
+    };
+  }
+
+  const match = address.match(/^(.+?),\s*([^-]+?)\s*-\s*([^,]+)(?:,\s*(.+))?$/);
+
+  if (!match) {
+    return {
+      street: address,
+      number: "",
+      neighborhood: "",
+      complement: "",
+    };
+  }
+
+  return {
+    street: match[1].trim(),
+    number: match[2].trim(),
+    neighborhood: match[3].trim(),
+    complement: String(match[4] ?? "").trim(),
+  };
+}
+
+function buildLegacyStoreAddress(input: {
+  street: string;
+  number: string;
+  neighborhood: string;
+  complement: string;
+}) {
+  const street = input.street.trim();
+  const number = input.number.trim();
+  const neighborhood = input.neighborhood.trim();
+  const complement = input.complement.trim();
+
+  if (street && number && neighborhood) {
+    return `${street}, ${number} - ${neighborhood}${complement ? `, ${complement}` : ""}`;
+  }
+
+  if (street && number) return `${street}, ${number}`;
+  if (street && neighborhood) return `${street} - ${neighborhood}`;
+
+  return [street, number, neighborhood, complement].filter(Boolean).join(", ");
+}
+
+function onlyNumbers(value: string) {
+  return value.replace(/\D/g, "");
+}
+
 export default function ConfiguracoesPizzariaPage() {
   const [activeTab, setActiveTab] = useState<SettingsTab>("store");
   const [name, setName] = useState("");
   const [slug, setSlug] = useState("");
   const [phone, setPhone] = useState("");
   const [whatsapp, setWhatsapp] = useState("");
-  const [address, setAddress] = useState("");
+  const [street, setStreet] = useState("");
+  const [number, setNumber] = useState("");
+  const [neighborhood, setNeighborhood] = useState("");
+  const [complement, setComplement] = useState("");
   const [city, setCity] = useState("");
   const [state, setState] = useState("");
   const [zipCode, setZipCode] = useState("");
@@ -196,8 +256,11 @@ export default function ConfiguracoesPizzariaPage() {
   const [loading, setLoading] = useState(true);
   const [savingStore, setSavingStore] = useState(false);
   const [savingHours, setSavingHours] = useState(false);
+  const [loadingCep, setLoadingCep] = useState(false);
+  const [cepMessage, setCepMessage] = useState("");
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
+  const lastCepLookupRef = useRef("");
 
   async function loadTenant() {
     try {
@@ -214,10 +277,18 @@ export default function ConfiguracoesPizzariaPage() {
       setSlug(tenant.slug || "");
       setPhone(tenant.phone || "");
       setWhatsapp(tenant.whatsapp || "");
-      setAddress(tenant.address || deliverySettings.storeAddress || "");
+      const parsedAddress = parseLegacyStoreAddress(
+        tenant.address || deliverySettings.storeAddress,
+      );
+      setStreet(parsedAddress.street);
+      setNumber(parsedAddress.number);
+      setNeighborhood(parsedAddress.neighborhood);
+      setComplement(parsedAddress.complement);
       setCity(tenant.city || deliverySettings.city || "");
       setState(tenant.state || deliverySettings.state || "");
       setZipCode(tenant.zipCode || deliverySettings.storeCep || "");
+      lastCepLookupRef.current = "";
+      setCepMessage("");
       setDelivery({
         ...deliverySettings,
         openingHours: normalizeOpeningHours(deliverySettings.openingHours),
@@ -228,6 +299,46 @@ export default function ConfiguracoesPizzariaPage() {
       );
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function searchCep(value = zipCode) {
+    const cleanCep = onlyNumbers(value);
+
+    if (cleanCep.length !== 8 || cleanCep === lastCepLookupRef.current) {
+      return;
+    }
+
+    try {
+      lastCepLookupRef.current = cleanCep;
+      setLoadingCep(true);
+      setCepMessage("");
+
+      const result = await lookupCep(cleanCep);
+
+      if (!result) {
+        setCepMessage("CEP não encontrado. Preencha o endereço manualmente.");
+        return;
+      }
+
+      setStreet(result.street);
+      setNeighborhood(result.neighborhood);
+      setCity(result.city);
+      setState(result.state);
+    } catch {
+      setCepMessage("Não foi possível buscar o CEP. Preencha manualmente.");
+    } finally {
+      setLoadingCep(false);
+    }
+  }
+
+  function handleCepChange(value: string) {
+    setZipCode(value);
+    setCepMessage("");
+
+    const cleanCep = onlyNumbers(value);
+    if (cleanCep.length === 8) {
+      void searchCep(value);
     }
   }
 
@@ -245,12 +356,19 @@ export default function ConfiguracoesPizzariaPage() {
         throw new Error("Informe o slug do cardapio.");
       }
 
+      const storeAddress = buildLegacyStoreAddress({
+        street,
+        number,
+        neighborhood,
+        complement,
+      });
+
       const payload = {
         name: name.trim(),
         slug: slug.trim(),
         phone: phone.trim() || undefined,
         whatsapp: whatsapp.trim() || undefined,
-        address: address.trim() || undefined,
+        address: storeAddress || undefined,
         city: city.trim() || undefined,
         state: state.trim() || undefined,
         zipCode: zipCode.trim() || undefined,
@@ -270,7 +388,7 @@ export default function ConfiguracoesPizzariaPage() {
             city: city.trim(),
             state: state.trim(),
             storeCep: zipCode.trim(),
-            storeAddress: address.trim(),
+            storeAddress,
             whatsapp: whatsapp.trim(),
           }),
         },
@@ -435,13 +553,44 @@ export default function ConfiguracoesPizzariaPage() {
                   />
                 </div>
 
-                <LabeledInput
-                  label="Endereco fisico da loja"
-                  value={address}
-                  onChange={setAddress}
-                />
+                <div className="grid gap-4 md:grid-cols-[180px_1fr]">
+                  <LabeledInput
+                    label="CEP"
+                    value={zipCode}
+                    onChange={handleCepChange}
+                    onBlur={() => void searchCep()}
+                    helper={
+                      loadingCep
+                        ? "Buscando endereço..."
+                        : cepMessage || undefined
+                    }
+                  />
+                  <LabeledInput
+                    label="Rua / Logradouro"
+                    value={street}
+                    onChange={setStreet}
+                  />
+                </div>
 
-                <div className="grid gap-4 md:grid-cols-[1fr_160px_1fr]">
+                <div className="grid gap-4 md:grid-cols-[160px_1fr_1fr]">
+                  <LabeledInput
+                    label="Numero"
+                    value={number}
+                    onChange={setNumber}
+                  />
+                  <LabeledInput
+                    label="Bairro"
+                    value={neighborhood}
+                    onChange={setNeighborhood}
+                  />
+                  <LabeledInput
+                    label="Complemento"
+                    value={complement}
+                    onChange={setComplement}
+                  />
+                </div>
+
+                <div className="grid gap-4 md:grid-cols-[1fr_160px]">
                   <LabeledInput
                     label="Cidade"
                     value={city}
@@ -451,11 +600,6 @@ export default function ConfiguracoesPizzariaPage() {
                     label="Estado"
                     value={state}
                     onChange={setState}
-                  />
-                  <LabeledInput
-                    label="CEP"
-                    value={zipCode}
-                    onChange={setZipCode}
                   />
                 </div>
 
@@ -587,17 +731,23 @@ function LabeledInput({
   label,
   value,
   onChange,
+  onBlur,
   helper,
 }: {
   label: string;
   value: string;
   onChange: (value: string) => void;
+  onBlur?: () => void;
   helper?: string;
 }) {
   return (
     <label className="grid gap-1.5">
       <span className="text-sm font-bold text-slate-700">{label}</span>
-      <Input value={value} onChange={(event) => onChange(event.target.value)} />
+      <Input
+        value={value}
+        onBlur={onBlur}
+        onChange={(event) => onChange(event.target.value)}
+      />
       {helper && <span className="text-xs text-slate-500">{helper}</span>}
     </label>
   );
