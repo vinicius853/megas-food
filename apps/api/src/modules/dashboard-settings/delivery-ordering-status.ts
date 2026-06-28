@@ -16,6 +16,8 @@ type DeliveryOrderingStatus = {
   message?: string;
 };
 
+const ORDERING_TIME_ZONE = 'America/Sao_Paulo';
+
 const weekDayKeys = [
   'sunday',
   'monday',
@@ -40,7 +42,20 @@ export function resolveDeliveryOrderingStatus(
     };
   }
 
-  const openingRange = getOpeningRange(delivery?.openingHours, date);
+  const localTime = getLocalTimeInOrderingZone(date);
+  const previousOpeningRange = getOpeningRange(
+    delivery?.openingHours,
+    localTime.previousDayIndex,
+  );
+
+  if (isOpenFromPreviousOvernightRange(previousOpeningRange, localTime.minutes)) {
+    return { canAcceptOrders: true };
+  }
+
+  const openingRange = getOpeningRange(
+    delivery?.openingHours,
+    localTime.dayIndex,
+  );
 
   if (!openingRange) {
     return { canAcceptOrders: true };
@@ -61,11 +76,12 @@ export function resolveDeliveryOrderingStatus(
     return { canAcceptOrders: true };
   }
 
-  const currentMinutes = date.getHours() * 60 + date.getMinutes();
-  const isOpen =
-    openMinutes <= closeMinutes
-      ? currentMinutes >= openMinutes && currentMinutes <= closeMinutes
-      : currentMinutes >= openMinutes || currentMinutes <= closeMinutes;
+  const isOpen = isOpenInCurrentDayRange(
+    openingRange,
+    localTime.minutes,
+    openMinutes,
+    closeMinutes,
+  );
 
   return isOpen
     ? { canAcceptOrders: true }
@@ -76,6 +92,41 @@ export function resolveDeliveryOrderingStatus(
       };
 }
 
+function isOpenFromPreviousOvernightRange(
+  openingRange: OpeningHourRange | null,
+  currentMinutes: number,
+) {
+  if (!openingRange || openingRange.enabled === false) {
+    return false;
+  }
+
+  const openMinutes = timeToMinutes(openingRange.open);
+  const closeMinutes = timeToMinutes(openingRange.close);
+
+  if (
+    openMinutes === null ||
+    closeMinutes === null ||
+    openMinutes <= closeMinutes
+  ) {
+    return false;
+  }
+
+  return currentMinutes <= closeMinutes;
+}
+
+function isOpenInCurrentDayRange(
+  openingRange: OpeningHourRange,
+  currentMinutes: number,
+  openMinutes: number,
+  closeMinutes: number,
+) {
+  if (openMinutes <= closeMinutes) {
+    return currentMinutes >= openMinutes && currentMinutes <= closeMinutes;
+  }
+
+  return currentMinutes >= openMinutes;
+}
+
 function getDeliverySettings(settings: unknown) {
   if (!isRecord(settings) || !isRecord(settings.delivery)) {
     return null;
@@ -84,12 +135,12 @@ function getDeliverySettings(settings: unknown) {
   return settings.delivery;
 }
 
-function getOpeningRange(openingHours: unknown, date: Date) {
+function getOpeningRange(openingHours: unknown, dayIndex: number) {
   if (!isRecord(openingHours)) {
     return null;
   }
 
-  const dayKey = weekDayKeys[date.getDay()];
+  const dayKey = weekDayKeys[dayIndex];
   const dayRange = openingHours[dayKey];
 
   if (isOpeningHourRange(dayRange)) {
@@ -98,14 +149,67 @@ function getOpeningRange(openingHours: unknown, date: Date) {
 
   const weekdayRange = openingHours.weekday;
   if (
-    date.getDay() !== 0 &&
-    date.getDay() !== 6 &&
+    dayIndex !== 0 &&
+    dayIndex !== 6 &&
     isOpeningHourRange(weekdayRange)
   ) {
     return weekdayRange;
   }
 
   return null;
+}
+
+function getLocalTimeInOrderingZone(date: Date) {
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: ORDERING_TIME_ZONE,
+    weekday: 'short',
+    hour: '2-digit',
+    minute: '2-digit',
+    hourCycle: 'h23',
+  }).formatToParts(date);
+  const weekday = parts.find((part) => part.type === 'weekday')?.value;
+  const hour = Number(parts.find((part) => part.type === 'hour')?.value);
+  const minute = Number(parts.find((part) => part.type === 'minute')?.value);
+  const dayIndex = getWeekdayIndex(weekday);
+
+  if (
+    dayIndex === null ||
+    !Number.isInteger(hour) ||
+    !Number.isInteger(minute)
+  ) {
+    return {
+      dayIndex: date.getDay(),
+      previousDayIndex: (date.getDay() + 6) % 7,
+      minutes: date.getHours() * 60 + date.getMinutes(),
+    };
+  }
+
+  return {
+    dayIndex,
+    previousDayIndex: (dayIndex + 6) % 7,
+    minutes: hour * 60 + minute,
+  };
+}
+
+function getWeekdayIndex(value: string | undefined) {
+  switch (value) {
+    case 'Sun':
+      return 0;
+    case 'Mon':
+      return 1;
+    case 'Tue':
+      return 2;
+    case 'Wed':
+      return 3;
+    case 'Thu':
+      return 4;
+    case 'Fri':
+      return 5;
+    case 'Sat':
+      return 6;
+    default:
+      return null;
+  }
 }
 
 function isOpeningHourRange(value: unknown): value is OpeningHourRange {

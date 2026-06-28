@@ -117,6 +117,30 @@ describe('DashboardSettingsService customization', () => {
     expect(settings.customization.brandName).toBe('Pizzaria da Praça');
   });
 
+  it('salva horarios em settings.delivery.openingHours sem criar outra fonte', async () => {
+    const openingHours = {
+      monday: { enabled: true, open: '18:00', close: '00:30' },
+      tuesday: { enabled: true, open: '16:00', close: '01:30' },
+    };
+    const { prisma, service } = setup({
+      settings: {
+        delivery: {
+          isDeliveryOpen: true,
+          city: 'Sao Paulo',
+          openingHours: {
+            monday: { enabled: false, open: '', close: '' },
+          },
+        },
+      },
+    });
+
+    await service.updateDelivery('tenant-1', { openingHours });
+
+    const settings = prisma.tenant.update.mock.calls[0][0].data.settings;
+    expect(settings.delivery.openingHours).toEqual(openingHours);
+    expect(settings.openingHours).toBeUndefined();
+  });
+
   it.each([[''], ['   '], [null]])(
     'remove override %p e volta para tenant.name',
     async (brandName) => {
