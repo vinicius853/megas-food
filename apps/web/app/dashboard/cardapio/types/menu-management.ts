@@ -1,5 +1,7 @@
 import type { Dispatch, SetStateAction } from 'react'
 
+import { parseCurrencyInput } from '../../../../lib/currency'
+
 export type StaticTab =
   | 'pizzas'
   | 'bebidas'
@@ -210,15 +212,7 @@ export function isSquareSize(size: SizeOptionMatrixRow) {
 }
 
 export function parseMoney(value: unknown) {
-  if (typeof value === 'number') return value
-
-  const normalized = String(value ?? '0')
-    .replace(/\./g, '')
-    .replace(',', '.')
-
-  const parsed = Number(normalized)
-
-  return Number.isFinite(parsed) ? parsed : 0
+  return parseCurrencyInput(value)
 }
 
 export function parsePositiveInteger(value: unknown, fallback = 1) {
